@@ -52,10 +52,16 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration()
-        configuration.allowedOrigins = appProperties.cors.allowedOrigins.split(",")
+        
+        // Allow configured origins (web apps) and null origin (mobile apps)
+        val origins = appProperties.cors.allowedOrigins.split(",").toMutableList()
+        // Mobile native apps don't send Origin header, so we need to allow all origins for API
+        configuration.allowedOriginPatterns = listOf("*")  // Allow all origins including mobile apps
+        
         configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
         configuration.allowedHeaders = listOf("*")
-        configuration.allowCredentials = true
+        configuration.exposedHeaders = listOf("Authorization", "Content-Type")
+        configuration.allowCredentials = false  // Must be false when using wildcard origins
         configuration.maxAge = 3600L
         
         val source = UrlBasedCorsConfigurationSource()

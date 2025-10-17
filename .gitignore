@@ -76,3 +76,4 @@ docker-compose.override.yml
 *.bak
 *.swp
 *~
+PRODUCTION_GOOGLE_AUTH_CHECKLIST.md

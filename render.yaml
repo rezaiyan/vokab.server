@@ -45,9 +45,13 @@ services:
           name: vokab-db
           property: password
       
-      # DATABASE_URL will be constructed manually after deployment
-      # Format: jdbc:postgresql://<host>:5432/vokabdb
-      # Or set it manually in Render Dashboard using the internal database URL
+      # DATABASE_URL must be set manually in Render Dashboard after deployment
+      # Get the Internal Database URL from your vokab-db database
+      # Convert from: postgres://user:password@host:5432/vokabdb
+      # To JDBC format: jdbc:postgresql://host:5432/vokabdb
+      # Then set it in Environment Variables section
+      - key: DATABASE_URL
+        sync: false # Must be set manually in Render Dashboard
       
       - key: DATABASE_DRIVER
         value: org.postgresql.Driver

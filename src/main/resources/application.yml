@@ -3,6 +3,8 @@ spring:
     name: vokab-server
   
   datasource:
+    # DATABASE_URL should be set in production (e.g., jdbc:postgresql://host:5432/vokabdb)
+    # Falls back to H2 in-memory database for local development
     url: ${DATABASE_URL:jdbc:h2:mem:vokabdb}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:}
