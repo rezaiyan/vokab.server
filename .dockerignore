@@ -1,9 +1,11 @@
 # Build artifacts
 build/
 .gradle/
-*.jar
 *.war
 *.ear
+# Exclude JAR files except gradle-wrapper.jar
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
 # IDE files
 .idea/

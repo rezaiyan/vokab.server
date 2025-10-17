@@ -11,11 +11,12 @@
 firebase-service-account.json
 google-services.json
 
-# Build artifacts
+# Build artifacts (but keep gradle wrapper)
 build/
 .gradle/
 out/
 target/
+# Note: gradle/ wrapper directory is needed for Docker builds
 
 # IDE files
 .idea/
