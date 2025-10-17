@@ -1,0 +1,65 @@
+# Render Ignore File
+# Files and directories to exclude from Render deployments
+
+# Local environment
+.env
+.env.local
+*.env
+
+# Firebase credentials (upload via Render Secret Files instead)
+*firebase-adminsdk*.json
+firebase-service-account.json
+google-services.json
+
+# Build artifacts
+build/
+.gradle/
+out/
+target/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Logs
+*.log
+logs/
+server-startup.log
+
+# Database files
+*.db
+*.h2.db
+*.mv.db
+*.trace.db
+
+# Documentation (optional - remove if you want docs in deployment)
+# *.md
+# FIREBASE_SETUP.md
+
+# Test files
+src/test/
+
+# Scripts (not needed at runtime)
+scripts/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker files (not needed when using Dockerfile deployment)
+docker-compose.yml
+docker-compose.override.yml
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+

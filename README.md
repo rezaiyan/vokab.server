@@ -43,7 +43,7 @@ src/main/kotlin/com/alirezaiyan/vokab/server/
 
 ## Getting Started
 
-### Quick Start (3 Steps)
+### Local Development (3 Steps)
 
 ```bash
 # 1. Copy environment template
@@ -59,6 +59,14 @@ nano .env  # Add OPENROUTER_API_KEY and GOOGLE_CLIENT_ID
 **🎉 That's it!** Server is running on `http://localhost:8080`
 
 Test it: `curl http://localhost:8080/api/v1/health`
+
+### Production Deployment (5 Minutes)
+
+Deploy to Render.com with auto-deployments:
+
+**📋 See [QUICKSTART_RENDER.md](QUICKSTART_RENDER.md) for step-by-step guide**
+
+Or full documentation: [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)
 
 ### Prerequisites
 
@@ -136,6 +144,13 @@ docker-compose up -d
 #### Option 4: Manual
 ```bash
 ./gradlew bootRun
+```
+
+#### Option 5: Deploy to Render.com (Production)
+```bash
+# See RENDER_DEPLOYMENT.md for detailed instructions
+# Quick start:
+git push origin main  # Auto-deploys to Render
 ```
 
 The server will start on port 8080 (configurable via `PORT` environment variable).
@@ -261,8 +276,30 @@ Supported events:
 
 ## Monitoring
 
-- Health check: `GET /actuator/health`
+- Health check: `GET /api/v1/health`
 - H2 Console (dev only): http://localhost:8080/h2-console
+
+## Deployment
+
+### Render.com (Recommended for Production)
+
+This project is configured for one-click deployment on Render.com:
+
+1. Push to Git repository
+2. Connect to Render using the included `render.yaml` blueprint
+3. Add required environment variables (API keys)
+4. Auto-deploy on every push
+
+**See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for complete deployment guide.**
+
+### Other Platforms
+
+The application can also be deployed on:
+- **Heroku**: Use included Dockerfile
+- **AWS ECS/Fargate**: Deploy Docker container
+- **Google Cloud Run**: Deploy Docker container
+- **DigitalOcean App Platform**: Use Dockerfile
+- **Railway**: Connect Git repository
 
 ## License
 

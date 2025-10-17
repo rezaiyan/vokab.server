@@ -1,0 +1,120 @@
+# Render Blueprint for Vokab Server
+# This file defines the infrastructure as code for deploying on Render.com
+# See: https://render.com/docs/infrastructure-as-code
+
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: vokab-db
+    env: docker
+    plan: free # Change to 'starter' or higher for production
+    region: oregon # Change to your preferred region
+    databaseName: vokabdb
+    databaseUser: vokab_user
+    ipAllowList: [] # Empty list allows all IPs
+
+  # Spring Boot Application
+  - type: web
+    name: vokab-server
+    env: docker
+    plan: free # Change to 'starter' or higher for production
+    region: oregon # Change to your preferred region
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    
+    # Health check endpoint
+    healthCheckPath: /api/v1/health
+    
+    # Auto-deploy from Git
+    autoDeploy: true
+    
+    # Environment variables
+    envVars:
+      # Database Configuration (automatically provided by Render PostgreSQL)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vokab-db
+          property: connectionString
+      
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: vokab-db
+          property: user
+      
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: vokab-db
+          property: password
+      
+      - key: DATABASE_DRIVER
+        value: org.postgresql.Driver
+      
+      - key: HIBERNATE_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+      
+      # JWT Configuration (REQUIRED - Set in Render Dashboard)
+      - key: JWT_SECRET
+        sync: false # Set manually in Render Dashboard
+      
+      - key: JWT_EXPIRATION_MS
+        value: 86400000
+      
+      - key: JWT_REFRESH_EXPIRATION_MS
+        value: 604800000
+      
+      # Google OAuth (REQUIRED - Set in Render Dashboard)
+      - key: GOOGLE_CLIENT_ID
+        sync: false # Set manually in Render Dashboard
+      
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false # Set manually in Render Dashboard
+      
+      # Firebase Configuration (OPTIONAL)
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: "" # Leave empty if using Firebase from secret file
+      
+      # OpenRouter AI (REQUIRED - Set in Render Dashboard)
+      - key: OPENROUTER_API_KEY
+        sync: false # Set manually in Render Dashboard
+      
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      
+      # RevenueCat Configuration (OPTIONAL)
+      - key: REVENUECAT_WEBHOOK_SECRET
+        sync: false # Set manually in Render Dashboard if using
+      
+      - key: REVENUECAT_API_KEY
+        sync: false # Set manually in Render Dashboard if using
+      
+      # CORS Configuration
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://yourdomain.com,https://app.yourdomain.com # Update with your domains
+      
+      # Server Configuration
+      - key: PORT
+        value: 8080
+      
+      # Feature Flags
+      - key: PREMIUM_FEATURES_ENABLED
+        value: true
+      
+      - key: AI_IMAGE_EXTRACTION_ENABLED
+        value: true
+      
+      - key: AI_DAILY_INSIGHT_ENABLED
+        value: true
+      
+      - key: PUSH_NOTIFICATIONS_ENABLED
+        value: true
+      
+      - key: SUBSCRIPTIONS_ENABLED
+        value: true
+      
+      - key: FREE_AI_EXTRACTION_LIMIT
+        value: 10
+      
+      # Java Options for optimization
+      - key: JAVA_OPTS
+        value: -Xmx512m -Xms256m
+
