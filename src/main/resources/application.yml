@@ -1,15 +1,16 @@
 spring:
   application:
     name: vokab-server
-  
+
   datasource:
-    # DATABASE_URL should be set in production (e.g., jdbc:postgresql://host:5432/vokabdb)
-    # Falls back to H2 in-memory database for local development
+    # Render: set DATABASE_URL to a JDBC URL, e.g.:
+    # jdbc:postgresql://<HOST>:5432/vokabdb?sslmode=require
     url: ${DATABASE_URL:jdbc:h2:mem:vokabdb}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:}
+    # Tip: you can omit driver-class-name and let Spring pick it from the URL
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
-  
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,12 +18,13 @@ spring:
     open-in-view: false
     properties:
       hibernate:
+        # In prod, set HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
         dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.H2Dialect}
         format_sql: true
-  
+
   h2:
     console:
-      enabled: true
+      enabled: ${H2_CONSOLE_ENABLED:true}   # set to false in prod
       path: /h2-console
 
 server:
@@ -38,23 +40,23 @@ server:
 app:
   jwt:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
-    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
-  
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+
   firebase:
     service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:}
-  
+
   openrouter:
     api-key: ${OPENROUTER_API_KEY:your-openrouter-api-key}
     base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
-  
+
   revenuecat:
     webhook-secret: ${REVENUECAT_WEBHOOK_SECRET:your-revenuecat-webhook-secret}
     api-key: ${REVENUECAT_API_KEY:your-revenuecat-api-key}
-  
+
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8081}
-  
+
   features:
     premium-features-enabled: ${PREMIUM_FEATURES_ENABLED:true}
     ai-image-extraction-enabled: ${AI_IMAGE_EXTRACTION_ENABLED:true}
