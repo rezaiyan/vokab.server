@@ -29,8 +29,9 @@ RUN addgroup -S spring && adduser -S spring -G spring
 # Copy built JAR from builder stage
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-# Copy Firebase service account if exists (optional)
-COPY --chown=spring:spring firebase-service-account.json* /app/ 2>/dev/null || true
+# Note: Firebase service account should be provided via Render Secret Files
+# It will be mounted at /etc/secrets/firebase-service-account.json
+# See RENDER_DEPLOYMENT.md for setup instructions
 
 # Change ownership
 RUN chown -R spring:spring /app

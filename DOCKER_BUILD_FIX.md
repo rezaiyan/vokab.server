@@ -30,17 +30,35 @@ This tells Docker to:
 1. ✅ Exclude all `.jar` files
 2. ✅ BUT include `gradle/wrapper/gradle-wrapper.jar` (negation with `!`)
 
+## Additional Issue Found
+
+### Line 33: Invalid COPY Syntax
+
+**Problem:**
+```dockerfile
+COPY --chown=spring:spring firebase-service-account.json* /app/ 2>/dev/null || true
+```
+
+The `COPY` command doesn't execute in a shell, so shell operators like `2>/dev/null || true` cause errors.
+
+**Solution:**
+Removed the line entirely. Firebase credentials should be provided via Render's **Secret Files** feature, not copied from the repository:
+- Render mounts secrets at `/etc/secrets/`
+- Set `FIREBASE_SERVICE_ACCOUNT_PATH=/etc/secrets/firebase-service-account.json`
+- See `RENDER_DEPLOYMENT.md` for setup instructions
+
 ## Files Changed
 
 1. `.dockerignore` - Added exception for gradle-wrapper.jar
 2. `.renderignore` - Added clarifying comment
+3. `Dockerfile` - Removed invalid COPY command with shell operators
 
 ## How to Deploy the Fix
 
 ```bash
-# Commit the fix
-git add .dockerignore .renderignore
-git commit -m "fix: Allow gradle-wrapper.jar in Docker build context"
+# Commit all fixes
+git add .dockerignore .renderignore Dockerfile DOCKER_BUILD_FIX.md
+git commit -m "fix: Docker build issues - gradle wrapper and COPY syntax"
 
 # Push to trigger Render deployment
 git push origin main

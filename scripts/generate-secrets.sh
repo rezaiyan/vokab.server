@@ -38,3 +38,4 @@ echo "  - OPENROUTER_API_KEY: https://openrouter.ai/keys"
 echo "  - REVENUECAT_API_KEY: https://app.revenuecat.com/"
 echo ""
 
+
