@@ -36,13 +36,22 @@ git push -u origin main
 - Web service
 - Environment variables (with defaults)
 
-## Step 4: Add Secret Keys (2 minutes)
+## Step 4: Configure Database Connection (1 minute)
 
-After deployment starts, go to your web service:
+After deployment starts:
 
-**Dashboard → vokab-server → Environment**
+**Dashboard → vokab-db (PostgreSQL database)**
 
-Add these **required** secrets:
+1. Copy the **Internal Database URL** (starts with `postgres://`)
+2. Go to **Dashboard → vokab-server → Environment**
+3. Add/Update `DATABASE_URL`:
+   - Copy the internal URL
+   - Change `postgres://` to `jdbc:postgresql://`
+   - Example: `jdbc:postgresql://dpg-xxxxx:5432/vokabdb`
+
+## Step 5: Add Secret Keys (2 minutes)
+
+In the same Environment section, add these **required** secrets:
 
 | Variable | Where to Get | Example |
 |----------|-------------|---------|
@@ -55,7 +64,7 @@ Add these **required** secrets:
 - `REVENUECAT_WEBHOOK_SECRET`
 - `REVENUECAT_API_KEY`
 
-## Step 5: Update CORS Origins
+## Step 6: Update CORS Origins
 
 In the same Environment section:
 
@@ -65,13 +74,13 @@ In the same Environment section:
    https://yourdomain.com,https://app.yourdomain.com
    ```
 
-## Step 6: Deploy!
+## Step 7: Deploy!
 
 Click **"Manual Deploy"** → **"Deploy latest commit"**
 
 Wait ~3-5 minutes for the build to complete.
 
-## Step 7: Verify Deployment ✅
+## Step 8: Verify Deployment ✅
 
 Once status shows **"Live"**, test the health endpoint:
 

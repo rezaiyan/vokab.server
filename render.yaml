@@ -2,16 +2,15 @@
 # This file defines the infrastructure as code for deploying on Render.com
 # See: https://render.com/docs/infrastructure-as-code
 
-services:
+databases:
   # PostgreSQL Database
-  - type: pserv
-    name: vokab-db
-    env: docker
+  - name: vokab-db
     plan: free # Change to 'starter' or higher for production
     region: oregon # Change to your preferred region
     databaseName: vokabdb
-    databaseUser: vokab_user
-    ipAllowList: [] # Empty list allows all IPs
+    user: vokab_user
+
+services:
 
   # Spring Boot Application
   - type: web
@@ -31,10 +30,10 @@ services:
     # Environment variables
     envVars:
       # Database Configuration (automatically provided by Render PostgreSQL)
-      - key: DATABASE_URL
+      - key: DATABASE_HOST
         fromDatabase:
           name: vokab-db
-          property: connectionString
+          property: host
       
       - key: DATABASE_USERNAME
         fromDatabase:
@@ -45,6 +44,10 @@ services:
         fromDatabase:
           name: vokab-db
           property: password
+      
+      # DATABASE_URL will be constructed manually after deployment
+      # Format: jdbc:postgresql://<host>:5432/vokabdb
+      # Or set it manually in Render Dashboard using the internal database URL
       
       - key: DATABASE_DRIVER
         value: org.postgresql.Driver

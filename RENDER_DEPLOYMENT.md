@@ -101,11 +101,16 @@ This method uses the `render.yaml` file to automatically configure all services.
    Add all variables from `render.yaml` manually in the Environment tab.
    
    **Database (from PostgreSQL service):**
-   - `DATABASE_URL`: Copy internal connection string
-   - `DATABASE_USERNAME`: Copy from database credentials
-   - `DATABASE_PASSWORD`: Copy from database credentials
-   - `DATABASE_DRIVER`: `org.postgresql.Driver`
-   - `HIBERNATE_DIALECT`: `org.hibernate.dialect.PostgreSQLDialect`
+   1. Go to your database (vokab-db) and copy the **Internal Database URL**
+   2. Convert it to JDBC format:
+      - Render provides: `postgres://user:password@host:5432/dbname`
+      - Convert to: `jdbc:postgresql://host:5432/dbname`
+   3. Set these environment variables:
+      - `DATABASE_URL`: `jdbc:postgresql://host:5432/vokabdb` (converted URL)
+      - `DATABASE_USERNAME`: Copy from database credentials
+      - `DATABASE_PASSWORD`: Copy from database credentials
+      - `DATABASE_DRIVER`: `org.postgresql.Driver`
+      - `HIBERNATE_DIALECT`: `org.hibernate.dialect.PostgreSQLDialect`
    
    **Application Secrets:**
    - Add all required secrets listed in Option 1, step 3
@@ -217,9 +222,13 @@ Common issues:
 
 ### Database Connection Errors
 
-1. Verify database is running
-2. Check `DATABASE_URL` format: `jdbc:postgresql://hostname:port/dbname`
+1. Verify database is running (status should be "Available")
+2. Check `DATABASE_URL` format is correct:
+   - Must start with `jdbc:postgresql://` (NOT `postgres://`)
+   - Example: `jdbc:postgresql://dpg-xxxxx-a:5432/vokabdb`
 3. Ensure web service and database are in the same region
+4. Use the **Internal Database URL** from Render, not the External URL
+5. Verify DATABASE_USERNAME and DATABASE_PASSWORD match the database
 
 ### High Latency
 
