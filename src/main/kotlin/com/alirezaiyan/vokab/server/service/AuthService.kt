@@ -1,0 +1,246 @@
+package com.alirezaiyan.vokab.server.service
+
+import com.alirezaiyan.vokab.server.domain.entity.RefreshToken
+import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
+import com.alirezaiyan.vokab.server.domain.repository.UserRepository
+import com.alirezaiyan.vokab.server.presentation.dto.AuthResponse
+import com.alirezaiyan.vokab.server.presentation.dto.UserDto
+import com.alirezaiyan.vokab.server.security.JwtTokenProvider
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseToken
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+
+private val logger = KotlinLogging.logger {}
+
+/**
+ * Service responsible for user authentication and token management.
+ * Uses Firebase ID tokens for Google Sign-In authentication.
+ */
+@Service
+class AuthService(
+    private val userRepository: UserRepository,
+    private val refreshTokenRepository: RefreshTokenRepository,
+    private val jwtTokenProvider: JwtTokenProvider
+) {
+    
+    /**
+     * Authenticates a user using a Firebase ID token from Google Sign-In.
+     * Creates a new user if one doesn't exist, or updates existing user's last login time.
+     * 
+     * @param idToken Firebase ID token from client
+     * @return AuthResponse containing JWT tokens and user data
+     * @throws IllegalArgumentException if token is invalid or email is missing
+     */
+    @Transactional
+    fun authenticateWithGoogle(idToken: String): AuthResponse {
+        val firebaseToken = verifyFirebaseToken(idToken)
+            ?: throw IllegalArgumentException("Invalid Firebase ID token")
+        
+        val email = firebaseToken.email 
+            ?: throw IllegalArgumentException("Email not found in Firebase token")
+        
+        logger.info { "Authenticating user: $email" }
+        
+        val user = findOrCreateUser(firebaseToken)
+        val savedUser = userRepository.save(user)
+        
+        val tokens = generateTokenPair(savedUser)
+        saveRefreshToken(tokens.refreshToken, savedUser)
+        
+        logger.info { "✅ User authenticated: ${savedUser.email}" }
+        
+        return tokens
+    }
+    
+    /**
+     * Finds an existing user or creates a new one from Firebase token data.
+     */
+    private fun findOrCreateUser(firebaseToken: FirebaseToken): User {
+        val googleId = firebaseToken.uid
+        val email = firebaseToken.email!!
+        val name = firebaseToken.name ?: email
+        val profileImageUrl = firebaseToken.picture
+        
+        return userRepository.findByGoogleId(googleId)
+            .map { existingUser ->
+                // Update last login time
+                existingUser.copy(
+                    lastLoginAt = Instant.now(),
+                    updatedAt = Instant.now()
+                )
+            }
+            .orElseGet {
+                // Check if user exists with this email (account linking)
+                userRepository.findByEmail(email)
+                    .map { existingUser ->
+                        logger.info { "Linking Google account to existing user: $email" }
+                        existingUser.copy(
+                            googleId = googleId,
+                            name = name,
+                            profileImageUrl = profileImageUrl ?: existingUser.profileImageUrl,
+                            lastLoginAt = Instant.now(),
+                            updatedAt = Instant.now()
+                        )
+                    }
+                    .orElseGet {
+                        // Create new user
+                        logger.info { "Creating new user: $email" }
+                        User(
+                            email = email,
+                            name = name,
+                            googleId = googleId,
+                            profileImageUrl = profileImageUrl,
+                            lastLoginAt = Instant.now()
+                        )
+                    }
+            }
+    }
+    
+    /**
+     * Generates access and refresh JWT tokens for a user.
+     */
+    private fun generateTokenPair(user: User): AuthResponse {
+        val accessToken = jwtTokenProvider.generateAccessToken(user.id!!, user.email)
+        val refreshToken = jwtTokenProvider.generateRefreshToken(user.id)
+        
+        return AuthResponse(
+            accessToken = accessToken,
+            refreshToken = refreshToken,
+            expiresIn = jwtTokenProvider.getExpirationTime(),
+            user = user.toDto()
+        )
+    }
+    
+    /**
+     * Saves a refresh token to the database.
+     */
+    private fun saveRefreshToken(token: String, user: User) {
+        val refreshTokenEntity = RefreshToken(
+            token = token,
+            user = user,
+            expiresAt = jwtTokenProvider.getRefreshTokenExpiryDate()
+        )
+        refreshTokenRepository.save(refreshTokenEntity)
+    }
+    
+    /**
+     * Refreshes an access token using a valid refresh token.
+     * 
+     * @param refreshToken The refresh token to use
+     * @return AuthResponse with new access token and same refresh token
+     * @throws IllegalArgumentException if refresh token is invalid, revoked, or expired
+     */
+    @Transactional
+    fun refreshAccessToken(refreshToken: String): AuthResponse {
+        validateRefreshToken(refreshToken)
+        
+        val tokenEntity = refreshTokenRepository.findByToken(refreshToken)
+            .orElseThrow { IllegalArgumentException("Refresh token not found") }
+        
+        validateTokenEntity(tokenEntity)
+        
+        val user = tokenEntity.user
+        val newAccessToken = jwtTokenProvider.generateAccessToken(user.id!!, user.email)
+        
+        logger.info { "✅ Access token refreshed: ${user.email}" }
+        
+        return AuthResponse(
+            accessToken = newAccessToken,
+            refreshToken = refreshToken,
+            expiresIn = jwtTokenProvider.getExpirationTime(),
+            user = user.toDto()
+        )
+    }
+    
+    /**
+     * Validates the JWT signature and format of a refresh token.
+     */
+    private fun validateRefreshToken(token: String) {
+        if (!jwtTokenProvider.validateToken(token)) {
+            throw IllegalArgumentException("Invalid refresh token")
+        }
+    }
+    
+    /**
+     * Validates that a refresh token entity is not revoked or expired.
+     */
+    private fun validateTokenEntity(tokenEntity: RefreshToken) {
+        if (tokenEntity.revoked) {
+            throw IllegalArgumentException("Refresh token has been revoked")
+        }
+        
+        if (tokenEntity.expiresAt.isBefore(Instant.now())) {
+            throw IllegalArgumentException("Refresh token has expired")
+        }
+    }
+    
+    /**
+     * Logs out a user by revoking their refresh token.
+     * 
+     * @param userId The ID of the user logging out
+     * @param refreshToken The refresh token to revoke
+     */
+    @Transactional
+    fun logout(userId: Long, refreshToken: String) {
+        logger.info { "Logging out user: $userId" }
+        refreshTokenRepository.revokeByToken(refreshToken)
+        logger.debug { "✅ Refresh token revoked for user: $userId" }
+    }
+    
+    /**
+     * Logs out a user from all devices by revoking all their refresh tokens.
+     * 
+     * @param userId The ID of the user to log out from all sessions
+     * @throws IllegalArgumentException if user not found
+     */
+    @Transactional
+    fun logoutAll(userId: Long) {
+        logger.info { "Logging out all sessions for user: $userId" }
+        val user = userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found") }
+        refreshTokenRepository.revokeAllByUser(user)
+        logger.debug { "✅ All refresh tokens revoked for user: $userId" }
+    }
+    
+    /**
+     * Verifies a Firebase ID token using Firebase Admin SDK.
+     * The token is issued by Firebase Authentication and signed by Google's servers.
+     * 
+     * @param idTokenString The Firebase ID token to verify
+     * @return Decoded FirebaseToken if valid, null if invalid
+     */
+    private fun verifyFirebaseToken(idTokenString: String): FirebaseToken? {
+        return try {
+            logger.debug { "Verifying Firebase ID token" }
+            
+            val decodedToken = FirebaseAuth.getInstance().verifyIdToken(idTokenString)
+            
+            logger.debug { "✅ Token verified - UID: ${decodedToken.uid}, Email: ${decodedToken.email}" }
+            decodedToken
+            
+        } catch (e: Exception) {
+            logger.error(e) { "❌ Firebase token verification failed: ${e.message}" }
+            null
+        }
+    }
+    
+    /**
+     * Converts a User entity to a UserDto for API responses.
+     */
+    private fun User.toDto(): UserDto = UserDto(
+        id = this.id!!,
+        email = this.email,
+        name = this.name,
+        profileImageUrl = this.profileImageUrl,
+        subscriptionStatus = this.subscriptionStatus,
+        subscriptionExpiresAt = this.subscriptionExpiresAt?.toString(),
+        currentStreak = this.currentStreak,
+        longestStreak = this.longestStreak
+    )
+}
+

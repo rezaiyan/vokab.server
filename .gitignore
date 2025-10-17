@@ -1,0 +1,78 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Kotlin ###
+.kotlin
+
+### Environment Variables ###
+.env
+.env.local
+*.env
+
+### Firebase ###
+**/firebase-service-account.json
+**/*firebase-adminsdk*.json
+**/google-services.json
+*.json.backup
+
+### Application Secrets ###
+application-local.yml
+application-local.properties
+
+### Logs ###
+*.log
+logs/
+server-startup.log
+
+### Database ###
+*.db
+*.h2.db
+*.mv.db
+*.trace.db
+
+### Docker ###
+docker-compose.override.yml
+
+### macOS ###
+.DS_Store
+
+### Temporary files ###
+*.tmp
+*.bak
+*.swp
+*~
