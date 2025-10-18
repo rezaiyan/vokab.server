@@ -16,9 +16,21 @@ private val logger = KotlinLogging.logger {}
 class JwtTokenProvider(
     private val appProperties: AppProperties
 ) {
-    private val secretKey: SecretKey = Keys.hmacShaKeyFor(
-        appProperties.jwt.secret.toByteArray()
-    )
+    private val secretKey: SecretKey = run {
+        val rawSecret = appProperties.jwt.secret
+        val secretBytes = if (rawSecret.startsWith("base64:")) {
+            // Allow base64-encoded secrets when prefixed with 'base64:'
+            Base64.getDecoder().decode(rawSecret.removePrefix("base64:"))
+        } else {
+            rawSecret.toByteArray()
+        }
+
+        require(secretBytes.size >= 32) {
+            "JWT_SECRET must be at least 256 bits (32 bytes). Provide a longer secret or a base64-encoded key prefixed with 'base64:'."
+        }
+
+        Keys.hmacShaKeyFor(secretBytes)
+    }
     
     fun generateAccessToken(userId: Long, email: String): String {
         val now = Date()

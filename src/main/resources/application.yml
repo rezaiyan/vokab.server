@@ -43,9 +43,6 @@ app:
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
 
-  firebase:
-    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:}
-
   openrouter:
     api-key: ${OPENROUTER_API_KEY:your-openrouter-api-key}
     base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}

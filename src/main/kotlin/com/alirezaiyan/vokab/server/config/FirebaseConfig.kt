@@ -25,6 +25,19 @@ class FirebaseConfig(
                 return FirebaseApp.getInstance()
             }
             
+            // Try to initialize using FIREBASE_CREDENTIALS_JSON if provided
+            val credentialsJson = System.getenv("FIREBASE_CREDENTIALS_JSON")?.trim()
+            if (!credentialsJson.isNullOrBlank()) {
+                val serviceAccount = credentialsJson.byteInputStream()
+                val options = FirebaseOptions.builder()
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    .build()
+
+                val app = FirebaseApp.initializeApp(options)
+                logger.info { "✅ Firebase initialized successfully using FIREBASE_CREDENTIALS_JSON" }
+                return app
+            }
+
             // Try to initialize with service account file if configured
             if (appProperties.firebase.serviceAccountPath.isNotBlank()) {
                 val serviceAccountFile = File(appProperties.firebase.serviceAccountPath)
