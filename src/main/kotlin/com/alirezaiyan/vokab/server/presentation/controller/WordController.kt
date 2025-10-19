@@ -47,6 +47,35 @@ class WordController(
         wordService.delete(user, id)
         return ResponseEntity.ok(ApiResponse(success = true, message = "Deleted"))
     }
+    
+    @PostMapping("/batch-delete")
+    fun batchDelete(
+        @AuthenticationPrincipal user: User,
+        @RequestBody request: BatchDeleteRequest
+    ): ResponseEntity<ApiResponse<BatchDeleteResponse>> {
+        wordService.batchDelete(user, request.ids)
+        return ResponseEntity.ok(
+            ApiResponse(
+                success = true, 
+                message = "Deleted ${request.ids.size} words",
+                data = BatchDeleteResponse(deletedCount = request.ids.size)
+            )
+        )
+    }
 }
+
+/**
+ * Request DTO for batch delete operation
+ */
+data class BatchDeleteRequest(
+    val ids: List<Long>
+)
+
+/**
+ * Response DTO for batch delete operation
+ */
+data class BatchDeleteResponse(
+    val deletedCount: Int
+)
 
 

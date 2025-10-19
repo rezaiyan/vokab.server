@@ -58,6 +58,22 @@ class WordService(
         require(entity.user?.id == user.id) { "Forbidden" }
         wordRepository.delete(entity)
     }
+    
+    @Transactional
+    fun batchDelete(user: User, ids: List<Long>) {
+        if (ids.isEmpty()) return
+        
+        // Fetch all words to delete and verify ownership
+        val wordsToDelete = wordRepository.findAllById(ids)
+        
+        // Verify all words belong to the user
+        wordsToDelete.forEach { word ->
+            require(word.user?.id == user.id) { "Forbidden: Cannot delete word ${word.id}" }
+        }
+        
+        // Delete all in batch
+        wordRepository.deleteAll(wordsToDelete)
+    }
 }
 
 private fun Word.toDto(): WordDto = WordDto(

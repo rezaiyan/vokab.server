@@ -123,7 +123,7 @@ class OpenRouterService(
             appendLine("Quality Checks:")
             appendLine("- Each entry must have at least 2 fields (word,translation)")
             appendLine("- No empty fields before commas")
-            appendLine("- No duplicate entries")
+            appendLine("- NO duplicate entries - verify uniqueness")
             appendLine("- Minimum 1 entry")
             appendLine()
             appendLine("Valid Example:")
