@@ -25,7 +25,8 @@ private val logger = KotlinLogging.logger {}
 class AuthService(
     private val userRepository: UserRepository,
     private val refreshTokenRepository: RefreshTokenRepository,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val applePublicKeyService: ApplePublicKeyService
 ) {
     
     /**
@@ -302,50 +303,90 @@ class AuthService(
     }
     
     /**
-     * Verifies an Apple ID token (JWT).
-     * Apple ID tokens are JWTs signed by Apple and contain claims about the user.
-     * For production, you should verify the signature using Apple's public keys.
+     * Verifies an Apple ID token (JWT) with full signature verification.
+     * Apple ID tokens are JWTs signed by Apple using RS256.
+     * This implementation verifies the signature using Apple's public keys.
      * 
      * @param idTokenString The Apple ID token (JWT) to verify
      * @return Map of token claims if valid, null if invalid
      */
     private fun verifyAppleToken(idTokenString: String): Map<String, Any>? {
         return try {
-            logger.debug { "Verifying Apple ID token" }
+            logger.debug { "Verifying Apple ID token with signature verification" }
             
-            // Parse the JWT without verification (simplified for now)
-            // In production, you should verify the signature using Apple's public keys
-            // from https://appleid.apple.com/auth/keys
+            // Parse JWT header to get the key ID (kid)
             val parts = idTokenString.split(".")
             if (parts.size != 3) {
-                logger.error { "Invalid JWT format" }
+                logger.error { "Invalid JWT format - expected 3 parts, got ${parts.size}" }
                 return null
             }
             
-            // Decode the payload (second part)
-            val payload = String(java.util.Base64.getUrlDecoder().decode(parts[1]))
-            
-            // Parse JSON payload
+            // Decode header to get kid
+            val headerJson = String(java.util.Base64.getUrlDecoder().decode(parts[0]))
             val objectMapper = com.fasterxml.jackson.databind.ObjectMapper()
-            val claims = objectMapper.readValue(payload, Map::class.java) as Map<String, Any>
+            val header = objectMapper.readValue(headerJson, Map::class.java) as Map<String, Any>
             
-            // Validate issuer and audience
-            val iss = claims["iss"] as? String
+            val kid = header["kid"] as? String
+            if (kid == null) {
+                logger.error { "Missing 'kid' in JWT header" }
+                return null
+            }
+            
+            logger.debug { "Apple token kid: $kid" }
+            
+            // Get the public key for this kid
+            val publicKey = applePublicKeyService.getPublicKey(kid)
+            if (publicKey == null) {
+                logger.error { "Could not get public key for kid: $kid" }
+                return null
+            }
+            
+            // Verify the JWT signature using JJWT library
+            val jwtParser = io.jsonwebtoken.Jwts.parser()
+                .verifyWith(publicKey as java.security.interfaces.RSAPublicKey)
+                .build()
+            
+            val jwt = jwtParser.parseSignedClaims(idTokenString)
+            val claims = jwt.payload
+            
+            // Validate issuer
+            val iss = claims.issuer
             if (iss != "https://appleid.apple.com") {
-                logger.error { "Invalid issuer: $iss" }
+                logger.error { "Invalid issuer: $iss (expected https://appleid.apple.com)" }
                 return null
             }
             
-            // Validate expiration
-            val exp = (claims["exp"] as? Number)?.toLong()
-            if (exp == null || exp < System.currentTimeMillis() / 1000) {
-                logger.error { "Token expired" }
+            // Validate expiration (JJWT already checks this, but we log it)
+            val exp = claims.expiration
+            if (exp.before(Date())) {
+                logger.error { "Token expired at: $exp" }
                 return null
             }
             
-            logger.debug { "✅ Apple token verified - Sub: ${claims["sub"]}, Email: ${claims["email"]}" }
-            claims
+            // Convert claims to map
+            val claimsMap = mutableMapOf<String, Any>()
+            claimsMap["sub"] = claims.subject ?: ""
+            claimsMap["email"] = claims["email"] ?: ""
+            claimsMap["email_verified"] = claims["email_verified"] ?: false
+            claimsMap["is_private_email"] = claims["is_private_email"] ?: false
+            claimsMap["iss"] = claims.issuer
+            claimsMap["aud"] = claims.audience.firstOrNull() ?: ""
+            claimsMap["exp"] = claims.expiration.time / 1000
+            claimsMap["iat"] = claims.issuedAt?.time?.div(1000) ?: 0
             
+            logger.info { "✅ Apple token signature verified - Sub: ${claims.subject}, Email: ${claims["email"]}" }
+            
+            claimsMap
+            
+        } catch (e: io.jsonwebtoken.security.SignatureException) {
+            logger.error(e) { "❌ Apple token signature verification failed - invalid signature" }
+            null
+        } catch (e: io.jsonwebtoken.ExpiredJwtException) {
+            logger.error(e) { "❌ Apple token expired" }
+            null
+        } catch (e: io.jsonwebtoken.JwtException) {
+            logger.error(e) { "❌ Apple token verification failed - JWT error: ${e.message}" }
+            null
         } catch (e: Exception) {
             logger.error(e) { "❌ Apple token verification failed: ${e.message}" }
             null
