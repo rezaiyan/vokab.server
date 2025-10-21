@@ -28,9 +28,11 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { authorize ->
                 authorize
-                    // Public endpoints
+                    // Public endpoints - authentication not required
                     .requestMatchers(
-                        "/api/v1/auth/**",
+                        "/api/v1/auth/google",
+                        "/api/v1/auth/apple",
+                        "/api/v1/auth/refresh",
                         "/api/v1/webhooks/**",
                         "/api/v1/health",
                         "/api/v1/version",
@@ -39,7 +41,7 @@ class SecurityConfig(
                         "/actuator/health",
                         "/error"
                     ).permitAll()
-                    // All other endpoints require authentication
+                    // All other endpoints require authentication (including /auth/logout, /auth/delete-account)
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
