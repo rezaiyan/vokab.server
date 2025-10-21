@@ -9,6 +9,13 @@ data class GoogleAuthRequest(
     val idToken: String
 )
 
+data class AppleAuthRequest(
+    @field:NotBlank(message = "ID token is required")
+    val idToken: String,
+    val authorizationCode: String? = null,
+    val fullName: String? = null
+)
+
 data class RefreshTokenRequest(
     @field:NotBlank(message = "Refresh token is required")
     val refreshToken: String

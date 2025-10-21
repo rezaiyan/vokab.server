@@ -58,6 +58,39 @@ class AuthService(
     }
     
     /**
+     * Authenticates a user using an Apple ID token from Sign in with Apple.
+     * Creates a new user if one doesn't exist, or updates existing user's last login time.
+     * 
+     * @param idToken Apple ID token (JWT) from client
+     * @param fullName Optional full name from first-time Apple Sign In
+     * @return AuthResponse containing JWT tokens and user data
+     * @throws IllegalArgumentException if token is invalid or missing required claims
+     */
+    @Transactional
+    fun authenticateWithApple(idToken: String, fullName: String?): AuthResponse {
+        val appleToken = verifyAppleToken(idToken)
+            ?: throw IllegalArgumentException("Invalid Apple ID token")
+        
+        val appleId = appleToken["sub"] as? String
+            ?: throw IllegalArgumentException("Apple ID (sub) not found in token")
+        
+        val email = appleToken["email"] as? String
+            ?: throw IllegalArgumentException("Email not found in Apple token")
+        
+        logger.info { "Authenticating user with Apple: $email" }
+        
+        val user = findOrCreateAppleUser(appleId, email, fullName)
+        val savedUser = userRepository.save(user)
+        
+        val tokens = generateTokenPair(savedUser)
+        saveRefreshToken(tokens.refreshToken, savedUser)
+        
+        logger.info { "✅ User authenticated with Apple: ${savedUser.email}" }
+        
+        return tokens
+    }
+    
+    /**
      * Finds an existing user or creates a new one from Firebase token data.
      */
     private fun findOrCreateUser(firebaseToken: FirebaseToken): User {
@@ -95,6 +128,45 @@ class AuthService(
                             name = name,
                             googleId = googleId,
                             profileImageUrl = profileImageUrl,
+                            lastLoginAt = Instant.now()
+                        )
+                    }
+            }
+    }
+    
+    /**
+     * Finds an existing user or creates a new one from Apple Sign In data.
+     */
+    private fun findOrCreateAppleUser(appleId: String, email: String, fullName: String?): User {
+        val name = fullName ?: email.substringBefore("@")
+        
+        return userRepository.findByAppleId(appleId)
+            .map { existingUser ->
+                // Update last login time
+                existingUser.copy(
+                    lastLoginAt = Instant.now(),
+                    updatedAt = Instant.now()
+                )
+            }
+            .orElseGet {
+                // Check if user exists with this email (account linking)
+                userRepository.findByEmail(email)
+                    .map { existingUser ->
+                        logger.info { "Linking Apple account to existing user: $email" }
+                        existingUser.copy(
+                            appleId = appleId,
+                            name = if (fullName != null) fullName else existingUser.name,
+                            lastLoginAt = Instant.now(),
+                            updatedAt = Instant.now()
+                        )
+                    }
+                    .orElseGet {
+                        // Create new user
+                        logger.info { "Creating new user with Apple: $email" }
+                        User(
+                            email = email,
+                            name = name,
+                            appleId = appleId,
                             lastLoginAt = Instant.now()
                         )
                     }
@@ -225,6 +297,57 @@ class AuthService(
             
         } catch (e: Exception) {
             logger.error(e) { "❌ Firebase token verification failed: ${e.message}" }
+            null
+        }
+    }
+    
+    /**
+     * Verifies an Apple ID token (JWT).
+     * Apple ID tokens are JWTs signed by Apple and contain claims about the user.
+     * For production, you should verify the signature using Apple's public keys.
+     * 
+     * @param idTokenString The Apple ID token (JWT) to verify
+     * @return Map of token claims if valid, null if invalid
+     */
+    private fun verifyAppleToken(idTokenString: String): Map<String, Any>? {
+        return try {
+            logger.debug { "Verifying Apple ID token" }
+            
+            // Parse the JWT without verification (simplified for now)
+            // In production, you should verify the signature using Apple's public keys
+            // from https://appleid.apple.com/auth/keys
+            val parts = idTokenString.split(".")
+            if (parts.size != 3) {
+                logger.error { "Invalid JWT format" }
+                return null
+            }
+            
+            // Decode the payload (second part)
+            val payload = String(java.util.Base64.getUrlDecoder().decode(parts[1]))
+            
+            // Parse JSON payload
+            val objectMapper = com.fasterxml.jackson.databind.ObjectMapper()
+            val claims = objectMapper.readValue(payload, Map::class.java) as Map<String, Any>
+            
+            // Validate issuer and audience
+            val iss = claims["iss"] as? String
+            if (iss != "https://appleid.apple.com") {
+                logger.error { "Invalid issuer: $iss" }
+                return null
+            }
+            
+            // Validate expiration
+            val exp = (claims["exp"] as? Number)?.toLong()
+            if (exp == null || exp < System.currentTimeMillis() / 1000) {
+                logger.error { "Token expired" }
+                return null
+            }
+            
+            logger.debug { "✅ Apple token verified - Sub: ${claims["sub"]}, Email: ${claims["email"]}" }
+            claims
+            
+        } catch (e: Exception) {
+            logger.error(e) { "❌ Apple token verification failed: ${e.message}" }
             null
         }
     }

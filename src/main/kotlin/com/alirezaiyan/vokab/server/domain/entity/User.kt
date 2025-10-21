@@ -22,6 +22,9 @@ data class User(
     @Column(name = "google_id", unique = true)
     val googleId: String? = null,
     
+    @Column(name = "apple_id", unique = true)
+    val appleId: String? = null,
+    
     @Column(name = "profile_image_url")
     val profileImageUrl: String? = null,
     

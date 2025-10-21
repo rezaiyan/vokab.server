@@ -32,6 +32,20 @@ class AuthController(
         }
     }
     
+    @PostMapping("/apple")
+    fun authenticateWithApple(
+        @Valid @RequestBody request: AppleAuthRequest
+    ): ResponseEntity<ApiResponse<AuthResponse>> {
+        return try {
+            val response = authService.authenticateWithApple(request.idToken, request.fullName)
+            ResponseEntity.ok(ApiResponse(success = true, data = response))
+        } catch (e: Exception) {
+            logger.error(e) { "Apple authentication failed" }
+            ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse(success = false, message = "Authentication failed: ${e.message}"))
+        }
+    }
+    
     @PostMapping("/refresh")
     fun refreshToken(
         @Valid @RequestBody request: RefreshTokenRequest
