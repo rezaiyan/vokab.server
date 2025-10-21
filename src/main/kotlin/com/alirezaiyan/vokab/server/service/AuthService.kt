@@ -27,7 +27,12 @@ class AuthService(
     private val userRepository: UserRepository,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val applePublicKeyService: ApplePublicKeyService
+    private val applePublicKeyService: ApplePublicKeyService,
+    private val wordRepository: com.alirezaiyan.vokab.server.domain.repository.WordRepository,
+    private val userSettingsRepository: com.alirezaiyan.vokab.server.domain.repository.UserSettingsRepository,
+    private val dailyActivityRepository: com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository,
+    private val subscriptionRepository: com.alirezaiyan.vokab.server.domain.repository.SubscriptionRepository,
+    private val pushTokenRepository: com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository
 ) {
     
     /**
@@ -285,7 +290,7 @@ class AuthService(
      * Deletes a user account permanently.
      * This includes:
      * - Revoking all refresh tokens
-     * - Deleting all user data
+     * - Deleting all user data (words, settings, activities, subscriptions, push tokens)
      * - Removing the user from the database
      * 
      * @param userId The ID of the user to delete
@@ -300,11 +305,47 @@ class AuthService(
         
         logger.info { "Deleting account for email: ${user.email}" }
         
-        // First revoke all refresh tokens
-        refreshTokenRepository.revokeAllByUser(user)
-        logger.debug { "✅ All refresh tokens revoked for user: $userId" }
+        // Note: Apple Sign In doesn't require notifying Apple when users delete their account.
+        // Apple's Sign in with Apple documentation states that you should simply delete the user's data.
+        // Apple will notify YOU via webhook if the user deletes their Apple ID or revokes consent.
+        // Reference: https://developer.apple.com/documentation/sign_in_with_apple/revoke_tokens
         
-        // Delete the user (cascade will handle related entities)
+        // Delete all related entities in the correct order to avoid foreign key constraints
+        
+        // 1. Delete refresh tokens
+        refreshTokenRepository.revokeAllByUser(user)
+        val refreshTokens = refreshTokenRepository.findByUser(user)
+        refreshTokenRepository.deleteAll(refreshTokens)
+        logger.debug { "✅ ${refreshTokens.size} refresh tokens deleted for user: $userId" }
+        
+        // 2. Delete push tokens
+        val pushTokens = pushTokenRepository.findByUser(user)
+        pushTokenRepository.deleteAll(pushTokens)
+        logger.debug { "✅ ${pushTokens.size} push tokens deleted for user: $userId" }
+        
+        // 3. Delete words
+        val words = wordRepository.findAllByUser(user)
+        wordRepository.deleteAll(words)
+        logger.debug { "✅ ${words.size} words deleted for user: $userId" }
+        
+        // 4. Delete daily activities
+        val activities = dailyActivityRepository.findAllByUserOrderByActivityDateDesc(user)
+        dailyActivityRepository.deleteAll(activities)
+        logger.debug { "✅ ${activities.size} daily activities deleted for user: $userId" }
+        
+        // 5. Delete subscriptions
+        val subscriptions = subscriptionRepository.findByUser(user)
+        subscriptionRepository.deleteAll(subscriptions)
+        logger.debug { "✅ ${subscriptions.size} subscriptions deleted for user: $userId" }
+        
+        // 6. Delete user settings
+        val settings = userSettingsRepository.findByUser(user)
+        if (settings != null) {
+            userSettingsRepository.delete(settings)
+            logger.debug { "✅ User settings deleted for user: $userId" }
+        }
+        
+        // 7. Finally, delete the user
         userRepository.delete(user)
         logger.info { "✅ Account deleted successfully for user: $userId (${user.email})" }
     }
