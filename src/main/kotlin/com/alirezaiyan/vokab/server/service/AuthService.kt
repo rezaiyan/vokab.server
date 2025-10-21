@@ -282,6 +282,34 @@ class AuthService(
     }
     
     /**
+     * Deletes a user account permanently.
+     * This includes:
+     * - Revoking all refresh tokens
+     * - Deleting all user data
+     * - Removing the user from the database
+     * 
+     * @param userId The ID of the user to delete
+     * @throws IllegalArgumentException if user not found
+     */
+    @Transactional
+    fun deleteAccount(userId: Long) {
+        logger.info { "Deleting account for user: $userId" }
+        
+        val user = userRepository.findById(userId)
+            .orElseThrow { IllegalArgumentException("User not found") }
+        
+        logger.info { "Deleting account for email: ${user.email}" }
+        
+        // First revoke all refresh tokens
+        refreshTokenRepository.revokeAllByUser(user)
+        logger.debug { "✅ All refresh tokens revoked for user: $userId" }
+        
+        // Delete the user (cascade will handle related entities)
+        userRepository.delete(user)
+        logger.info { "✅ Account deleted successfully for user: $userId (${user.email})" }
+    }
+    
+    /**
      * Verifies a Firebase ID token using Firebase Admin SDK.
      * The token is issued by Firebase Authentication and signed by Google's servers.
      * 

@@ -88,5 +88,20 @@ class AuthController(
                 .body(ApiResponse(success = false, message = "Logout all failed: ${e.message}"))
         }
     }
+    
+    @DeleteMapping("/delete-account")
+    fun deleteAccount(
+        @AuthenticationPrincipal user: User
+    ): ResponseEntity<ApiResponse<Unit>> {
+        return try {
+            logger.info { "Delete account request received for user: ${user.id}" }
+            authService.deleteAccount(user.id!!)
+            ResponseEntity.ok(ApiResponse(success = true, message = "Account deleted successfully"))
+        } catch (e: Exception) {
+            logger.error(e) { "Delete account failed" }
+            ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Failed to delete account: ${e.message}"))
+        }
+    }
 }
 
