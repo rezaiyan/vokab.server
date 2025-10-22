@@ -24,7 +24,8 @@ class AiController(
     private val rateLimitConfig: com.alirezaiyan.vokab.server.config.RateLimitConfig,
     private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService,
     private val userRepository: com.alirezaiyan.vokab.server.domain.repository.UserRepository,
-    private val appProperties: AppProperties
+    private val appProperties: AppProperties,
+    private val userProgressService: com.alirezaiyan.vokab.server.service.UserProgressService
 ) {
     
     @PostMapping("/extract-vocabulary")
@@ -118,10 +119,9 @@ class AiController(
         }
     }
     
-    @PostMapping("/generate-insight")
+    @GetMapping("/generate-insight")
     fun generateInsight(
-        @AuthenticationPrincipal user: User,
-        @Valid @RequestBody request: GenerateInsightRequest
+        @AuthenticationPrincipal user: User
     ): Mono<ResponseEntity<ApiResponse<InsightResponse>>> {
         logger.info { "User ${user.email} generating daily insight" }
         
@@ -147,7 +147,10 @@ class AiController(
             )
         }
         
-        return openRouterService.generateDailyInsight(request.stats)
+        // Calculate actual progress stats from user's vocabulary data
+        val progressStats = userProgressService.calculateProgressStats(user)
+        
+        return openRouterService.generateDailyInsight(progressStats)
             .map { insight ->
                 val response = InsightResponse(
                     insight = insight,

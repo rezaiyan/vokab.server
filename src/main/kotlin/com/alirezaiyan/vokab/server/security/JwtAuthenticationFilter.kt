@@ -51,6 +51,10 @@ class JwtAuthenticationFilter(
             
             if (jwt == null) {
                 logger.warn { "❌ JWT Filter: No JWT token found in Authorization header for $path" }
+                response.status = HttpServletResponse.SC_UNAUTHORIZED
+                response.writer.write("{\"success\":false,\"message\":\"Authentication required\"}")
+                response.contentType = "application/json"
+                return
             } else {
                 logger.info { "🔑 JWT Filter: Found JWT token (length: ${jwt.length})" }
                 
@@ -76,16 +80,28 @@ class JwtAuthenticationFilter(
                             SecurityContextHolder.getContext().authentication = authentication
                             logger.info { "✅ JWT Filter: Authentication set successfully for user ID $it" }
                         } else {
-                            logger.warn { "❌ JWT Filter: User not found or inactive for ID $it" }
+                            logger.warn { "❌ JWT Filter: User not found or inactive for ID $it - returning 403" }
+                            response.status = HttpServletResponse.SC_FORBIDDEN
+                            response.writer.write("{\"success\":false,\"message\":\"User account has been deleted or deactivated\"}")
+                            response.contentType = "application/json"
+                            return
                         }
                     }
                 } else {
                     logger.warn { "❌ JWT Filter: Token validation failed" }
+                    response.status = HttpServletResponse.SC_UNAUTHORIZED
+                    response.writer.write("{\"success\":false,\"message\":\"Invalid or expired token\"}")
+                    response.contentType = "application/json"
+                    return
                 }
             }
         } catch (e: Exception) {
             logger.error { "💥 JWT Filter: Exception during authentication: ${e.message}" }
             logger.error { "Stack trace: ${e.stackTraceToString()}" }
+            response.status = HttpServletResponse.SC_INTERNAL_SERVER_ERROR
+            response.writer.write("{\"success\":false,\"message\":\"Authentication error\"}")
+            response.contentType = "application/json"
+            return
         }
         
         filterChain.doFilter(request, response)
