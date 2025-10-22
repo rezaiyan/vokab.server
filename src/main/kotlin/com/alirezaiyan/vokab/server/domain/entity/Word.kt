@@ -1,6 +1,7 @@
 package com.alirezaiyan.vokab.server.domain.entity
 
 import jakarta.persistence.*
+import java.time.Instant
 
 @Entity
 @Table(name = "words", indexes = [
@@ -42,6 +43,15 @@ class Word(
 
     @Column(nullable = false)
     var nextReviewDate: Long = 0L,
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
+    var createdAt: Instant = Instant.now(),
+    
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now(),
+    
+    @Version
+    var version: Long = 0
 )
 
 

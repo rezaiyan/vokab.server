@@ -32,7 +32,8 @@ class AuthService(
     private val userSettingsRepository: com.alirezaiyan.vokab.server.domain.repository.UserSettingsRepository,
     private val dailyActivityRepository: com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository,
     private val subscriptionRepository: com.alirezaiyan.vokab.server.domain.repository.SubscriptionRepository,
-    private val pushTokenRepository: com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository
+    private val pushTokenRepository: com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository,
+    private val pushNotificationService: PushNotificationService
 ) {
     
     /**
@@ -304,6 +305,23 @@ class AuthService(
             .orElseThrow { IllegalArgumentException("User not found") }
         
         logger.info { "Deleting account for email: ${user.email}" }
+        
+        // CRITICAL FIX: Send push notification to all devices before deleting account
+        // This ensures all devices are notified that the account is being deleted
+        try {
+            val notificationResults = pushNotificationService.sendNotificationToUser(
+                userId = userId,
+                title = "Account Deleted",
+                body = "Your account has been permanently deleted. Please restart the app.",
+                data = mapOf(
+                    "type" to "account_deleted",
+                    "action" to "clear_local_data"
+                )
+            )
+            logger.info { "Sent account deletion notification to ${notificationResults.size} devices" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to send account deletion notification, continuing with deletion" }
+        }
         
         // Note: Apple Sign In doesn't require notifying Apple when users delete their account.
         // Apple's Sign in with Apple documentation states that you should simply delete the user's data.
