@@ -37,13 +37,6 @@ class DailyInsightService(
             return null
         }
         
-        // Check if user has vocabulary data
-        val progressStats = userProgressService.calculateProgressStats(user)
-        if (progressStats.totalWords == 0) {
-            logger.info { "User ${user.email} has no vocabulary data, skipping insight generation" }
-            return null
-        }
-        
         val today = LocalDate.now().toString()
         
         // Check if insight already exists for today
@@ -54,7 +47,8 @@ class DailyInsightService(
         }
         
         return try {
-            // Generate AI insight
+            // Generate AI insight using user's progress data
+            val progressStats = userProgressService.calculateProgressStats(user)
             val insightText = openRouterService.generateDailyInsight(progressStats).block()
                 ?: "Keep grinding! Every word you learn levels you up! 🎮✨"
             
@@ -139,13 +133,9 @@ class DailyInsightService(
     fun generateInsightsForAllUsers(): Int {
         logger.info { "Starting batch daily insight generation" }
         
-        // Get all users with vocabulary data and premium access
+        // Get all users with premium access for AI insights
         val eligibleUsers = userRepository.findAll().filter { user ->
-            val progressStats = userProgressService.calculateProgressStats(user)
-            val hasAccess = featureAccessService.canUseAiDailyInsight(user)
-            val hasVocabulary = progressStats.totalWords > 0
-            
-            hasAccess && hasVocabulary
+            featureAccessService.canUseAiDailyInsight(user)
         }
         
         logger.info { "Found ${eligibleUsers.size} eligible users for daily insights" }
