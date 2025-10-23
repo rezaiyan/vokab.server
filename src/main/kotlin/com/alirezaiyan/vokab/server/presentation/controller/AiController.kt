@@ -25,7 +25,8 @@ class AiController(
     private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService,
     private val userRepository: com.alirezaiyan.vokab.server.domain.repository.UserRepository,
     private val appProperties: AppProperties,
-    private val userProgressService: com.alirezaiyan.vokab.server.service.UserProgressService
+    private val userProgressService: com.alirezaiyan.vokab.server.service.UserProgressService,
+    private val dailyInsightService: com.alirezaiyan.vokab.server.service.DailyInsightService
 ) {
     
     @PostMapping("/extract-vocabulary")
@@ -123,7 +124,7 @@ class AiController(
     fun generateInsight(
         @AuthenticationPrincipal user: User
     ): Mono<ResponseEntity<ApiResponse<InsightResponse>>> {
-        logger.info { "User ${user.email} generating daily insight" }
+        logger.info { "User ${user.email} requesting daily insight (fallback)" }
         
         // Check if feature is enabled and user has access
         if (!featureAccessService.canUseAiDailyInsight(user)) {
@@ -146,6 +147,26 @@ class AiController(
                     .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
             )
         }
+        
+        // Try to get today's insight first (if it was already generated)
+        val todaysInsight = dailyInsightService.getTodaysInsightForUser(user)
+        if (todaysInsight != null) {
+            logger.info { "Returning existing daily insight for user ${user.email}" }
+            return Mono.just(
+                ResponseEntity.ok(
+                    ApiResponse(
+                        success = true,
+                        data = InsightResponse(
+                            insight = todaysInsight.insightText,
+                            generatedAt = todaysInsight.generatedAt.toString()
+                        )
+                    )
+                )
+            )
+        }
+        
+        // Generate new insight if none exists for today
+        logger.info { "Generating new daily insight for user ${user.email}" }
         
         // Calculate actual progress stats from user's vocabulary data
         val progressStats = userProgressService.calculateProgressStats(user)

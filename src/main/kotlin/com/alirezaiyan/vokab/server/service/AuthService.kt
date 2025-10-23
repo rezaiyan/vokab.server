@@ -33,6 +33,7 @@ class AuthService(
     private val dailyActivityRepository: com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository,
     private val subscriptionRepository: com.alirezaiyan.vokab.server.domain.repository.SubscriptionRepository,
     private val pushTokenRepository: com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository,
+    private val dailyInsightRepository: com.alirezaiyan.vokab.server.domain.repository.DailyInsightRepository,
     private val pushNotificationService: PushNotificationService
 ) {
     
@@ -274,6 +275,7 @@ class AuthService(
     
     /**
      * Logs out a user from all devices by revoking all their refresh tokens.
+     * Also sends push notification to clear client-side data.
      * 
      * @param userId The ID of the user to log out from all sessions
      * @throws IllegalArgumentException if user not found
@@ -283,6 +285,24 @@ class AuthService(
         logger.info { "Logging out all sessions for user: $userId" }
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
+        
+        // Send push notification to clear client-side data
+        try {
+            val notificationResults = pushNotificationService.sendNotificationToUser(
+                userId = userId,
+                title = "Signed Out",
+                body = "You have been signed out from all devices. Please sign in again.",
+                data = mapOf(
+                    "type" to "sign_out",
+                    "action" to "clear_local_data",
+                    "clear_daily_insights" to "true"
+                )
+            )
+            logger.info { "Sent sign out notification to ${notificationResults.size} devices" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to send sign out notification, continuing with logout" }
+        }
+        
         refreshTokenRepository.revokeAllByUser(user)
         logger.debug { "✅ All refresh tokens revoked for user: $userId" }
     }
@@ -315,7 +335,8 @@ class AuthService(
                 body = "Your account has been permanently deleted. Please restart the app.",
                 data = mapOf(
                     "type" to "account_deleted",
-                    "action" to "clear_local_data"
+                    "action" to "clear_local_data",
+                    "clear_daily_insights" to "true"
                 )
             )
             logger.info { "Sent account deletion notification to ${notificationResults.size} devices" }
@@ -341,29 +362,34 @@ class AuthService(
         pushTokenRepository.deleteAll(pushTokens)
         logger.debug { "✅ ${pushTokens.size} push tokens deleted for user: $userId" }
         
-        // 3. Delete words
+        // 3. Delete daily insights
+        val dailyInsights = dailyInsightRepository.findByUser(user)
+        dailyInsightRepository.deleteAll(dailyInsights)
+        logger.debug { "✅ ${dailyInsights.size} daily insights deleted for user: $userId" }
+        
+        // 4. Delete words
         val words = wordRepository.findAllByUser(user)
         wordRepository.deleteAll(words)
         logger.debug { "✅ ${words.size} words deleted for user: $userId" }
         
-        // 4. Delete daily activities
+        // 5. Delete daily activities
         val activities = dailyActivityRepository.findAllByUserOrderByActivityDateDesc(user)
         dailyActivityRepository.deleteAll(activities)
         logger.debug { "✅ ${activities.size} daily activities deleted for user: $userId" }
         
-        // 5. Delete subscriptions
+        // 6. Delete subscriptions
         val subscriptions = subscriptionRepository.findByUser(user)
         subscriptionRepository.deleteAll(subscriptions)
         logger.debug { "✅ ${subscriptions.size} subscriptions deleted for user: $userId" }
         
-        // 6. Delete user settings
+        // 7. Delete user settings
         val settings = userSettingsRepository.findByUser(user)
         if (settings != null) {
             userSettingsRepository.delete(settings)
             logger.debug { "✅ User settings deleted for user: $userId" }
         }
         
-        // 7. Finally, delete the user
+        // 8. Finally, delete the user
         userRepository.delete(user)
         logger.info { "✅ Account deleted successfully for user: $userId (${user.email})" }
     }
