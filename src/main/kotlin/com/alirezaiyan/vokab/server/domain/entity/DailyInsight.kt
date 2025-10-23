@@ -31,7 +31,25 @@ data class DailyInsight(
 ) {
     constructor() : this(
         id = null,
-        user = User(),
+        user = User(
+            id = null,
+            email = "",
+            name = "",
+            googleId = null,
+            appleId = null,
+            profileImageUrl = null,
+            revenueCatUserId = null,
+            subscriptionStatus = SubscriptionStatus.FREE,
+            subscriptionExpiresAt = null,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+            lastLoginAt = null,
+            currentStreak = 0,
+            longestStreak = 0,
+            aiExtractionUsageCount = 0,
+            active = true,
+            pushTokens = mutableListOf()
+        ),
         insightText = "",
         generatedAt = Instant.now(),
         date = "",
