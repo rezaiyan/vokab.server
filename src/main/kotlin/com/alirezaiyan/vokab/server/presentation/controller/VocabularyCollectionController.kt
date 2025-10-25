@@ -31,8 +31,11 @@ class VocabularyCollectionController(
         val result = githubVocabularyService.getAvailableCollections()
         
         return if (result.isSuccess) {
-            logger.info { "✅ Collections Controller: Successfully fetched collections" }
-            ResponseEntity.ok(ApiResponse(success = true, data = result.getOrNull()))
+            val collections = result.getOrNull()
+            logger.info { "✅ Collections Controller: Successfully fetched ${collections?.size ?: 0} collections" }
+            val response = ResponseEntity.ok(ApiResponse(success = true, data = collections))
+            logger.info { "✅ Collections Controller: Returning response with status ${response.statusCode}" }
+            response
         } else {
             val error = result.exceptionOrNull()
             logger.error { "❌ Collections Controller: Failed to fetch collections - ${error?.message}" }
