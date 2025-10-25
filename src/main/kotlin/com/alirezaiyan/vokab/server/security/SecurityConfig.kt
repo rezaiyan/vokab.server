@@ -41,8 +41,6 @@ class SecurityConfig(
                         "/actuator/health",
                         "/error"
                     ).permitAll()
-                    // Authenticated endpoints
-                    .requestMatchers("/api/v1/collections/**").authenticated()
                     // All other endpoints require authentication (including /auth/logout, /auth/delete-account)
                     .anyRequest().authenticated()
             }
