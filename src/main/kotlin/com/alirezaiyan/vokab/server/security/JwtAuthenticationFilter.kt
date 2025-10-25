@@ -33,6 +33,12 @@ class JwtAuthenticationFilter(
         "/error"
     )
     
+    // Test emails that should bypass active check
+    private val testEmails = setOf(
+        "alirezaiyann@gmail.com",
+        "haftasia1369@gmail.com"
+    )
+    
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         val path = request.requestURI
         return excludedPaths.any { path.startsWith(it) }
@@ -52,7 +58,7 @@ class JwtAuthenticationFilter(
             if (jwt == null) {
                 logger.warn { "❌ JWT Filter: No JWT token found in Authorization header for $path" }
                 response.status = HttpServletResponse.SC_UNAUTHORIZED
-                response.writer.write("{\"success\":false,\"message\":\"Authentication required\"}")
+                response.writer.write("""{"success":false,"message":"Authentication required"}""")
                 response.contentType = "application/json"
                 return
             } else {
@@ -65,11 +71,15 @@ class JwtAuthenticationFilter(
                     val userId = jwtTokenProvider.getUserIdFromToken(jwt)
                     logger.info { "👤 JWT Filter: Extracted user ID: $userId" }
                     
-                    userId?.let {
-                        val user = userRepository.findById(it)
-                        logger.info { "🗄️ JWT Filter: User lookup result: present=${user.isPresent}, active=${user.map { u -> u.active }.orElse(false)}" }
+                    if (userId != null) {
+                        val user = userRepository.findById(userId)
+                        val isPresent = user.isPresent
+                        val userEmail = if (isPresent) user.get().email else null
+                        val isTestAccount = userEmail in testEmails
+                        val isActive = if (isPresent) user.get().active else false
+                        logger.info { "🗄️ JWT Filter: User lookup - present=$isPresent, active=$isActive, email=$userEmail, testAccount=$isTestAccount" }
                         
-                        if (user.isPresent && user.get().active) {
+                        if (isPresent && (isActive || isTestAccount)) {
                             val authentication = UsernamePasswordAuthenticationToken(
                                 user.get(),
                                 null,
@@ -78,19 +88,25 @@ class JwtAuthenticationFilter(
                             authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
                             
                             SecurityContextHolder.getContext().authentication = authentication
-                            logger.info { "✅ JWT Filter: Authentication set successfully for user ID $it" }
+                            logger.info { "✅ JWT Filter: Authentication set successfully for user ID $userId (testAccount=$isTestAccount)" }
                         } else {
-                            logger.warn { "❌ JWT Filter: User not found or inactive for ID $it - returning 403" }
+                            logger.warn { "❌ JWT Filter: User not found or inactive for ID $userId - returning 403" }
                             response.status = HttpServletResponse.SC_FORBIDDEN
-                            response.writer.write("{\"success\":false,\"message\":\"User account has been deleted or deactivated\"}")
+                            response.writer.write("""{"success":false,"message":"User account has been deleted or deactivated"}""")
                             response.contentType = "application/json"
                             return
                         }
+                    } else {
+                        logger.warn { "❌ JWT Filter: Unable to extract user ID from token" }
+                        response.status = HttpServletResponse.SC_UNAUTHORIZED
+                        response.writer.write("""{"success":false,"message":"Invalid token"}""")
+                        response.contentType = "application/json"
+                        return
                     }
                 } else {
                     logger.warn { "❌ JWT Filter: Token validation failed" }
                     response.status = HttpServletResponse.SC_UNAUTHORIZED
-                    response.writer.write("{\"success\":false,\"message\":\"Invalid or expired token\"}")
+                    response.writer.write("""{"success":false,"message":"Invalid or expired token"}""")
                     response.contentType = "application/json"
                     return
                 }
@@ -99,7 +115,7 @@ class JwtAuthenticationFilter(
             logger.error { "💥 JWT Filter: Exception during authentication: ${e.message}" }
             logger.error { "Stack trace: ${e.stackTraceToString()}" }
             response.status = HttpServletResponse.SC_INTERNAL_SERVER_ERROR
-            response.writer.write("{\"success\":false,\"message\":\"Authentication error\"}")
+            response.writer.write("""{"success":false,"message":"Authentication error"}""")
             response.contentType = "application/json"
             return
         }
