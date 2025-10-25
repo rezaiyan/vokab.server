@@ -4,6 +4,7 @@ import com.alirezaiyan.vokab.server.presentation.dto.GitHubContent
 import com.alirezaiyan.vokab.server.presentation.dto.VocabularyCollectionDto
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.withContext
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -33,42 +34,38 @@ class GitHubVocabularyService(
         return try {
             logger.info { "Fetching available vocabulary collections from GitHub" }
             
-            val collections = withContext(Dispatchers.IO) {
-                val allCollections = mutableListOf<VocabularyCollectionDto>()
+            val allCollections = mutableListOf<VocabularyCollectionDto>()
+            
+            // Get all target language folders (e.g., "English", "Deutsch")
+            val targetLanguages = getLanguages()
+            
+            // For each target language, get origin language folders
+            targetLanguages.forEach { targetLang ->
+                val originLanguages = getLanguagesInDirectory(targetLang)
                 
-                // Get all target language folders (e.g., "English", "Deutsch")
-                val targetLanguages = getLanguages()
-                
-                // For each target language, get origin language folders
-                targetLanguages.forEach { targetLang ->
-                    val originLanguages = getLanguagesInDirectory(targetLang)
-                    
-                    // For each origin language, get the files
-                    originLanguages.forEach { originLang ->
-                        val files = getFilesInDirectory("$targetLang/$originLang")
-                        files.filter { it.endsWith(".txt") }.forEach { fileName ->
-                            val title = fileName.removeSuffix(".txt")
-                                .replace("_", " ")
-                                .replace("-", " - ")
-                            
-                            allCollections.add(
-                                VocabularyCollectionDto(
-                                    targetLanguage = targetLang,
-                                    originLanguage = originLang,
-                                    title = title,
-                                    fileName = fileName,
-                                    path = "$targetLang/$originLang/$fileName"
-                                )
+                // For each origin language, get the files
+                originLanguages.forEach { originLang ->
+                    val files = getFilesInDirectory("$targetLang/$originLang")
+                    files.filter { it.endsWith(".txt") }.forEach { fileName ->
+                        val title = fileName.removeSuffix(".txt")
+                            .replace("_", " ")
+                            .replace("-", " - ")
+                        
+                        allCollections.add(
+                            VocabularyCollectionDto(
+                                targetLanguage = targetLang,
+                                originLanguage = originLang,
+                                title = title,
+                                fileName = fileName,
+                                path = "$targetLang/$originLang/$fileName"
                             )
-                        }
+                        )
                     }
                 }
-                
-                allCollections
             }
             
-            logger.info { "Found ${collections.size} vocabulary collections" }
-            Result.success(collections)
+            logger.info { "Found ${allCollections.size} vocabulary collections" }
+            Result.success(allCollections)
             
         } catch (e: Exception) {
             logger.error(e) { "Failed to fetch vocabulary collections: ${e.message}" }
@@ -85,20 +82,16 @@ class GitHubVocabularyService(
             val path = "$targetLanguage/$originLanguage/$fileName"
             logger.info { "Downloading vocabulary collection: $path" }
             
-            val content = withContext(Dispatchers.IO) {
-                val downloadUrl = getFileDownloadUrl(path)
-                webClient.get()
-                    .uri(downloadUrl)
-                    .retrieve()
-                    .bodyToMono(String::class.java)
-                    .block()!!
-                .let { response ->
-                    val content = response.trim()
-                    if (content.isEmpty()) {
-                        throw IllegalStateException("Collection file is empty")
-                    }
-                    content
-                }
+            val downloadUrl = getFileDownloadUrl(path)
+            val response = webClient.get()
+                .uri(downloadUrl)
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .awaitSingle()
+            
+            val content = response.trim()
+            if (content.isEmpty()) {
+                throw IllegalStateException("Collection file is empty")
             }
             
             logger.info { "Successfully downloaded vocabulary collection: $path (${content.length} chars)" }
@@ -113,13 +106,13 @@ class GitHubVocabularyService(
     /**
      * Get list of target language folders from the repository root
      */
-    private fun getLanguages(): List<String> {
+    private suspend fun getLanguages(): List<String> {
         return webClient.get()
             .uri("/contents")
             .retrieve()
             .bodyToFlux(GitHubContent::class.java)
             .collectList()
-            .block()!!
+            .awaitSingle()
             .filter { it.type == "dir" }
             .map { it.name }
     }
@@ -127,13 +120,13 @@ class GitHubVocabularyService(
     /**
      * Get origin language folders within a target language folder
      */
-    private fun getLanguagesInDirectory(directory: String): List<String> {
+    private suspend fun getLanguagesInDirectory(directory: String): List<String> {
         return webClient.get()
             .uri("/contents/$directory")
             .retrieve()
             .bodyToFlux(GitHubContent::class.java)
             .collectList()
-            .block()!!
+            .awaitSingle()
             .filter { it.type == "dir" }
             .map { it.name }
     }
@@ -141,13 +134,13 @@ class GitHubVocabularyService(
     /**
      * Get files in a specific directory
      */
-    private fun getFilesInDirectory(directory: String): List<String> {
+    private suspend fun getFilesInDirectory(directory: String): List<String> {
         return webClient.get()
             .uri("/contents/$directory")
             .retrieve()
             .bodyToFlux(GitHubContent::class.java)
             .collectList()
-            .block()!!
+            .awaitSingle()
             .filter { it.type == "file" }
             .map { it.name }
     }
@@ -155,12 +148,12 @@ class GitHubVocabularyService(
     /**
      * Get download URL for a file
      */
-    private fun getFileDownloadUrl(path: String): String {
+    private suspend fun getFileDownloadUrl(path: String): String {
         val content = webClient.get()
             .uri("/contents/$path")
             .retrieve()
             .bodyToMono(GitHubContent::class.java)
-            .block()!!
+            .awaitSingle()
         
         return content.download_url ?: throw IllegalStateException("Download URL not available for $path")
     }
