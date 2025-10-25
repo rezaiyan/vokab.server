@@ -8,10 +8,6 @@ import kotlinx.coroutines.withContext
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
-import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
-import reactor.util.retry.Retry
-import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -31,30 +27,40 @@ class GitHubVocabularyService(
 
     /**
      * Get list of available vocabulary collections
-     * Returns language folders with their collection files
+     * Structure: TargetLanguage/OriginLanguage/fileName.txt
      */
     suspend fun getAvailableCollections(): Result<List<VocabularyCollectionDto>> {
         return try {
             logger.info { "Fetching available vocabulary collections from GitHub" }
             
             val collections = withContext(Dispatchers.IO) {
-                // List all language folders
-                val languages = getLanguages()
-                
-                // Get collections from each language folder
                 val allCollections = mutableListOf<VocabularyCollectionDto>()
                 
-                languages.forEach { language ->
-                    val files = getFilesInDirectory(language)
-                    files.filter { it.endsWith(".txt") }.forEach { fileName ->
-                        allCollections.add(
-                            VocabularyCollectionDto(
-                                language = language,
-                                title = fileName.removeSuffix(".txt"),
-                                fileName = fileName,
-                                path = "$language/$fileName"
+                // Get all target language folders (e.g., "English", "Deutsch")
+                val targetLanguages = getLanguages()
+                
+                // For each target language, get origin language folders
+                targetLanguages.forEach { targetLang ->
+                    val originLanguages = getLanguagesInDirectory(targetLang)
+                    
+                    // For each origin language, get the files
+                    originLanguages.forEach { originLang ->
+                        val files = getFilesInDirectory("$targetLang/$originLang")
+                        files.filter { it.endsWith(".txt") }.forEach { fileName ->
+                            val title = fileName.removeSuffix(".txt")
+                                .replace("_", " ")
+                                .replace("-", " - ")
+                            
+                            allCollections.add(
+                                VocabularyCollectionDto(
+                                    targetLanguage = targetLang,
+                                    originLanguage = originLang,
+                                    title = title,
+                                    fileName = fileName,
+                                    path = "$targetLang/$originLang/$fileName"
+                                )
                             )
-                        )
+                        }
                     }
                 }
                 
@@ -74,12 +80,13 @@ class GitHubVocabularyService(
      * Download a specific vocabulary collection
      * Returns the raw content of the .txt file
      */
-    suspend fun downloadCollection(language: String, fileName: String): Result<String> {
+    suspend fun downloadCollection(targetLanguage: String, originLanguage: String, fileName: String): Result<String> {
         return try {
-            logger.info { "Downloading vocabulary collection: $language/$fileName" }
+            val path = "$targetLanguage/$originLanguage/$fileName"
+            logger.info { "Downloading vocabulary collection: $path" }
             
             val content = withContext(Dispatchers.IO) {
-                val downloadUrl = getFileDownloadUrl("$language/$fileName")
+                val downloadUrl = getFileDownloadUrl(path)
                 webClient.get()
                     .uri(downloadUrl)
                     .retrieve()
@@ -94,7 +101,7 @@ class GitHubVocabularyService(
                 }
             }
             
-            logger.info { "Successfully downloaded vocabulary collection: $language/$fileName (${content.length} chars)" }
+            logger.info { "Successfully downloaded vocabulary collection: $path (${content.length} chars)" }
             Result.success(content)
             
         } catch (e: Exception) {
@@ -104,12 +111,25 @@ class GitHubVocabularyService(
     }
 
     /**
-     * Get list of language folders from the repository
+     * Get list of target language folders from the repository root
      */
-    private suspend fun getLanguages(): List<String> {
+    private fun getLanguages(): List<String> {
         return webClient.get()
             .uri("/contents")
-            .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(1)))
+            .retrieve()
+            .bodyToFlux(GitHubContent::class.java)
+            .collectList()
+            .block()!!
+            .filter { it.type == "dir" }
+            .map { it.name }
+    }
+
+    /**
+     * Get origin language folders within a target language folder
+     */
+    private fun getLanguagesInDirectory(directory: String): List<String> {
+        return webClient.get()
+            .uri("/contents/$directory")
             .retrieve()
             .bodyToFlux(GitHubContent::class.java)
             .collectList()
@@ -121,10 +141,9 @@ class GitHubVocabularyService(
     /**
      * Get files in a specific directory
      */
-    private suspend fun getFilesInDirectory(directory: String): List<String> {
+    private fun getFilesInDirectory(directory: String): List<String> {
         return webClient.get()
             .uri("/contents/$directory")
-            .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(1)))
             .retrieve()
             .bodyToFlux(GitHubContent::class.java)
             .collectList()
@@ -136,10 +155,9 @@ class GitHubVocabularyService(
     /**
      * Get download URL for a file
      */
-    private suspend fun getFileDownloadUrl(path: String): String {
+    private fun getFileDownloadUrl(path: String): String {
         val content = webClient.get()
             .uri("/contents/$path")
-            .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(1)))
             .retrieve()
             .bodyToMono(GitHubContent::class.java)
             .block()!!

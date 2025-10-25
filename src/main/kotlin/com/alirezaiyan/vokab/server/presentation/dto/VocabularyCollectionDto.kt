@@ -2,19 +2,22 @@ package com.alirezaiyan.vokab.server.presentation.dto
 
 /**
  * Represents a vocabulary collection from GitHub
+ * Structure: TargetLanguage/OriginLanguage/fileName.txt
  */
 data class VocabularyCollectionDto(
-    val language: String,
-    val title: String,
-    val fileName: String,
-    val path: String
+    val targetLanguage: String,    // What user wants to learn (e.g., "English", "Deutsch")
+    val originLanguage: String,     // User's native language (e.g., "Farsi", "English")
+    val title: String,              // Collection title (from file name)
+    val fileName: String,           // Original file name
+    val path: String                // Full path like "English/Farsi/file.txt"
 )
 
 /**
  * Request DTO for downloading a collection
  */
 data class DownloadCollectionRequest(
-    val language: String,
+    val targetLanguage: String,
+    val originLanguage: String,
     val fileName: String
 )
 
@@ -22,7 +25,8 @@ data class DownloadCollectionRequest(
  * Response DTO for downloaded collection content
  */
 data class VocabularyContentResponse(
-    val language: String,
+    val targetLanguage: String,
+    val originLanguage: String,
     val fileName: String,
     val content: String,
     val wordCount: Int

@@ -43,14 +43,19 @@ class VocabularyCollectionController(
     suspend fun downloadCollection(
         @RequestBody request: DownloadCollectionRequest
     ): ResponseEntity<ApiResponse<VocabularyContentResponse>> {
-        val result = githubVocabularyService.downloadCollection(request.language, request.fileName)
+        val result = githubVocabularyService.downloadCollection(
+            request.targetLanguage,
+            request.originLanguage,
+            request.fileName
+        )
         
         return if (result.isSuccess) {
             val content = result.getOrNull() ?: ""
             val wordCount = content.lines().filter { it.trim().isNotEmpty() }.size
             
             val response = VocabularyContentResponse(
-                language = request.language,
+                targetLanguage = request.targetLanguage,
+                originLanguage = request.originLanguage,
                 fileName = request.fileName,
                 content = content,
                 wordCount = wordCount
