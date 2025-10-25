@@ -80,12 +80,14 @@ class JwtAuthenticationFilter(
                     logger.info { "👤 JWT Filter [USER_ID]: Extracted user ID=$userId for $path" }
                     
                     if (userId != null) {
+                        val testEmails = getTestEmails()
                         val user = userRepository.findById(userId)
                         val isPresent = user.isPresent
                         val userEmail = if (isPresent) user.get().email else null
-                        val isTestAccount = userEmail in getTestEmails()
+                        val isTestAccount = userEmail in testEmails
                         val isActive = if (isPresent) user.get().active else false
                         logger.info { "🗄️ JWT Filter [DB_LOOKUP]: User found=$isPresent, active=$isActive, email=$userEmail, testAccount=$isTestAccount for $path" }
+                        logger.info { "📧 JWT Filter [TEST_EMAILS]: Configured test emails=$testEmails, user email=$userEmail" }
                         
                         if (isPresent && (isActive || isTestAccount)) {
                             val authentication = UsernamePasswordAuthenticationToken(
