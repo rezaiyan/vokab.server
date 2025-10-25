@@ -1,5 +1,6 @@
 package com.alirezaiyan.vokab.server.presentation.controller
 
+import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
 import com.alirezaiyan.vokab.server.presentation.dto.DownloadCollectionRequest
 import com.alirezaiyan.vokab.server.presentation.dto.VocabularyCollectionDto
@@ -7,6 +8,7 @@ import com.alirezaiyan.vokab.server.presentation.dto.VocabularyContentResponse
 import com.alirezaiyan.vokab.server.service.GitHubVocabularyService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 
 private val logger = KotlinLogging.logger {}
@@ -22,8 +24,10 @@ class VocabularyCollectionController(
      * Returns all collections organized by language
      */
     @GetMapping
-    suspend fun getAvailableCollections(): ResponseEntity<ApiResponse<List<VocabularyCollectionDto>>> {
-        logger.info { "📚 Collections Controller: GET /api/v1/collections called" }
+    suspend fun getAvailableCollections(
+        @AuthenticationPrincipal user: User
+    ): ResponseEntity<ApiResponse<List<VocabularyCollectionDto>>> {
+        logger.info { "📚 Collections Controller: GET /api/v1/collections called by user ${user.email}" }
         val result = githubVocabularyService.getAvailableCollections()
         
         return if (result.isSuccess) {
@@ -47,8 +51,10 @@ class VocabularyCollectionController(
      */
     @PostMapping("/download")
     suspend fun downloadCollection(
+        @AuthenticationPrincipal user: User,
         @RequestBody request: DownloadCollectionRequest
     ): ResponseEntity<ApiResponse<VocabularyContentResponse>> {
+        logger.info { "📥 Collections Controller: Download collection ${request.fileName} requested by user ${user.email}" }
         val result = githubVocabularyService.downloadCollection(
             request.targetLanguage,
             request.originLanguage,
