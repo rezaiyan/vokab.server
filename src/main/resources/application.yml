@@ -62,6 +62,11 @@ app:
     subscriptions-enabled: ${SUBSCRIPTIONS_ENABLED:true}
     free-ai-extraction-limit: ${FREE_AI_EXTRACTION_LIMIT:10}
 
+  security:
+    # Comma-separated list of test emails that bypass active check
+    # Set in environment variable: TEST_EMAILS=email1@example.com,email2@example.com
+    testEmails: ${TEST_EMAILS:}
+
 logging:
   level:
     root: INFO

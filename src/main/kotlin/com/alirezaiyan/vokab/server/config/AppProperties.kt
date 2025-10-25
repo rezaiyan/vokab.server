@@ -11,7 +11,8 @@ data class AppProperties(
     var openrouter: OpenRouterConfig = OpenRouterConfig(),
     var revenuecat: RevenueCatConfig = RevenueCatConfig(),
     var cors: CorsConfig = CorsConfig(),
-    var features: FeatureFlagsConfig = FeatureFlagsConfig()
+    var features: FeatureFlagsConfig = FeatureFlagsConfig(),
+    var security: SecurityConfig = SecurityConfig()
 )
 
 data class JwtConfig(
@@ -45,5 +46,9 @@ data class FeatureFlagsConfig(
     var pushNotificationsEnabled: Boolean = true,
     var subscriptionsEnabled: Boolean = true,
     var freeAiExtractionLimit: Int = 10  // Free tier gets 10 AI image extractions
+)
+
+data class SecurityConfig(
+    var testEmails: String = ""  // Comma-separated list of test emails that bypass active check
 )
 

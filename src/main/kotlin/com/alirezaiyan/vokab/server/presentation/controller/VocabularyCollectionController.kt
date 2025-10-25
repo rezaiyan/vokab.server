@@ -5,8 +5,11 @@ import com.alirezaiyan.vokab.server.presentation.dto.DownloadCollectionRequest
 import com.alirezaiyan.vokab.server.presentation.dto.VocabularyCollectionDto
 import com.alirezaiyan.vokab.server.presentation.dto.VocabularyContentResponse
 import com.alirezaiyan.vokab.server.service.GitHubVocabularyService
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+
+private val logger = KotlinLogging.logger {}
 
 @RestController
 @RequestMapping("/api/v1/collections")
@@ -20,12 +23,15 @@ class VocabularyCollectionController(
      */
     @GetMapping
     suspend fun getAvailableCollections(): ResponseEntity<ApiResponse<List<VocabularyCollectionDto>>> {
+        logger.info { "📚 Collections Controller: GET /api/v1/collections called" }
         val result = githubVocabularyService.getAvailableCollections()
         
         return if (result.isSuccess) {
+            logger.info { "✅ Collections Controller: Successfully fetched collections" }
             ResponseEntity.ok(ApiResponse(success = true, data = result.getOrNull()))
         } else {
             val error = result.exceptionOrNull()
+            logger.error { "❌ Collections Controller: Failed to fetch collections - ${error?.message}" }
             ResponseEntity.ok(
                 ApiResponse(
                     success = false,
