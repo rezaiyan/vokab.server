@@ -20,7 +20,8 @@ private val logger = KotlinLogging.logger {}
 class AppleNotificationService(
     private val userRepository: UserRepository,
     private val applePublicKeyService: ApplePublicKeyService,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val pushNotificationService: PushNotificationService
 ) {
     
     /**
@@ -177,6 +178,24 @@ class AppleNotificationService(
         logger.info { "Consent revoked for user: ${user.email}" }
         logger.info { "  Reason: ${event?.reason ?: "Not provided"}" }
         
+        // CRITICAL FIX: Send push notification to all devices before deactivating account
+        // This ensures all devices are notified that the account access has been revoked
+        try {
+            val notificationResults = pushNotificationService.sendNotificationToUser(
+                userId = user.id!!,
+                title = "Account Access Revoked",
+                body = "Your account access has been revoked. Please sign in again.",
+                data = mapOf(
+                    "type" to "sign_out",
+                    "action" to "clear_local_data",
+                    "reason" to "consent_revoked"
+                )
+            )
+            logger.info { "Sent consent revocation notification to ${notificationResults.size} devices" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to send consent revocation notification, continuing with deactivation" }
+        }
+        
         // Mark user as inactive but don't delete data
         val updatedUser = user.copy(
             active = false,
@@ -196,6 +215,24 @@ class AppleNotificationService(
         logger.info { "Account deletion requested for user: ${user.email}" }
         logger.info { "  Reason: ${event?.reason ?: "Not provided"}" }
         
+        // CRITICAL FIX: Send push notification to all devices before deleting account
+        // This ensures all devices are notified that the account is being deleted
+        try {
+            val notificationResults = pushNotificationService.sendNotificationToUser(
+                userId = user.id!!,
+                title = "Account Deleted",
+                body = "Your account has been permanently deleted. Please restart the app.",
+                data = mapOf(
+                    "type" to "account_deleted",
+                    "action" to "clear_local_data",
+                    "clear_daily_insights" to "true"
+                )
+            )
+            logger.info { "Sent Apple account deletion notification to ${notificationResults.size} devices" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to send Apple account deletion notification, continuing with deletion" }
+        }
+        
         // Option 1: Soft delete - mark as deleted but keep data for compliance
         val deletedUser = user.copy(
             active = false,
@@ -213,6 +250,8 @@ class AppleNotificationService(
         logger.warn { "⚠️  Consider hard delete if required by your privacy policy" }
     }
 }
+
+
 
 
 
