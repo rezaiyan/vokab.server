@@ -84,6 +84,10 @@ Or full documentation: [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)
 **Optional:**
 - Firebase (push notifications)
 - RevenueCat (in-app purchases)
+- **GitHub Token** (for vocabulary collections) - https://github.com/settings/tokens
+  - **Why?** Unauthenticated API calls have a 60/hour rate limit, authenticated calls have 5000/hour
+  - **How?** See `GITHUB_TOKEN_SETUP.md` for step-by-step instructions
+  - **Tip:** Without a token, the collections feature will hit rate limits quickly
 
 ### Setting Up .env File
 

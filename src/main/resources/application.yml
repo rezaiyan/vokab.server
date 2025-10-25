@@ -67,6 +67,13 @@ app:
     # Set in environment variable: TEST_EMAILS=email1@example.com,email2@example.com
     testEmails: ${TEST_EMAILS:}
 
+  github-vocabulary:
+    repo-url: ${GITHUB_REPO_URL:https://api.github.com/repos/rezaiyan/Vokab-collection}
+    # GitHub personal access token for higher rate limits (5000/hour instead of 60/hour)
+    # Generate at: https://github.com/settings/tokens
+    # Set in environment variable: GITHUB_TOKEN=your_token_here
+    token: ${GITHUB_TOKEN:}
+
 logging:
   level:
     root: INFO

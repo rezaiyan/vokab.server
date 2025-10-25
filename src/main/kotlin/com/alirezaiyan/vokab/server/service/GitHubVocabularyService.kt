@@ -20,11 +20,21 @@ private val logger = KotlinLogging.logger {}
 class GitHubVocabularyService(
     private val webClientBuilder: WebClient.Builder,
     @Value("\${app.github-vocabulary.repo-url:https://api.github.com/repos/rezaiyan/Vokab-collection}")
-    private val repoUrl: String
+    private val repoUrl: String,
+    @Value("\${app.github-vocabulary.token:}")
+    private val gitHubToken: String?
 ) {
-    private val webClient: WebClient = webClientBuilder
-        .baseUrl(repoUrl)
-        .build()
+    private val webClient: WebClient = run {
+        val builder = webClientBuilder.baseUrl(repoUrl)
+        // Add Authorization header if token is provided
+        if (!gitHubToken.isNullOrBlank()) {
+            builder.defaultHeader("Authorization", "Bearer $gitHubToken")
+            logger.info { "GitHub token configured - rate limit: 5000/hour" }
+        } else {
+            logger.warn { "No GitHub token configured - rate limit: 60/hour (unauthenticated)" }
+        }
+        builder.build()
+    }
 
     /**
      * Get list of available vocabulary collections
