@@ -5,6 +5,8 @@ data class WordDto(
     val originalWord: String,
     val translation: String,
     val description: String,
+    val sourceLanguage: String,
+    val targetLanguage: String,
     val level: Int,
     val easeFactor: Float,
     val interval: Int,

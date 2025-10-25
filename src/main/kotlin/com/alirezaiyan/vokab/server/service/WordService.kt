@@ -24,6 +24,8 @@ class WordService(
                 originalWord = dto.originalWord,
                 translation = dto.translation,
                 description = dto.description,
+                sourceLanguage = dto.sourceLanguage,
+                targetLanguage = dto.targetLanguage,
                 level = dto.level,
                 easeFactor = dto.easeFactor,
                 interval = dto.interval,
@@ -43,6 +45,8 @@ class WordService(
         entity.originalWord = dto.originalWord
         entity.translation = dto.translation
         entity.description = dto.description
+        entity.sourceLanguage = dto.sourceLanguage
+        entity.targetLanguage = dto.targetLanguage
         entity.level = dto.level
         entity.easeFactor = dto.easeFactor
         entity.interval = dto.interval
@@ -81,6 +85,8 @@ private fun Word.toDto(): WordDto = WordDto(
     originalWord = originalWord,
     translation = translation,
     description = description,
+    sourceLanguage = sourceLanguage,
+    targetLanguage = targetLanguage,
     level = level,
     easeFactor = easeFactor,
     interval = interval,

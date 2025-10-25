@@ -24,6 +24,8 @@ CREATE TABLE words (
     original_word TEXT NOT NULL,
     translation TEXT NOT NULL,
     description TEXT,
+    source_language VARCHAR(10) NOT NULL,
+    target_language VARCHAR(10) NOT NULL,
     level INT NOT NULL DEFAULT 0,
     ease_factor REAL NOT NULL DEFAULT 2.5,
     review_interval INT NOT NULL DEFAULT 0,

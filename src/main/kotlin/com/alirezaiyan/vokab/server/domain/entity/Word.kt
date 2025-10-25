@@ -26,6 +26,12 @@ class Word(
     @Column(columnDefinition = "TEXT")
     var description: String = "",
 
+    @Column(length = 10)
+    var sourceLanguage: String = "",
+
+    @Column(length = 10)
+    var targetLanguage: String = "",
+
     @Column(nullable = false)
     var level: Int = 0,
 
