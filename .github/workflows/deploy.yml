@@ -93,9 +93,9 @@ jobs:
             # Pull latest image
             docker compose pull app
             
-            # Stop and remove old app container if it exists
-            docker compose stop app || true
-            docker compose rm -f app || true
+            # Force stop and remove old app container
+            docker stop vokab-server || true
+            docker rm -f vokab-server || true
             
             # Start the app service without recreating dependencies
             docker compose up -d --no-deps app
@@ -135,9 +135,9 @@ jobs:
             echo "Rolling back to previous version..."
             if [ -f docker-compose.yml.backup ]; then
               mv docker-compose.yml.backup docker-compose.yml
-              # Stop and remove old app container
-              docker compose stop app || true
-              docker compose rm -f app || true
+              # Force stop and remove old app container
+              docker stop vokab-server || true
+              docker rm -f vokab-server || true
               # Start app without recreating postgres
               docker compose up -d --no-deps app || true
             fi
