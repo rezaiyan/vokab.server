@@ -97,8 +97,8 @@ jobs:
             docker compose stop app || true
             docker compose rm -f app || true
             
-            # Start the app service (postgres should already be running)
-            docker compose up -d app
+            # Start the app service without recreating dependencies
+            docker compose up -d --no-deps app
             
             # Wait for healthcheck
             echo "Waiting for service to become healthy..."
@@ -135,8 +135,10 @@ jobs:
             echo "Rolling back to previous version..."
             if [ -f docker-compose.yml.backup ]; then
               mv docker-compose.yml.backup docker-compose.yml
+              # Stop and remove old app container
               docker compose stop app || true
               docker compose rm -f app || true
-              docker compose up -d app
+              # Start app without recreating postgres
+              docker compose up -d --no-deps app || true
             fi
           EOF
