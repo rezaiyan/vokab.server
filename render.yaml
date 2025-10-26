@@ -5,7 +5,7 @@
 databases:
   # PostgreSQL Database
   - name: vokab-db
-    plan: free # Change to 'starter' or higher for production
+    plan: basic # Change to 'starter' or higher for production
     region: oregon # Change to your preferred region
     databaseName: vokabdb
     user: vokab_user
@@ -97,8 +97,10 @@ services:
         value: https://yourdomain.com,https://app.yourdomain.com # Update with your domains
       
       # Server Configuration
-      - key: PORT
-        value: 8080
+      # Do NOT set PORT; Render provides it automatically and the app reads it
+      # via server.port: ${PORT:8080}
+      - key: H2_CONSOLE_ENABLED
+        value: false
       
       # Feature Flags
       - key: PREMIUM_FEATURES_ENABLED
