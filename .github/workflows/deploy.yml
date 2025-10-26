@@ -70,28 +70,17 @@ jobs:
         run: |
           ssh-keyscan -H -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Setup server directory and files
+      - name: Backup docker-compose.yml
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            # Create directory
-            mkdir -p /root/vokab/vokab.server
             cd /root/vokab/vokab.server
             
             # Backup existing compose file if it exists
             if [ -f docker-compose.yml ]; then
               cp docker-compose.yml docker-compose.yml.backup
+              echo "Backed up existing docker-compose.yml"
             fi
           EOF
-      
-      - name: Upload docker-compose.yml
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          source: "docker-compose.yml"
-          target: "/root/vokab/vokab.server/"
 
       - name: Pull and restart containers
         run: |
