@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'vokab.server/**'
 
 env:
   REGISTRY: ghcr.io
@@ -43,8 +45,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./vokab.server
+          file: ./vokab.server/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -70,22 +72,18 @@ jobs:
         run: |
           ssh-keyscan -H -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Backup docker-compose.yml
+      - name: Update docker-compose.yml on server
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /root/vokab/vokab.server
-            
-            # Backup existing compose file if it exists
-            if [ -f docker-compose.yml ]; then
-              cp docker-compose.yml docker-compose.yml.backup
-              echo "Backed up existing docker-compose.yml"
-            fi
+            cd /opt/vokab || cd ~/vokab
+            # Backup current compose file
+            cp docker-compose.yml docker-compose.yml.backup
           EOF
 
       - name: Pull and restart containers
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /root/vokab/vokab.server
+            cd /opt/vokab || cd ~/vokab
             
             # Log in to GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -93,12 +91,28 @@ jobs:
             # Pull latest image
             docker compose pull app
             
+            # Ensure postgres is running first
+            docker compose up -d postgres
+            
+            # Wait for postgres to be healthy
+            echo "Waiting for postgres..."
+            timeout=30
+            elapsed=0
+            while [ $elapsed -lt $timeout ]; do
+              if docker compose ps postgres 2>/dev/null | grep -q "healthy"; then
+                echo "Postgres is healthy!"
+                break
+              fi
+              sleep 2
+              elapsed=$((elapsed + 2))
+            done
+            
             # Force stop and remove old app container
             docker stop vokab-server || true
             docker rm -f vokab-server || true
             
-            # Start the app service without recreating dependencies
-            docker compose up -d --no-deps app
+            # Restart the app service
+            docker compose up -d app
             
             # Wait for healthcheck
             echo "Waiting for service to become healthy..."
@@ -122,7 +136,7 @@ jobs:
       - name: Verify deployment
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /root/vokab/vokab.server
+            cd /opt/vokab || cd ~/vokab
             docker compose ps
             docker compose logs app --tail 20
           EOF
@@ -131,14 +145,10 @@ jobs:
         if: failure()
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /root/vokab/vokab.server
+            cd /opt/vokab || cd ~/vokab
             echo "Rolling back to previous version..."
             if [ -f docker-compose.yml.backup ]; then
               mv docker-compose.yml.backup docker-compose.yml
-              # Force stop and remove old app container
-              docker stop vokab-server || true
-              docker rm -f vokab-server || true
-              # Start app without recreating postgres
-              docker compose up -d --no-deps app || true
+              docker compose up -d app
             fi
           EOF
