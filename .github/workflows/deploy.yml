@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'vokab.server/**'
 
 env:
   REGISTRY: ghcr.io
@@ -45,8 +43,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./vokab.server
-          file: ./vokab.server/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
