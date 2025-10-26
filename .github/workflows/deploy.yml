@@ -75,7 +75,7 @@ jobs:
       - name: Update docker-compose.yml on server
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /opt/vokab || cd ~/vokab
+            cd /root/vokab/vokab.server
             # Backup current compose file
             cp docker-compose.yml docker-compose.yml.backup
           EOF
@@ -83,7 +83,7 @@ jobs:
       - name: Pull and restart containers
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /opt/vokab || cd ~/vokab
+            cd /root/vokab/vokab.server
             
             # Log in to GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -136,7 +136,7 @@ jobs:
       - name: Verify deployment
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /opt/vokab || cd ~/vokab
+            cd /root/vokab/vokab.server
             docker compose ps
             docker compose logs app --tail 20
           EOF
@@ -145,7 +145,7 @@ jobs:
         if: failure()
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT || 22 }} << 'EOF'
-            cd /opt/vokab || cd ~/vokab
+            cd /root/vokab/vokab.server
             echo "Rolling back to previous version..."
             if [ -f docker-compose.yml.backup ]; then
               mv docker-compose.yml.backup docker-compose.yml
