@@ -87,10 +87,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
-  health:
-    probes:
-      enabled: true
+        exclude: "*"
   trace:
     http:
       enabled: false

@@ -73,8 +73,6 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false # Set manually in Render Dashboard
       
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false # Set manually in Render Dashboard
       
       # Firebase Configuration (OPTIONAL)
       - key: FIREBASE_SERVICE_ACCOUNT_PATH

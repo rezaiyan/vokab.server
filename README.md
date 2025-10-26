@@ -103,7 +103,6 @@ HIBERNATE_DIALECT=org.hibernate.dialect.H2Dialect
 
 JWT_SECRET=your-dev-secret-change-in-production
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
 OPENROUTER_API_KEY=your-openrouter-api-key
 
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081
