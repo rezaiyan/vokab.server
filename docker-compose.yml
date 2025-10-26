@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database (for production-like testing)
   postgres:
@@ -24,7 +22,7 @@ services:
 
   # Vokab Server Application
   app:
-    image: ghcr.io/${GITHUB_REPOSITORY:-rezaiyan/Vokab}/vokab-server:latest
+    image: ghcr.io/rezaiyan/vokab/vokab-server:latest
     container_name: vokab-server
     depends_on:
       postgres:
