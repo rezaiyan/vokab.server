@@ -93,7 +93,11 @@ jobs:
             # Pull latest image
             docker compose pull app
             
-            # Restart the app service
+            # Stop and remove old app container if it exists
+            docker compose stop app || true
+            docker compose rm -f app || true
+            
+            # Start the app service (postgres should already be running)
             docker compose up -d app
             
             # Wait for healthcheck
@@ -131,6 +135,8 @@ jobs:
             echo "Rolling back to previous version..."
             if [ -f docker-compose.yml.backup ]; then
               mv docker-compose.yml.backup docker-compose.yml
+              docker compose stop app || true
+              docker compose rm -f app || true
               docker compose up -d app
             fi
           EOF
