@@ -9,7 +9,8 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class WordService(
-    private val wordRepository: WordRepository
+    private val wordRepository: WordRepository,
+    private val wordUpsertPreparer: WordUpsertPreparer
 ) {
     fun list(user: User): List<WordDto> {
         return wordRepository.findAllByUser(user).map { it.toDto() }
@@ -17,24 +18,9 @@ class WordService(
 
     @Transactional
     fun upsert(user: User, words: List<WordDto>) {
-        val entities = words.map { dto ->
-            val entity = Word(
-                id = dto.id,
-                user = user,
-                originalWord = dto.originalWord,
-                translation = dto.translation,
-                description = dto.description,
-                sourceLanguage = dto.sourceLanguage,
-                targetLanguage = dto.targetLanguage,
-                level = dto.level,
-                easeFactor = dto.easeFactor,
-                interval = dto.interval,
-                repetitions = dto.repetitions,
-                lastReviewDate = dto.lastReviewDate,
-                nextReviewDate = dto.nextReviewDate
-            )
-            entity
-        }
+        if (words.isEmpty()) return
+
+        val entities = wordUpsertPreparer.prepareUpsertEntities(user, words)
         wordRepository.saveAll(entities)
     }
 
