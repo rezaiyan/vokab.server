@@ -9,8 +9,8 @@ WORKDIR /app
 COPY build.gradle.kts settings.gradle.kts ./
 COPY gradle gradle
 
-# Download dependencies (cached layer)
-RUN gradle build --no-daemon || return 0
+# Download dependencies (cached layer) — ignore failure due to missing sources
+RUN gradle build --no-daemon || true
 
 # Copy source code
 COPY src src
