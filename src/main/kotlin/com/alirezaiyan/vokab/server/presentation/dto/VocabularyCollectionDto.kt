@@ -38,5 +38,30 @@ data class VocabularyContentResponse(
 data class GitHubContent(
     val name: String,
     val type: String,
+    val path: String? = null,
+    val content: String? = null,
+    val encoding: String? = null,
     val download_url: String? = null
+)
+
+/**
+ * GitHub API Git Tree response model
+ */
+data class GitHubTree(
+    val sha: String,
+    val url: String,
+    val tree: List<GitHubTreeEntry>,
+    val truncated: Boolean = false
+)
+
+/**
+ * GitHub API Git Tree entry model
+ */
+data class GitHubTreeEntry(
+    val path: String,
+    val mode: String,
+    val type: String,
+    val sha: String,
+    val size: Int? = null,
+    val url: String? = null
 )
