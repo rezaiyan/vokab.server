@@ -57,34 +57,53 @@ class StreakService(
     }
     
     /**
-     * Update streak when new activity is recorded
-     * Simple logic: Check if last activity was yesterday
-     * - If yes: increment streak
-     * - If no: reset streak to 1
+     * Calculate current streak from DailyActivity records
+     * Counts consecutive days starting from today going backwards
+     * Returns 0 if there's any gap in consecutive days
      */
-    private fun updateStreakOnNewActivity(user: User, today: LocalDate): User {
-        // Get the most recent activity BEFORE today
+    private fun calculateCurrentStreak(user: User, today: LocalDate): Int {
         val allActivities = dailyActivityRepository.findAllByUserOrderByActivityDateDesc(user)
-        val previousActivities = allActivities.filter { it.activityDate < today }
         
-        val yesterday = today.minusDays(1)
-        
-        val newCurrentStreak = if (previousActivities.isNotEmpty() && previousActivities.first().activityDate == yesterday) {
-            // Last activity was yesterday, increment streak
-            val incrementedStreak = user.currentStreak + 1
-            logger.info { "📈 Streak continued: ${user.currentStreak} → $incrementedStreak (last activity was yesterday)" }
-            incrementedStreak
-        } else {
-            // Last activity was more than 24 hours ago, or no previous activity
-            logger.info { "🔄 Streak reset: ${user.currentStreak} → 1 (last activity older than 24 hours)" }
-            1
+        if (allActivities.isEmpty()) {
+            return 0
         }
         
-        // Update longest streak if current is higher
-        val newLongestStreak = maxOf(user.longestStreak, newCurrentStreak)
+        // Create a set of activity dates for fast lookup
+        val activityDates = allActivities.map { it.activityDate }.toSet()
         
-        if (newLongestStreak > user.longestStreak) {
-            logger.info { "🏆 New record! Longest streak: ${user.longestStreak} → $newLongestStreak" }
+        // Check if there's activity today
+        if (today !in activityDates) {
+            return 0
+        }
+        
+        // Count consecutive days starting from today going backwards
+        var currentStreak = 0
+        var checkDate = today
+        
+        // Continue checking backwards as long as consecutive days have activities
+        while (checkDate in activityDates) {
+            currentStreak++
+            checkDate = checkDate.minusDays(1)
+        }
+        
+        return currentStreak
+    }
+    
+    /**
+     * Update streak when new activity is recorded
+     * Recalculates streak from consecutive days of activities
+     */
+    private fun updateStreakOnNewActivity(user: User, today: LocalDate): User {
+        val newCurrentStreak = calculateCurrentStreak(user, today)
+        
+        logger.info { "📈 Streak calculated: $newCurrentStreak consecutive days (last activity: $today)" }
+        
+        // Update longest streak only if current exceeds it
+        val newLongestStreak = if (newCurrentStreak > user.longestStreak) {
+            logger.info { "🏆 New record! Longest streak: ${user.longestStreak} → $newCurrentStreak" }
+            newCurrentStreak
+        } else {
+            user.longestStreak
         }
         
         // Update user
@@ -101,7 +120,8 @@ class StreakService(
     
     /**
      * Get user's current streak and longest streak
-     * Checks if streak has expired (no activity in last 24 hours)
+     * Recalculates streak from DailyActivity records (not stored value)
+     * Updates user record if streak changed
      */
     @Transactional
     fun getUserStreak(userId: Long): StreakInfo {
@@ -109,39 +129,31 @@ class StreakService(
             .orElseThrow { IllegalArgumentException("User not found") }
         
         val today = LocalDate.now()
-        val yesterday = today.minusDays(1)
         
-        // Get most recent activity
-        val recentActivities = dailyActivityRepository.findAllByUserOrderByActivityDateDesc(user)
-        val lastActivity = recentActivities.firstOrNull()
+        // Recalculate streak from activities
+        val calculatedStreak = calculateCurrentStreak(user, today)
         
-        // Check if streak is still valid (activity today or yesterday)
-        val currentStreak = if (lastActivity != null) {
-            when {
-                lastActivity.activityDate == today || lastActivity.activityDate == yesterday -> {
-                    // Streak is still active (within 24 hours)
-                    logger.debug { "Streak valid: last activity ${lastActivity.activityDate}" }
-                    user.currentStreak
-                }
-                else -> {
-                    // Streak expired (no activity in last 24 hours)
-                    logger.info { "⏰ Streak expired for ${user.email}: last activity ${lastActivity.activityDate}, resetting to 0" }
-                    
-                    // Update user with expired streak
-                    val updatedUser = user.copy(currentStreak = 0)
-                    userRepository.save(updatedUser)
-                    
-                    0
-                }
-            }
+        // Update longest streak only if current exceeds it
+        val newLongestStreak = if (calculatedStreak > user.longestStreak) {
+            logger.info { "🏆 New longest streak record for ${user.email}: ${user.longestStreak} → $calculatedStreak" }
+            calculatedStreak
         } else {
-            // No activities at all
-            0
+            user.longestStreak
+        }
+        
+        // Update user if streak changed
+        if (calculatedStreak != user.currentStreak || newLongestStreak != user.longestStreak) {
+            val updatedUser = user.copy(
+                currentStreak = calculatedStreak,
+                longestStreak = newLongestStreak
+            )
+            userRepository.save(updatedUser)
+            logger.debug { "Updated streak for ${user.email}: current=$calculatedStreak, longest=$newLongestStreak" }
         }
         
         return StreakInfo(
-            currentStreak = currentStreak,
-            longestStreak = user.longestStreak
+            currentStreak = calculatedStreak,
+            longestStreak = newLongestStreak
         )
     }
 }

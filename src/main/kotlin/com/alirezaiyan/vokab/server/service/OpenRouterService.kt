@@ -274,6 +274,70 @@ class OpenRouterService(
             }
     }
     
+    fun generateStreakResetWarning(
+        currentStreak: Int,
+        progressStats: ProgressStatsDto,
+        userName: String
+    ): Mono<String> {
+        logger.info { "Generating streak reset warning for $userName, streak: $currentStreak" }
+        
+        val prompt = buildString {
+            appendLine("You are an enthusiastic vocabulary learning coach with a friendly, motivational personality.")
+            appendLine("Generate ONE brief, personalized message to motivate the user to log in and maintain their streak.")
+            appendLine()
+            appendLine("User Context:")
+            appendLine("- Name: $userName")
+            appendLine("- Current streak: $currentStreak days")
+            appendLine("- Total vocabulary: ${progressStats.totalWords} words")
+            appendLine("- Due for review today: ${progressStats.dueCards} cards")
+            appendLine("- Words mastered: ${progressStats.level5Count + progressStats.level6Count} words")
+            appendLine()
+            appendLine("Message Requirements:")
+            appendLine("1. Be urgent but encouraging - remind them their streak is at risk")
+            appendLine("2. Mention their current streak number prominently")
+            appendLine("3. Celebrate their achievement so far")
+            appendLine("4. keep it short in 1 sentence")
+            appendLine("6. Make it personal and cool - reference their progress if relevant")
+            appendLine("7. Create a sense of urgency but stay positive")
+            appendLine()
+            appendLine("Return ONLY the motivational message, no quotes or extra formatting.")
+        }
+        
+        val request = OpenRouterRequest(
+            messages = listOf(
+                Message(
+                    role = "user",
+                    content = listOf(
+                        Content(
+                            type = "text",
+                            text = prompt
+                        )
+                    )
+                )
+            )
+        )
+        
+        return webClient.post()
+            .uri("/chat/completions")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono<OpenRouterResponse>()
+            .map { response ->
+                if (response.error != null) {
+                    throw RuntimeException("OpenRouter error: ${response.error.message}")
+                }
+                
+                val message = response.choices?.firstOrNull()?.message?.content?.trim()
+                    ?: "Don't lose your $currentStreak-day streak! 🔥 Log in now to keep it going!"
+                
+                logger.info { "Successfully generated streak reset warning" }
+                message
+            }
+            .doOnError { error ->
+                logger.error(error) { "Failed to generate streak reset warning" }
+            }
+    }
+    
     private fun isValidVocabularyFormat(text: String): Boolean {
         if (text.isBlank()) return false
         if (!text.contains(",")) return false
