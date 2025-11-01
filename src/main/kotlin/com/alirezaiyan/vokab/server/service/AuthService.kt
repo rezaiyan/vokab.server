@@ -69,26 +69,34 @@ class AuthService(
     /**
      * Authenticates a user using an Apple ID token from Sign in with Apple.
      * Creates a new user if one doesn't exist, or updates existing user's last login time.
+     * Handles cases where user hides their email by using Apple user identifier.
      * 
      * @param idToken Apple ID token (JWT) from client
      * @param fullName Optional full name from first-time Apple Sign In
+     * @param appleUserId Optional Apple user identifier from credential (always available, used when email is missing)
      * @return AuthResponse containing JWT tokens and user data
      * @throws IllegalArgumentException if token is invalid or missing required claims
      */
     @Transactional
-    fun authenticateWithApple(idToken: String, fullName: String?): AuthResponse {
+    fun authenticateWithApple(idToken: String, fullName: String?, appleUserId: String?): AuthResponse {
         val appleToken = verifyAppleToken(idToken)
             ?: throw IllegalArgumentException("Invalid Apple ID token")
         
         val appleId = appleToken["sub"] as? String
             ?: throw IllegalArgumentException("Apple ID (sub) not found in token")
         
+        // Use provided appleUserId if available, otherwise use sub from token
+        val resolvedAppleId = appleUserId ?: appleId
+        
+        // Email may be missing if user hides their email
         val email = appleToken["email"] as? String
-            ?: throw IllegalArgumentException("Email not found in Apple token")
         
-        logger.info { "Authenticating user with Apple: $email" }
+        // Generate fallback email if email is not available
+        val resolvedEmail = email ?: "apple_${resolvedAppleId.replace(".", "_").replace(" ", "_")}@apple.hidden"
         
-        val user = findOrCreateAppleUser(appleId, email, fullName)
+        logger.info { "Authenticating user with Apple: appleId=$resolvedAppleId, email=${if (email != null) email else "hidden (using fallback)"}" }
+        
+        val user = findOrCreateAppleUser(resolvedAppleId, resolvedEmail, fullName, email == null)
         val savedUser = userRepository.save(user)
         
         val tokens = generateTokenPair(savedUser)
@@ -145,40 +153,71 @@ class AuthService(
     
     /**
      * Finds an existing user or creates a new one from Apple Sign In data.
+     * When email is hidden, prioritizes Apple ID lookup over email lookup.
+     * 
+     * @param appleId Apple user identifier (always available)
+     * @param email User email (may be fallback email if user hides their email)
+     * @param fullName Optional full name from first sign-in
+     * @param emailHidden Whether the email was hidden (using fallback email)
      */
-    private fun findOrCreateAppleUser(appleId: String, email: String, fullName: String?): User {
+    private fun findOrCreateAppleUser(appleId: String, email: String, fullName: String?, emailHidden: Boolean): User {
         val name = fullName ?: email.substringBefore("@")
         
-        return userRepository.findByAppleId(appleId)
+        // Always try to find by Apple ID first (most reliable identifier)
+        val existingByAppleId = userRepository.findByAppleId(appleId)
+        
+        return existingByAppleId
             .map { existingUser ->
-                // Update last login time
-                existingUser.copy(
-                    lastLoginAt = Instant.now(),
-                    updatedAt = Instant.now()
-                )
+                // User found by Apple ID - update last login time
+                // If email changed and was previously hidden, update it
+                if (emailHidden && existingUser.email != email) {
+                    logger.info { "Updating fallback email for Apple user: ${existingUser.email} -> $email" }
+                    existingUser.copy(
+                        email = email,
+                        lastLoginAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
+                } else {
+                    existingUser.copy(
+                        lastLoginAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
+                }
             }
             .orElseGet {
-                // Check if user exists with this email (account linking)
-                userRepository.findByEmail(email)
-                    .map { existingUser ->
-                        logger.info { "Linking Apple account to existing user: $email" }
-                        existingUser.copy(
-                            appleId = appleId,
-                            name = if (fullName != null) fullName else existingUser.name,
-                            lastLoginAt = Instant.now(),
-                            updatedAt = Instant.now()
-                        )
-                    }
-                    .orElseGet {
-                        // Create new user
-                        logger.info { "Creating new user with Apple: $email" }
-                        User(
-                            email = email,
-                            name = name,
-                            appleId = appleId,
-                            lastLoginAt = Instant.now()
-                        )
-                    }
+                // User not found by Apple ID - try email lookup if email is not hidden
+                if (!emailHidden) {
+                    userRepository.findByEmail(email)
+                        .map { existingUser ->
+                            logger.info { "Linking Apple account to existing user: $email" }
+                            existingUser.copy(
+                                appleId = appleId,
+                                name = if (fullName != null) fullName else existingUser.name,
+                                lastLoginAt = Instant.now(),
+                                updatedAt = Instant.now()
+                            )
+                        }
+                        .orElseGet {
+                            // Create new user
+                            logger.info { "Creating new user with Apple: $email" }
+                            User(
+                                email = email,
+                                name = name,
+                                appleId = appleId,
+                                lastLoginAt = Instant.now()
+                            )
+                        }
+                } else {
+                    // Email is hidden, so we can't use email for account linking
+                    // Create new user with Apple ID
+                    logger.info { "Creating new user with Apple (email hidden): $email" }
+                    User(
+                        email = email,
+                        name = name,
+                        appleId = appleId,
+                        lastLoginAt = Instant.now()
+                    )
+                }
             }
     }
     

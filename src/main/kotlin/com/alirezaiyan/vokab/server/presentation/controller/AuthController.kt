@@ -37,7 +37,7 @@ class AuthController(
         @Valid @RequestBody request: AppleAuthRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val response = authService.authenticateWithApple(request.idToken, request.fullName)
+            val response = authService.authenticateWithApple(request.idToken, request.fullName, request.appleUserId)
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Apple authentication failed" }

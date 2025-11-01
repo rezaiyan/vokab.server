@@ -13,7 +13,8 @@ data class AppleAuthRequest(
     @field:NotBlank(message = "ID token is required")
     val idToken: String,
     val authorizationCode: String? = null,
-    val fullName: String? = null
+    val fullName: String? = null,
+    val appleUserId: String? = null
 )
 
 data class RefreshTokenRequest(
