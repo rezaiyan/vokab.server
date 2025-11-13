@@ -12,5 +12,6 @@ interface UserRepository : JpaRepository<User, Long> {
     fun findByAppleId(appleId: String): Optional<User>
     fun findByRevenueCatUserId(revenueCatUserId: String): Optional<User>
     fun existsByEmail(email: String): Boolean
+    fun findByCurrentStreakGreaterThanAndActiveTrue(currentStreak: Int): List<User>
 }
 

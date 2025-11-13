@@ -338,6 +338,75 @@ class OpenRouterService(
             }
     }
     
+    fun generateStreakReminderMessage(
+        currentStreak: Int,
+        userName: String,
+        progressStats: ProgressStatsDto? = null
+    ): Mono<String> {
+        logger.info { "Generating personalized streak reminder message for $userName, streak: $currentStreak" }
+        
+        val prompt = buildString {
+            appendLine("You are a supportive vocabulary learning coach with an encouraging, friendly personality.")
+            appendLine("Generate ONE brief, personalized push notification message to remind the user to complete their review today to maintain their streak.")
+            appendLine()
+            appendLine("User Context:")
+            appendLine("- Name: $userName")
+            appendLine("- Current streak: $currentStreak days")
+            if (progressStats != null) {
+                appendLine("- Total vocabulary: ${progressStats.totalWords} words")
+                appendLine("- Due for review today: ${progressStats.dueCards} cards")
+                appendLine("- Words mastered: ${progressStats.level5Count + progressStats.level6Count} words")
+            }
+            appendLine()
+            appendLine("Message Requirements:")
+            appendLine("1. Create urgency but stay positive and encouraging")
+            appendLine("2. Mention the streak number prominently (${currentStreak} days)")
+            appendLine("3. Keep it concise - ideal for push notification (max 1-2 sentences)")
+            appendLine("4. Make it personal and motivating")
+            appendLine("5. Include 1-2 relevant emojis")
+            appendLine("6. Focus on maintaining the streak achievement")
+            if (progressStats != null && progressStats.dueCards > 0) {
+                appendLine("7. Optionally mention they have ${progressStats.dueCards} cards waiting for review")
+            }
+            appendLine()
+            appendLine("Return ONLY the notification message, no quotes or extra formatting.")
+        }
+        
+        val request = OpenRouterRequest(
+            messages = listOf(
+                Message(
+                    role = "user",
+                    content = listOf(
+                        Content(
+                            type = "text",
+                            text = prompt
+                        )
+                    )
+                )
+            )
+        )
+        
+        return webClient.post()
+            .uri("/chat/completions")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono<OpenRouterResponse>()
+            .map { response ->
+                if (response.error != null) {
+                    throw RuntimeException("OpenRouter error: ${response.error.message}")
+                }
+                
+                val message = response.choices?.firstOrNull()?.message?.content?.trim()
+                    ?: "You have a $currentStreak-day streak! 🔥 Complete your review today to keep it going!"
+                
+                logger.info { "Successfully generated personalized streak reminder message" }
+                message
+            }
+            .doOnError { error ->
+                logger.error(error) { "Failed to generate streak reminder message" }
+            }
+    }
+    
     private fun isValidVocabularyFormat(text: String): Boolean {
         if (text.isBlank()) return false
         if (!text.contains(",")) return false
