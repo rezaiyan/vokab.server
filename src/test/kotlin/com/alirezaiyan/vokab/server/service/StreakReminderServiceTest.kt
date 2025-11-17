@@ -1,11 +1,13 @@
 package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.domain.entity.DailyActivity
+import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.NotificationResponse
 import com.alirezaiyan.vokab.server.presentation.dto.ProgressStatsDto
+import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import io.mockk.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -27,7 +29,7 @@ class StreakReminderServiceTest {
     fun setUp() {
         userRepository = mockk()
         dailyActivityRepository = mockk()
-        pushNotificationService = mockk()
+        pushNotificationService = mockk<PushNotificationService>()
         openRouterService = mockk()
         userProgressService = mockk()
         streakReminderService = StreakReminderService(
@@ -132,7 +134,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "Hey Alice! Your 5-day streak is on fire! 🔥 Keep it going!",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         } returns listOf(NotificationResponse(success = true, messageId = "msg1"))
         every {
@@ -140,7 +143,8 @@ class StreakReminderServiceTest {
                 userId = 2L,
                 title = "Don't lose your streak!",
                 body = "Bob, don't let your amazing 10-day streak slip away! 💪",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "10")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "10"),
+                category = NotificationCategory.USER
             )
         } returns listOf(NotificationResponse(success = true, messageId = "msg2"))
 
@@ -151,7 +155,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "Hey Alice! Your 5-day streak is on fire! 🔥 Keep it going!",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         }
         verify(exactly = 1) {
@@ -159,7 +164,8 @@ class StreakReminderServiceTest {
                 userId = 2L,
                 title = "Don't lose your streak!",
                 body = "Bob, don't let your amazing 10-day streak slip away! 💪",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "10")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "10"),
+                category = NotificationCategory.USER
             )
         }
     }
@@ -196,7 +202,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "You have a 5-day streak! 🔥 Complete your review today to keep it going!",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         } returns listOf(NotificationResponse(success = true, messageId = "msg1"))
 
@@ -207,7 +214,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "You have a 5-day streak! 🔥 Complete your review today to keep it going!",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         }
     }
@@ -244,7 +252,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "You have a 5-day streak. Complete your review today to keep it going!",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         } returns listOf(NotificationResponse(success = true, messageId = "msg1"))
 
@@ -255,7 +264,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "You have a 5-day streak. Complete your review today to keep it going!",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         }
     }
@@ -292,7 +302,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "Personalized message",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         } returns listOf(NotificationResponse(success = false, error = "Failed to send"))
 
@@ -303,7 +314,8 @@ class StreakReminderServiceTest {
                 userId = 1L,
                 title = "Don't lose your streak!",
                 body = "Personalized message",
-                data = mapOf("type" to "streak_reminder", "currentStreak" to "5")
+                data = mapOf("type" to "streak_reminder", "currentStreak" to "5"),
+                category = NotificationCategory.USER
             )
         }
     }
@@ -314,7 +326,7 @@ class StreakReminderServiceTest {
 
         streakReminderService.sendReminderNotifications()
 
-        verify(exactly = 0) { pushNotificationService.sendNotificationToUser(any(), any(), any(), any()) }
+        verify(exactly = 0) { pushNotificationService.sendNotificationToUser(any(), any(), any(), any(), any(), any()) }
         verify(exactly = 0) { openRouterService.generateStreakReminderMessage(any(), any(), any()) }
     }
 

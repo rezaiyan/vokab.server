@@ -96,14 +96,3 @@ enum class AppleNotificationEventType {
     @JsonProperty("account-delete")
     ACCOUNT_DELETE
 }
-
-
-
-
-
-
-
-
-
-
-

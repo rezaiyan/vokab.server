@@ -188,6 +188,71 @@ class AiController(
             }
     }
     
+    @PostMapping("/translate-text")
+    fun translateText(
+        @AuthenticationPrincipal user: User,
+        @Valid @RequestBody request: TranslateTextRequest
+    ): ResponseEntity<ApiResponse<TranslateTextResponse>> {
+        logger.info { "🎯 [AI Controller] User ${user.email} requesting text translation" }
+        
+        val text = request.text.trim()
+        
+        if (text.isEmpty() || text.isBlank()) {
+            logger.warn { "❌ [AI Controller] Empty or whitespace-only text provided" }
+            return ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Text cannot be empty"))
+        }
+        
+        if (text.length > 200) {
+            logger.warn { "❌ [AI Controller] Text too long: ${text.length} characters" }
+            return ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Text cannot exceed 200 characters"))
+        }
+        
+        val lineCount = text.split("\n").size
+        if (lineCount > 2) {
+            logger.warn { "❌ [AI Controller] Text has too many lines: $lineCount" }
+            return ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Text cannot exceed 2 lines"))
+        }
+        
+        val bucket = rateLimitConfig.getAiBucket(user.id.toString())
+        if (!bucket.tryConsume(1)) {
+            logger.warn { "Rate limit exceeded for user ${user.email} on text translation" }
+            return ResponseEntity.status(429)
+                .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
+        }
+        
+        return try {
+            logger.info { "🔄 [AI Controller] Translating text synchronously" }
+            
+            val translation = openRouterService.translateText(
+                text = text,
+                targetLanguage = request.targetLanguage
+            ).block() ?: throw RuntimeException("Failed to translate text")
+            
+            logger.info { "✅ [AI Controller] Translation successful for user ${user.email}" }
+            
+            val response = TranslateTextResponse(
+                originalText = text,
+                translation = translation
+            )
+            
+            ResponseEntity.ok(ApiResponse(success = true, data = response))
+            
+        } catch (error: Exception) {
+            logger.error(error) { "❌ [Error] Failed to translate text for user ${user.email}" }
+            logger.error { "❌ [Error] Error type: ${error.javaClass.simpleName}" }
+            logger.error { "❌ [Error] Error message: ${error.message}" }
+            
+            ResponseEntity.badRequest()
+                .body(ApiResponse(
+                    success = false, 
+                    message = error.message ?: "Failed to translate text"
+                ))
+        }
+    }
+    
     @GetMapping("/health")
     fun healthCheck(@AuthenticationPrincipal user: User): ResponseEntity<ApiResponse<Map<String, String>>> {
         return ResponseEntity.ok(

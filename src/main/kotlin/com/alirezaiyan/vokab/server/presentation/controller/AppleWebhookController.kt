@@ -3,7 +3,6 @@ package com.alirezaiyan.vokab.server.presentation.controller
 import com.alirezaiyan.vokab.server.presentation.dto.AppleServerNotification
 import com.alirezaiyan.vokab.server.service.AppleNotificationService
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
@@ -82,14 +81,3 @@ class AppleWebhookController(
         )
     }
 }
-
-
-
-
-
-
-
-
-
-
-

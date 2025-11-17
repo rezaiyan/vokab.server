@@ -1,16 +1,16 @@
 package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.domain.entity.DailyInsight
+import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import com.alirezaiyan.vokab.server.domain.repository.DailyInsightRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
-import com.alirezaiyan.vokab.server.presentation.dto.ProgressStatsDto
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 
 private val logger = KotlinLogging.logger {}
 
@@ -87,7 +87,8 @@ class DailyInsightService(
                     "type" to "daily_insight",
                     "insight_id" to insight.id.toString(),
                     "date" to insight.date
-                )
+                ),
+                category = NotificationCategory.USER
             )
             
             val success = responses.any { it.success }

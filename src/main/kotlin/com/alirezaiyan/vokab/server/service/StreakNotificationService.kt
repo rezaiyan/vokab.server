@@ -1,6 +1,8 @@
 package com.alirezaiyan.vokab.server.service
 
+import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository
 import com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
@@ -129,7 +131,8 @@ class StreakNotificationService(
                 data = mapOf(
                     "type" to "streak_warning",
                     "current_streak" to currentStreak.toString()
-                )
+                ),
+                category = NotificationCategory.USER
             )
             
             if (responses.isEmpty()) {

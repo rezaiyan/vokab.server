@@ -142,14 +142,3 @@ class ApplePublicKeyService {
         refreshPublicKeys()
     }
 }
-
-
-
-
-
-
-
-
-
-
-

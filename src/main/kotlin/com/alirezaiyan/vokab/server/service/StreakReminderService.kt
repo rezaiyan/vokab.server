@@ -1,8 +1,10 @@
 package com.alirezaiyan.vokab.server.service
 
+import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
+import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -72,7 +74,8 @@ class StreakReminderService(
                     userId = user.id!!,
                     title = title,
                     body = body,
-                    data = data
+                    data = data,
+                    category = NotificationCategory.USER
                 )
                 
                 val successful = results.any { it.success }
@@ -100,7 +103,8 @@ class StreakReminderService(
                         userId = user.id!!,
                         title = fallbackTitle,
                         body = fallbackBody,
-                        data = data
+                        data = data,
+                        category = NotificationCategory.USER
                     )
                     logger.info { "Sent fallback reminder to user ${user.email}" }
                 } catch (fallbackError: Exception) {

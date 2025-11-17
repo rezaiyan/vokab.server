@@ -407,6 +407,53 @@ class OpenRouterService(
             }
     }
     
+    fun translateText(text: String, targetLanguage: String): Mono<String> {
+        logger.info { "Translating text to $targetLanguage" }
+        
+        val prompt = "Translate the following text to $targetLanguage. Return only the translation, no explanations, no quotes, no additional text. Just the translation:\n\n$text"
+        
+        val request = OpenRouterRequest(
+            messages = listOf(
+                Message(
+                    role = "user",
+                    content = listOf(
+                        Content(
+                            type = "text",
+                            text = prompt
+                        )
+                    )
+                )
+            )
+        )
+        
+        return webClient.post()
+            .uri("/chat/completions")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono<OpenRouterResponse>()
+            .map { response ->
+                if (response.error != null) {
+                    logger.error { "❌ [OpenRouter] API returned error: ${response.error.message}" }
+                    throw RuntimeException("OpenRouter error: ${response.error.message}")
+                }
+                
+                val translation = response.choices?.firstOrNull()?.message?.content?.trim() ?: ""
+                
+                if (translation.isEmpty()) {
+                    logger.warn { "⚠️ [OpenRouter] Empty translation response" }
+                    throw RuntimeException("Translation failed. Please try again.")
+                }
+                
+                logger.info { "✅ [OpenRouter] Successfully translated text: ${translation.take(50)}..." }
+                translation
+            }
+            .doOnError { error ->
+                logger.error(error) { "💥 [OpenRouter] Failed to translate text" }
+                logger.error { "💥 [OpenRouter] Error type: ${error.javaClass.simpleName}" }
+                logger.error { "💥 [OpenRouter] Error message: ${error.message}" }
+            }
+    }
+    
     private fun isValidVocabularyFormat(text: String): Boolean {
         if (text.isBlank()) return false
         if (!text.contains(",")) return false

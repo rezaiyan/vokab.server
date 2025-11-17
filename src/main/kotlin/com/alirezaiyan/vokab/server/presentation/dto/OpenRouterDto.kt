@@ -44,3 +44,16 @@ data class InsightResponse(
     val generatedAt: String
 )
 
+data class TranslateTextRequest(
+    @field:NotBlank(message = "Text is required")
+    val text: String,
+    
+    @field:NotBlank(message = "Target language is required")
+    val targetLanguage: String
+)
+
+data class TranslateTextResponse(
+    val originalText: String,
+    val translation: String
+)
+

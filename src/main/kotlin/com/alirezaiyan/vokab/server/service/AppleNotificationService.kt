@@ -1,7 +1,9 @@
 package com.alirezaiyan.vokab.server.service
 
+import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
+import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
@@ -189,7 +191,8 @@ class AppleNotificationService(
                     "type" to "sign_out",
                     "action" to "clear_local_data",
                     "reason" to "consent_revoked"
-                )
+                ),
+                category = NotificationCategory.SYSTEM
             )
             logger.info { "Sent consent revocation notification to ${notificationResults.size} devices" }
         } catch (e: Exception) {
@@ -226,7 +229,8 @@ class AppleNotificationService(
                     "type" to "account_deleted",
                     "action" to "clear_local_data",
                     "clear_daily_insights" to "true"
-                )
+                ),
+                category = NotificationCategory.SYSTEM
             )
             logger.info { "Sent Apple account deletion notification to ${notificationResults.size} devices" }
         } catch (e: Exception) {
@@ -250,11 +254,3 @@ class AppleNotificationService(
         logger.warn { "⚠️  Consider hard delete if required by your privacy policy" }
     }
 }
-
-
-
-
-
-
-
-
