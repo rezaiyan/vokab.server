@@ -33,6 +33,7 @@ class SecurityConfig(
                         "/api/v1/auth/google",
                         "/api/v1/auth/apple",
                         "/api/v1/auth/refresh",
+                        "/api/v1/auth/jwks",
                         "/api/v1/webhooks/**",
                         "/api/v1/health",
                         "/api/v1/version",

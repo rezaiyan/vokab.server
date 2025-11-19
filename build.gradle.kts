@@ -39,6 +39,7 @@ dependencies {
 	// Database
 	implementation("org.postgresql:postgresql")
 	implementation("com.h2database:h2")
+	implementation("org.flywaydb:flyway-core")
 	
 	// JWT
 	implementation("io.jsonwebtoken:jjwt-api:0.12.3")
@@ -56,6 +57,12 @@ dependencies {
 	
 	// Rate Limiting
 	implementation("com.bucket4j:bucket4j-core:8.10.1")
+	
+	// Password Hashing (for refresh tokens)
+	implementation("org.springframework.security:spring-security-crypto")
+	
+	// Argon2 for refresh token hashing
+	implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
 	
 	// Logging
 	implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")

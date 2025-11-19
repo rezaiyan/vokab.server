@@ -18,7 +18,11 @@ data class AppProperties(
 data class JwtConfig(
     var secret: String = "",
     var expirationMs: Long = 86400000,
-    var refreshExpirationMs: Long = 604800000
+    var refreshExpirationMs: Long = 604800000,
+    var privateKeyPath: String = "",
+    var publicKeyPath: String = "",
+    var issuer: String = "vokab-server",
+    var audience: String = "vokab-client"
 )
 
 data class FirebaseAppConfig(

@@ -2,6 +2,11 @@ spring:
   application:
     name: vokab-server
 
+  sql:
+    init:
+      mode: never
+      schema-locations: []
+
   datasource:
     # Render: set DATABASE_URL to a JDBC URL, e.g.:
     # jdbc:postgresql://<HOST>:5432/vokabdb?sslmode=require
@@ -11,9 +16,16 @@ spring:
     # Tip: you can omit driver-class-name and let Spring pick it from the URL
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
 
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
@@ -42,6 +54,10 @@ app:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:}
+    issuer: ${JWT_ISSUER:vokab-server}
+    audience: ${JWT_AUDIENCE:vokab-client}
 
   openrouter:
     api-key: ${OPENROUTER_API_KEY:your-openrouter-api-key}

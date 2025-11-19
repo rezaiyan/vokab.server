@@ -38,5 +38,33 @@ class RateLimitConfig {
                 .build()
         }
     }
+    
+    /**
+     * Get rate limit bucket for authentication endpoints (IP-based)
+     * Limit: 5 login attempts per minute per IP
+     */
+    fun getAuthBucket(ipAddress: String): Bucket {
+        val key = "auth_$ipAddress"
+        return cache.computeIfAbsent(key) {
+            val limit = Bandwidth.classic(5, Refill.intervally(5, Duration.ofMinutes(1)))
+            Bucket.builder()
+                .addLimit(limit)
+                .build()
+        }
+    }
+    
+    /**
+     * Get rate limit bucket for token refresh endpoint (IP-based)
+     * Limit: 10 refresh requests per minute per IP
+     */
+    fun getRefreshBucket(ipAddress: String): Bucket {
+        val key = "refresh_$ipAddress"
+        return cache.computeIfAbsent(key) {
+            val limit = Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1)))
+            Bucket.builder()
+                .addLimit(limit)
+                .build()
+        }
+    }
 }
 
