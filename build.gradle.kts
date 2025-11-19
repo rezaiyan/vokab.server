@@ -39,7 +39,8 @@ dependencies {
 	// Database
 	implementation("org.postgresql:postgresql")
 	implementation("com.h2database:h2")
-	implementation("org.flywaydb:flyway-core")
+	implementation("org.flywaydb:flyway-core:11.8.0")
+	implementation("org.flywaydb:flyway-database-postgresql:11.8.0")
 	
 	// JWT
 	implementation("io.jsonwebtoken:jjwt-api:0.12.3")
