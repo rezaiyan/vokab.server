@@ -4,6 +4,7 @@ import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import com.alirezaiyan.vokab.server.service.AuthService
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -20,10 +21,21 @@ class AuthController(
     
     @PostMapping("/google")
     fun authenticateWithGoogle(
-        @Valid @RequestBody request: GoogleAuthRequest
+        @Valid @RequestBody request: GoogleAuthRequest,
+        httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val response = authService.authenticateWithGoogle(request.idToken)
+            val deviceId = httpRequest.getHeader("X-Device-ID")
+            val userAgent = httpRequest.getHeader("User-Agent")
+            val ipAddress = getClientIpAddress(httpRequest)
+            
+            val response = authService.authenticateWithGoogle(
+                request.idToken,
+                deviceId,
+                userAgent,
+                ipAddress
+            )
+            
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Google authentication failed" }
@@ -34,10 +46,23 @@ class AuthController(
     
     @PostMapping("/apple")
     fun authenticateWithApple(
-        @Valid @RequestBody request: AppleAuthRequest
+        @Valid @RequestBody request: AppleAuthRequest,
+        httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val response = authService.authenticateWithApple(request.idToken, request.fullName, request.appleUserId)
+            val deviceId = httpRequest.getHeader("X-Device-ID")
+            val userAgent = httpRequest.getHeader("User-Agent")
+            val ipAddress = getClientIpAddress(httpRequest)
+            
+            val response = authService.authenticateWithApple(
+                request.idToken,
+                request.fullName,
+                request.appleUserId,
+                deviceId,
+                userAgent,
+                ipAddress
+            )
+            
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Apple authentication failed" }
@@ -48,10 +73,20 @@ class AuthController(
     
     @PostMapping("/refresh")
     fun refreshToken(
-        @Valid @RequestBody request: RefreshTokenRequest
+        @Valid @RequestBody request: RefreshTokenRequest,
+        httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val response = authService.refreshAccessToken(request.refreshToken)
+            val deviceId = httpRequest.getHeader("X-Device-ID")
+            val userAgent = httpRequest.getHeader("User-Agent")
+            val ipAddress = getClientIpAddress(httpRequest)
+            
+            val response = authService.refreshAccessToken(
+                request.refreshToken,
+                deviceId,
+                userAgent,
+                ipAddress
+            )
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Token refresh failed" }
@@ -63,16 +98,35 @@ class AuthController(
     @PostMapping("/logout")
     fun logout(
         @AuthenticationPrincipal user: User,
-        @Valid @RequestBody request: RefreshTokenRequest
+        @Valid @RequestBody request: RefreshTokenRequest,
+        httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<Unit>> {
         return try {
-            authService.logout(user.id!!, request.refreshToken)
+            val ipAddress = getClientIpAddress(httpRequest)
+            authService.logout(user.id!!, request.refreshToken, ipAddress)
             ResponseEntity.ok(ApiResponse(success = true, message = "Logged out successfully"))
         } catch (e: Exception) {
             logger.error(e) { "Logout failed" }
             ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = "Logout failed: ${e.message}"))
         }
+    }
+    
+    private fun getClientIpAddress(request: HttpServletRequest): String {
+        var ipAddress = request.getHeader("X-Forwarded-For")
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equals(ipAddress, ignoreCase = true)) {
+            ipAddress = request.getHeader("X-Real-IP")
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equals(ipAddress, ignoreCase = true)) {
+            ipAddress = request.getHeader("Proxy-Client-IP")
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equals(ipAddress, ignoreCase = true)) {
+            ipAddress = request.getHeader("WL-Proxy-Client-IP")
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equals(ipAddress, ignoreCase = true)) {
+            ipAddress = request.remoteAddr
+        }
+        return ipAddress?.split(",")?.firstOrNull()?.trim() ?: request.remoteAddr
     }
     
     @PostMapping("/logout-all")

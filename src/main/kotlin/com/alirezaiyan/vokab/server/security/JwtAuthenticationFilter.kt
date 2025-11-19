@@ -16,7 +16,7 @@ private val logger = KotlinLogging.logger {}
 
 @Component
 class JwtAuthenticationFilter(
-    private val jwtTokenProvider: JwtTokenProvider,
+    private val jwtTokenProvider: RS256JwtTokenProvider,
     private val userRepository: UserRepository,
     private val appProperties: AppProperties
 ) : OncePerRequestFilter() {
@@ -26,6 +26,7 @@ class JwtAuthenticationFilter(
         "/api/v1/auth/google",
         "/api/v1/auth/apple", 
         "/api/v1/auth/refresh",
+        "/api/v1/auth/jwks",
         "/api/v1/webhooks/",
         "/api/v1/health",
         "/api/v1/version",
