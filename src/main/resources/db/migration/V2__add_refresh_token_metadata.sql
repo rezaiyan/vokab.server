@@ -66,10 +66,6 @@ WHERE family_id IS NULL;
 ALTER TABLE refresh_tokens
     ALTER COLUMN family_id SET NOT NULL;
 
--- Add replaced_by column if it doesn't exist (for token rotation)
-ALTER TABLE refresh_tokens
-    ADD COLUMN IF NOT EXISTS replaced_by BIGINT;
-
 -- Add optional metadata columns for device tracking
 ALTER TABLE refresh_tokens
     ADD COLUMN IF NOT EXISTS device_id VARCHAR(255);

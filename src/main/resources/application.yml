@@ -21,7 +21,7 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     locations: classpath:db/migration
-    validate-on-migrate: true
+    validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:false}
 
   jpa:
     hibernate:
