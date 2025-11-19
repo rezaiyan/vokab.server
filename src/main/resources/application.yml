@@ -2,11 +2,6 @@ spring:
   application:
     name: vokab-server
 
-  sql:
-    init:
-      mode: never
-      schema-locations: []
-
   datasource:
     # Render: set DATABASE_URL to a JDBC URL, e.g.:
     # jdbc:postgresql://<HOST>:5432/vokabdb?sslmode=require
@@ -15,6 +10,11 @@ spring:
     password: ${DATABASE_PASSWORD:}
     # Tip: you can omit driver-class-name and let Spring pick it from the URL
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
+
+  sql:
+    init:
+      mode: never
+      schema-locations: []
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
