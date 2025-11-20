@@ -2,7 +2,7 @@ package com.alirezaiyan.vokab.server.presentation.controller
 
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
 import com.alirezaiyan.vokab.server.presentation.dto.StreakResponse
-import com.alirezaiyan.vokab.server.security.JwtTokenProvider
+import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
 import com.alirezaiyan.vokab.server.service.StreakService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.ResponseEntity
@@ -14,7 +14,7 @@ private val logger = KotlinLogging.logger {}
 @RequestMapping("/api/v1/streak")
 class StreakController(
     private val streakService: StreakService,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: RS256JwtTokenProvider
 ) {
     
     /**
