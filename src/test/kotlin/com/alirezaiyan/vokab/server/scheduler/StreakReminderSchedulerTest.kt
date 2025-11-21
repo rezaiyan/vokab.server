@@ -34,7 +34,3 @@ class StreakReminderSchedulerTest {
         verify(exactly = 1) { streakReminderService.sendReminderNotifications() }
     }
 }
-
-
-
-

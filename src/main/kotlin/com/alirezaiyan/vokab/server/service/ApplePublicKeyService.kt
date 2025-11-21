@@ -133,13 +133,5 @@ class ApplePublicKeyService {
         
         return keyFactory.generatePublic(spec)
     }
-    
-    /**
-     * Force refresh of public keys (useful for testing or manual refresh)
-     */
-    fun forceRefresh() {
-        logger.info { "Force refreshing Apple public keys" }
-        refreshPublicKeys()
-    }
-}
 
+}

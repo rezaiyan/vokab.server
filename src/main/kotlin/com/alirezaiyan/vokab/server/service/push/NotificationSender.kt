@@ -97,7 +97,3 @@ class FirebaseTokenInvalidationHandler(
                message.contains("invalid-registration-token")
     }
 }
-
-
-
-

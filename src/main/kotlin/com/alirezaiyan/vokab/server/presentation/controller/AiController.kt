@@ -1,18 +1,20 @@
 package com.alirezaiyan.vokab.server.presentation.controller
 
 import com.alirezaiyan.vokab.server.config.AppProperties
+import com.alirezaiyan.vokab.server.config.RateLimitConfig
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
+import com.alirezaiyan.vokab.server.service.DailyInsightService
+import com.alirezaiyan.vokab.server.service.FeatureAccessService
 import com.alirezaiyan.vokab.server.service.OpenRouterService
+import com.alirezaiyan.vokab.server.service.UserProgressService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.security.core.context.ReactiveSecurityContextHolder
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
 import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
@@ -21,12 +23,12 @@ private val logger = KotlinLogging.logger {}
 @RequestMapping("/api/v1/ai")
 class AiController(
     private val openRouterService: OpenRouterService,
-    private val rateLimitConfig: com.alirezaiyan.vokab.server.config.RateLimitConfig,
-    private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService,
-    private val userRepository: com.alirezaiyan.vokab.server.domain.repository.UserRepository,
+    private val rateLimitConfig: RateLimitConfig,
+    private val featureAccessService: FeatureAccessService,
+    private val userRepository: UserRepository,
     private val appProperties: AppProperties,
-    private val userProgressService: com.alirezaiyan.vokab.server.service.UserProgressService,
-    private val dailyInsightService: com.alirezaiyan.vokab.server.service.DailyInsightService
+    private val userProgressService: UserProgressService,
+    private val dailyInsightService: DailyInsightService
 ) {
     
     @PostMapping("/extract-vocabulary")
@@ -81,24 +83,33 @@ class AiController(
                 extractSentences = request.extractSentences
             ).block() ?: throw RuntimeException("Failed to extract vocabulary")
             
-            // Increment usage count for free users
-            featureAccessService.incrementAiExtractionUsage(user)
-            userRepository.save(user)
+            val userId = user.id ?: return ResponseEntity.status(401)
+                .body(ApiResponse(success = false, message = "Invalid user session"))
             
-            logger.info { "AI extraction successful for ${user.email}. Usage: ${user.aiExtractionUsageCount}/${appProperties.features.freeAiExtractionLimit}" }
+            // Atomically consume one usage for free users; enforce limit strictly
+            val consumed = featureAccessService.tryConsumeAiExtractionUsage(userId)
+            if (!consumed) {
+                val limit = appProperties.features.freeAiExtractionLimit
+                logger.warn { "❌ [AI Controller] Post-extraction usage consumption failed for ${user.email}. Limit $limit reached." }
+                return ResponseEntity.status(403)
+                    .body(ApiResponse(success = false, message = "You've used all $limit free AI extractions. Upgrade to Premium for unlimited access."))
+            }
+            
+            val updatedUser = userRepository.findById(userId).orElse(user)
+            logger.info { "AI extraction successful for ${user.email}. Usage: ${updatedUser.aiExtractionUsageCount}/${appProperties.features.freeAiExtractionLimit}" }
             
             val wordCount = extractedText.split(";").size
-            val remaining = featureAccessService.getRemainingAiExtractionUsages(user)
+            val remaining = featureAccessService.getRemainingAiExtractionUsages(updatedUser)
             
             val response = VocabularyExtractionResponse(
                 extractedText = extractedText,
                 wordCount = wordCount,
-                aiExtractionUsageCount = user.aiExtractionUsageCount,
+                aiExtractionUsageCount = updatedUser.aiExtractionUsageCount,
                 aiExtractionUsageLimit = appProperties.features.freeAiExtractionLimit,
                 remainingAiExtractions = remaining
             )
             
-            logger.info { "📊 [Response] Usage stats: ${user.aiExtractionUsageCount}/${appProperties.features.freeAiExtractionLimit}, remaining: $remaining" }
+            logger.info { "📊 [Response] Usage stats: ${updatedUser.aiExtractionUsageCount}/${appProperties.features.freeAiExtractionLimit}, remaining: $remaining" }
             
             logger.info { "📤 [Response] Sending HTTP 200 OK to client with $wordCount words" }
             logger.info { "📤 [Response] Success: true, Data: ${extractedText.take(50)}..." }

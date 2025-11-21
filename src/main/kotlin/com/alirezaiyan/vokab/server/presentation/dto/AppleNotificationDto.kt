@@ -14,16 +14,6 @@ data class AppleServerNotification(
     val payload: String // JWT signed by Apple
 )
 
-/**
- * Decoded notification payload claims
- */
-data class AppleNotificationPayload(
-    val iss: String, // Issuer: https://appleid.apple.com
-    val aud: String, // Your app's bundle ID
-    val iat: Long,   // Issued at timestamp
-    val exp: Long,   // Expiration timestamp
-    val events: AppleNotificationEvents
-)
 
 /**
  * Events contained in the notification

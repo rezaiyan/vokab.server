@@ -3,15 +3,18 @@ package com.alirezaiyan.vokab.server.service
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
 @Service
 class FeatureAccessService(
-    private val appProperties: AppProperties
+    private val appProperties: AppProperties,
+    private val userRepository: UserRepository
 ) {
     
     /**
@@ -89,9 +92,12 @@ class FeatureAccessService(
         
         // Free users get limited usages
         val freeLimit = appProperties.features.freeAiExtractionLimit
-        val remainingUsages = freeLimit - user.aiExtractionUsageCount
+        val currentUsageCount = user.id?.let { userId ->
+            userRepository.findById(userId).map { it.aiExtractionUsageCount }.orElse(user.aiExtractionUsageCount)
+        } ?: user.aiExtractionUsageCount
+        val remainingUsages = freeLimit - currentUsageCount
         
-        logger.debug { "Free user ${user.email}: ${user.aiExtractionUsageCount}/$freeLimit AI extractions used, remaining: $remainingUsages" }
+        logger.debug { "Free user ${user.email}: $currentUsageCount/$freeLimit AI extractions used, remaining: $remainingUsages" }
         
         return remainingUsages > 0
     }
@@ -106,19 +112,22 @@ class FeatureAccessService(
         }
         
         val freeLimit = appProperties.features.freeAiExtractionLimit
-        val remaining = freeLimit - user.aiExtractionUsageCount
+        val currentUsageCount = user.id?.let { userId ->
+            userRepository.findById(userId).map { it.aiExtractionUsageCount }.orElse(user.aiExtractionUsageCount)
+        } ?: user.aiExtractionUsageCount
+        val remaining = freeLimit - currentUsageCount
         return maxOf(0, remaining)
     }
     
     /**
-     * Increment AI extraction usage count
-     * Only increment for free users (premium users have unlimited)
+     * Atomically consume one AI extraction usage for a free user if under limit.
+     * Returns true if consumption succeeded, false if limit already reached.
      */
-    fun incrementAiExtractionUsage(user: User) {
-        if (!hasActivePremiumAccess(user)) {
-            user.aiExtractionUsageCount++
-            logger.info { "Incremented AI extraction usage for ${user.email}: ${user.aiExtractionUsageCount}/${appProperties.features.freeAiExtractionLimit}" }
-        }
+    @Transactional
+    fun tryConsumeAiExtractionUsage(userId: Long): Boolean {
+        val limit = appProperties.features.freeAiExtractionLimit
+        val updatedRows = userRepository.incrementAiExtractionUsageIfBelowLimit(userId, limit)
+        return updatedRows > 0
     }
     
     /**
