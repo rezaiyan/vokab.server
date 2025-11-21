@@ -12,7 +12,8 @@ data class AppProperties(
     var revenuecat: RevenueCatConfig = RevenueCatConfig(),
     var cors: CorsConfig = CorsConfig(),
     var features: FeatureFlagsConfig = FeatureFlagsConfig(),
-    var security: SecurityConfig = SecurityConfig()
+    var security: SecurityConfig = SecurityConfig(),
+    var logging: LoggingConfig = LoggingConfig()
 )
 
 data class JwtConfig(
@@ -54,5 +55,12 @@ data class FeatureFlagsConfig(
 
 data class SecurityConfig(
     var testEmails: String = ""  // Comma-separated list of test emails that bypass active check
+)
+
+data class LoggingConfig(
+    var enabled: Boolean = true,
+    var maxBodySize: Int = 50000,
+    var excludePatterns: String = "/actuator/health,/h2-console/**",
+    var logLevel: String = "INFO"
 )
 

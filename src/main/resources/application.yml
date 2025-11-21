@@ -83,6 +83,13 @@ app:
     # Set in environment variable: TEST_EMAILS=email1@example.com,email2@example.com
     testEmails: ${TEST_EMAILS:}
 
+  logging:
+    # Request/Response logging configuration
+    enabled: ${REQUEST_LOGGING_ENABLED:true}
+    max-body-size: ${REQUEST_LOGGING_MAX_BODY_SIZE:50000}
+    exclude-patterns: ${REQUEST_LOGGING_EXCLUDE_PATTERNS:/actuator/health,/h2-console/**}
+    log-level: ${REQUEST_LOGGING_LEVEL:INFO}
+
   github-vocabulary:
     repo-url: ${GITHUB_REPO_URL:https://api.github.com/repos/rezaiyan/Vokab-collection}
     # GitHub personal access token for higher rate limits (5000/hour instead of 60/hour)
