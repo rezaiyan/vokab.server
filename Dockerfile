@@ -5,6 +5,9 @@ FROM gradle:8.5-jdk21 AS builder
 
 WORKDIR /app
 
+# Set Gradle user home to avoid buildkit processing /home/gradle/.gradle
+ENV GRADLE_USER_HOME=/app/.gradle
+
 # Copy Gradle files
 COPY build.gradle.kts settings.gradle.kts ./
 COPY gradle gradle
