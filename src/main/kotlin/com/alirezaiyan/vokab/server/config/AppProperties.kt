@@ -19,7 +19,7 @@ data class AppProperties(
 data class JwtConfig(
     var secret: String = "",
     var expirationMs: Long = 86400000,
-    var refreshExpirationMs: Long = 604800000,
+    var refreshExpirationMs: Long = 7_776_000_000, // 90 days
     var privateKeyPath: String = "",
     var publicKeyPath: String = "",
     var issuer: String = "vokab-server",
