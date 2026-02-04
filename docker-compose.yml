@@ -9,8 +9,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vokab_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Port 5432 not exposed to host (app reaches postgres via Docker network).
+    # Remove conflict if host PostgreSQL or another service uses 5432.
     networks:
       - vokab-network
     restart: unless-stopped
