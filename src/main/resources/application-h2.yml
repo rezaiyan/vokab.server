@@ -1,0 +1,6 @@
+# Profile for local development with H2 (in-memory).
+# Use: SPRING_PROFILES_ACTIVE=h2 (e.g. in start-dev.sh)
+# Flyway runs H2-compatible migrations only (no PostgreSQL DO $$ blocks).
+spring:
+  flyway:
+    locations: classpath:db/migration/h2

@@ -264,6 +264,42 @@ class AiController(
         }
     }
     
+    @PostMapping("/suggest-vocabulary")
+    fun suggestVocabulary(
+        @AuthenticationPrincipal user: User,
+        @Valid @RequestBody request: SuggestVocabularyRequest
+    ): ResponseEntity<ApiResponse<SuggestVocabularyResponse>> {
+        logger.info { "User ${user.email} requesting suggested vocabulary: target=${request.targetLanguage}, level=${request.currentLevel}, native=${request.nativeLanguage}" }
+
+        val bucket = rateLimitConfig.getAiBucket(user.id.toString())
+        if (!bucket.tryConsume(1)) {
+            logger.warn { "Rate limit exceeded for user ${user.email} on suggest-vocabulary" }
+            return ResponseEntity.status(429)
+                .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
+        }
+
+        return try {
+            val items = openRouterService.generateVocabularyFromPreferences(
+                targetLanguage = request.targetLanguage.trim(),
+                currentLevel = request.currentLevel.trim(),
+                nativeLanguage = request.nativeLanguage.trim()
+            ).block() ?: emptyList()
+
+            val response = SuggestVocabularyResponse(
+                targetLanguage = request.targetLanguage.trim(),
+                nativeLanguage = request.nativeLanguage.trim(),
+                currentLevel = request.currentLevel.trim(),
+                items = items
+            )
+            logger.info { "Returning ${items.size} suggested vocabulary items to user ${user.email}" }
+            ResponseEntity.ok(ApiResponse(success = true, data = response))
+        } catch (error: Exception) {
+            logger.error(error) { "Failed to suggest vocabulary for user ${user.email}" }
+            ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = error.message ?: "Failed to generate vocabulary"))
+        }
+    }
+
     @GetMapping("/health")
     fun healthCheck(@AuthenticationPrincipal user: User): ResponseEntity<ApiResponse<Map<String, String>>> {
         return ResponseEntity.ok(

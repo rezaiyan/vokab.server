@@ -31,6 +31,7 @@ class JwtAuthenticationFilter(
         "/api/v1/health",
         "/api/v1/version",
         "/api/v1/users/feature-flags",
+        "/api/v1/onboarding/",
         "/h2-console/",
         "/actuator/health",
         "/error"

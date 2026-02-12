@@ -66,5 +66,19 @@ class RateLimitConfig {
                 .build()
         }
     }
+
+    /**
+     * Get rate limit bucket for public onboarding vocabulary (IP-based)
+     * Limit: 5 requests per minute per IP to prevent abuse
+     */
+    fun getOnboardingBucket(ipAddress: String): Bucket {
+        val key = "onboarding_$ipAddress"
+        return cache.computeIfAbsent(key) {
+            val limit = Bandwidth.classic(5, Refill.intervally(5, Duration.ofMinutes(1)))
+            Bucket.builder()
+                .addLimit(limit)
+                .build()
+        }
+    }
 }
 

@@ -52,6 +52,11 @@ if [ -f .env ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
+# Use H2 profile when using default H2 DB so Flyway runs H2-compatible migrations
+if [ -z "$DATABASE_URL" ] || [[ "$DATABASE_URL" == *"h2"* ]]; then
+    export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-h2}"
+fi
+
 # Check required variables
 if [ -z "$OPENROUTER_API_KEY" ] || [ "$OPENROUTER_API_KEY" = "your-openrouter-api-key" ]; then
     echo "⚠️  Warning: OPENROUTER_API_KEY not set in .env"

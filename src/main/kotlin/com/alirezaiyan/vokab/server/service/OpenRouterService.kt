@@ -2,6 +2,7 @@ package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.presentation.dto.ProgressStatsDto
+import com.alirezaiyan.vokab.server.presentation.dto.SuggestVocabularyItemResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -454,6 +455,108 @@ class OpenRouterService(
             }
     }
     
+    /**
+     * Generate exactly 100 vocabulary items based on user's language preferences.
+     * Words are in target language with translations in native language, appropriate for currentLevel.
+     */
+    fun generateVocabularyFromPreferences(
+        targetLanguage: String,
+        currentLevel: String,
+        nativeLanguage: String
+    ): Mono<List<SuggestVocabularyItemResponse>> {
+        logger.info { "Generating vocabulary: target=$targetLanguage, level=$currentLevel, native=$nativeLanguage" }
+
+        val prompt = buildString {
+            appendLine("You are an expert language teacher and curriculum designer.")
+            appendLine()
+            appendLine("Task: Generate exactly 100 vocabulary items for a learner with the following profile:")
+            appendLine("- Language they want to learn (target): $targetLanguage")
+            appendLine("- Their current level in $targetLanguage: $currentLevel")
+            appendLine("- Their native or primary language (for translations): $nativeLanguage")
+            appendLine()
+            appendLine("Requirements:")
+            appendLine("1. Choose words and short phrases that are appropriate for level \"$currentLevel\" (e.g. beginner = A1, elementary; intermediate = B1-B2; advanced = C1-C2).")
+            appendLine("2. Each item must be useful for real-world use: everyday vocabulary, common verbs, nouns, adjectives, and essential phrases.")
+            appendLine("3. Cover a balanced mix: greetings, numbers, time, family, food, travel, work, emotions, actions, places, and common expressions.")
+            appendLine("4. Provide exactly 100 items. No fewer, no more.")
+            appendLine()
+            appendLine("Output format (strict):")
+            appendLine("- One entry per line.")
+            appendLine("- Each line: originalWord,translation,optionalShortDescription")
+            appendLine("- originalWord = word or short phrase in $targetLanguage")
+            appendLine("- translation = meaning or translation in $nativeLanguage")
+            appendLine("- optionalShortDescription = brief context or example (optional; can be empty after the second comma)")
+            appendLine("- Use comma as separator. If a field contains a comma, do not use it or escape the content.")
+            appendLine("- No numbering, no markdown, no code blocks, no extra text before or after the list.")
+            appendLine()
+            appendLine("Example (for German, level beginner, native English):")
+            appendLine("Hallo,hello,a greeting")
+            appendLine("Guten Morgen,good morning,formal morning greeting")
+            appendLine("danke,thank you,")
+            appendLine("Brot,bread,common noun")
+            appendLine()
+            appendLine("Output exactly 100 lines in the format above, nothing else.")
+        }
+
+        val request = OpenRouterRequest(
+            messages = listOf(
+                Message(
+                    role = "user",
+                    content = listOf(
+                        Content(type = "text", text = prompt)
+                    )
+                )
+            )
+        )
+
+        return webClient.post()
+            .uri("/chat/completions")
+            .bodyValue(request)
+            .retrieve()
+            .onStatus({ it.isError }) { response ->
+                response.bodyToMono<String>().flatMap { errorBody ->
+                    logger.error { "OpenRouter suggest-vocabulary HTTP ${response.statusCode()}: $errorBody" }
+                    Mono.error(RuntimeException("OpenRouter API error: ${response.statusCode()} - $errorBody"))
+                }
+            }
+            .bodyToMono<OpenRouterResponse>()
+            .map { response ->
+                if (response.error != null) {
+                    throw RuntimeException("OpenRouter error: ${response.error.message}")
+                }
+                val content = response.choices?.firstOrNull()?.message?.content?.trim() ?: ""
+                if (content.isBlank()) {
+                    throw RuntimeException("No vocabulary generated. Please try again.")
+                }
+                val items = parseSuggestVocabularyResponse(content)
+                if (items.size < 50) {
+                    logger.warn { "AI returned only ${items.size} items; expected ~100" }
+                }
+                logger.info { "Generated ${items.size} vocabulary items for $targetLanguage ($currentLevel)" }
+                items.take(100)
+            }
+            .doOnError { error ->
+                logger.error(error) { "Failed to generate vocabulary from preferences" }
+            }
+    }
+
+    private fun parseSuggestVocabularyResponse(raw: String): List<SuggestVocabularyItemResponse> {
+        val lines = raw.lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        val result = mutableListOf<SuggestVocabularyItemResponse>()
+        for (line in lines) {
+            val parts = line.split(",", limit = 3)
+            if (parts.size >= 2) {
+                val originalWord = parts[0].trim().takeIf { it.isNotBlank() } ?: continue
+                val translation = parts[1].trim().takeIf { it.isNotBlank() } ?: continue
+                val description = parts.getOrNull(2)?.trim() ?: ""
+                result.add(SuggestVocabularyItemResponse(originalWord = originalWord, translation = translation, description = description))
+            }
+        }
+        return result
+    }
+
     private fun isValidVocabularyFormat(text: String): Boolean {
         if (text.isBlank()) return false
         if (!text.contains(",")) return false

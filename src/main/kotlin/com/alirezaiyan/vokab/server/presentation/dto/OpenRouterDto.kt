@@ -57,3 +57,33 @@ data class TranslateTextResponse(
     val translation: String
 )
 
+// --- Suggest vocabulary by language preferences ---
+
+data class SuggestVocabularyRequest(
+    @field:NotBlank(message = "Target language (language to learn) is required")
+    val targetLanguage: String,
+
+    @field:NotBlank(message = "Current level in the target language is required")
+    val currentLevel: String,
+
+    @field:NotBlank(message = "Native or current language is required")
+    val nativeLanguage: String
+)
+
+/**
+ * Single vocabulary item for display and optional import.
+ * originalWord is in the target language; translation is in the user's native language.
+ */
+data class SuggestVocabularyItemResponse(
+    val originalWord: String,
+    val translation: String,
+    val description: String = ""
+)
+
+data class SuggestVocabularyResponse(
+    val targetLanguage: String,
+    val nativeLanguage: String,
+    val currentLevel: String,
+    val items: List<SuggestVocabularyItemResponse>
+)
+
