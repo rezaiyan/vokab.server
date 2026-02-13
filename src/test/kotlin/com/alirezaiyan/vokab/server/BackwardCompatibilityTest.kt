@@ -55,12 +55,7 @@ class BackwardCompatibilityTest {
                 languageCode = "en",
                 themeMode = "AUTO",
                 notificationsEnabled = true,
-                reviewReminders = true,
-                motivationalMessages = true,
-                dailyReminderTime = "18:00",
-                minimumDueCards = 5,
-                successesToAdvance = 1,
-                forgotPenalty = 2
+                dailyReminderTime = "18:00"
             )
         )
         assertNotNull(settings.id)
