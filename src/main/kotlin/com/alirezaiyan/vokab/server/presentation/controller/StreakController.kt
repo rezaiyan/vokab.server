@@ -33,10 +33,9 @@ class StreakController(
             logger.debug { "Recording activity for user: $userId" }
             
             val user = streakService.recordActivity(userId)
-            
+
             val response = StreakResponse(
-                currentStreak = user.currentStreak,
-                longestStreak = user.longestStreak
+                currentStreak = user.currentStreak
             )
             
             ResponseEntity.ok(ApiResponse(success = true, data = response, message = "Activity recorded successfully"))
@@ -62,10 +61,9 @@ class StreakController(
                 ?: throw IllegalArgumentException("Invalid token")
             
             val streakInfo = streakService.getUserStreak(userId)
-            
+
             val response = StreakResponse(
-                currentStreak = streakInfo.currentStreak,
-                longestStreak = streakInfo.longestStreak
+                currentStreak = streakInfo.currentStreak
             )
             
             ResponseEntity.ok(ApiResponse(success = true, data = response))

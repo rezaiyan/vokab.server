@@ -97,23 +97,14 @@ class StreakService(
         val newCurrentStreak = calculateCurrentStreak(user, today)
         
         logger.info { "📈 Streak calculated: $newCurrentStreak consecutive days (last activity: $today)" }
-        
-        // Update longest streak only if current exceeds it
-        val newLongestStreak = if (newCurrentStreak > user.longestStreak) {
-            logger.info { "🏆 New record! Longest streak: ${user.longestStreak} → $newCurrentStreak" }
-            newCurrentStreak
-        } else {
-            user.longestStreak
-        }
-        
+
         // Update user
         val updatedUser = user.copy(
-            currentStreak = newCurrentStreak,
-            longestStreak = newLongestStreak
+            currentStreak = newCurrentStreak
         )
-        
+
         val saved = userRepository.save(updatedUser)
-        logger.info { "✅ Streak updated for ${user.email}: current=$newCurrentStreak, longest=$newLongestStreak" }
+        logger.info { "✅ Streak updated for ${user.email}: current=$newCurrentStreak" }
         
         return saved
     }
@@ -132,35 +123,24 @@ class StreakService(
         
         // Recalculate streak from activities
         val calculatedStreak = calculateCurrentStreak(user, today)
-        
-        // Update longest streak only if current exceeds it
-        val newLongestStreak = if (calculatedStreak > user.longestStreak) {
-            logger.info { "🏆 New longest streak record for ${user.email}: ${user.longestStreak} → $calculatedStreak" }
-            calculatedStreak
-        } else {
-            user.longestStreak
-        }
-        
+
         // Update user if streak changed
-        if (calculatedStreak != user.currentStreak || newLongestStreak != user.longestStreak) {
+        if (calculatedStreak != user.currentStreak) {
             val updatedUser = user.copy(
-                currentStreak = calculatedStreak,
-                longestStreak = newLongestStreak
+                currentStreak = calculatedStreak
             )
             userRepository.save(updatedUser)
-            logger.debug { "Updated streak for ${user.email}: current=$calculatedStreak, longest=$newLongestStreak" }
+            logger.debug { "Updated streak for ${user.email}: current=$calculatedStreak" }
         }
-        
+
         return StreakInfo(
-            currentStreak = calculatedStreak,
-            longestStreak = newLongestStreak
+            currentStreak = calculatedStreak
         )
     }
 }
 
 data class StreakInfo(
-    val currentStreak: Int,
-    val longestStreak: Int
+    val currentStreak: Int
 )
 
 

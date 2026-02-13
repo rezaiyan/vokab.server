@@ -18,15 +18,12 @@ data class User(
     
     @Column(nullable = false)
     val name: String,
-    
+
     @Column(name = "google_id", unique = true)
     val googleId: String? = null,
-    
+
     @Column(name = "apple_id", unique = true)
     val appleId: String? = null,
-    
-    @Column(name = "profile_image_url")
-    val profileImageUrl: String? = null,
     
     @Column(name = "revenuecat_user_id", unique = true)
     val revenueCatUserId: String? = null,
@@ -49,14 +46,7 @@ data class User(
     
     @Column(name = "current_streak", nullable = false)
     val currentStreak: Int = 0,
-    
-    @Column(name = "longest_streak", nullable = false)
-    val longestStreak: Int = 0,
-    
-    // Free tier usage tracking for AI features
-    @Column(name = "ai_extraction_usage_count", nullable = false)
-    var aiExtractionUsageCount: Int = 0,
-    
+
     @Column(nullable = false)
     val active: Boolean = true,
     

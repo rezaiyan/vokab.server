@@ -21,20 +21,10 @@ class AuthController(
     
     @PostMapping("/google")
     fun authenticateWithGoogle(
-        @Valid @RequestBody request: GoogleAuthRequest,
-        httpRequest: HttpServletRequest
+        @Valid @RequestBody request: GoogleAuthRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val deviceId = httpRequest.getHeader("X-Device-ID")
-            val userAgent = httpRequest.getHeader("User-Agent")
-            val ipAddress = getClientIpAddress(httpRequest)
-            
-            val response = authService.authenticateWithGoogle(
-                request.idToken,
-                deviceId,
-                userAgent,
-                ipAddress
-            )
+            val response = authService.authenticateWithGoogle(request.idToken)
             
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
@@ -46,21 +36,13 @@ class AuthController(
     
     @PostMapping("/apple")
     fun authenticateWithApple(
-        @Valid @RequestBody request: AppleAuthRequest,
-        httpRequest: HttpServletRequest
+        @Valid @RequestBody request: AppleAuthRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val deviceId = httpRequest.getHeader("X-Device-ID")
-            val userAgent = httpRequest.getHeader("User-Agent")
-            val ipAddress = getClientIpAddress(httpRequest)
-            
             val response = authService.authenticateWithApple(
                 request.idToken,
                 request.fullName,
-                request.appleUserId,
-                deviceId,
-                userAgent,
-                ipAddress
+                request.appleUserId
             )
             
             ResponseEntity.ok(ApiResponse(success = true, data = response))
@@ -73,20 +55,10 @@ class AuthController(
     
     @PostMapping("/refresh")
     fun refreshToken(
-        @Valid @RequestBody request: RefreshTokenRequest,
-        httpRequest: HttpServletRequest
+        @Valid @RequestBody request: RefreshTokenRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val deviceId = httpRequest.getHeader("X-Device-ID")
-            val userAgent = httpRequest.getHeader("User-Agent")
-            val ipAddress = getClientIpAddress(httpRequest)
-            
-            val response = authService.refreshAccessToken(
-                request.refreshToken,
-                deviceId,
-                userAgent,
-                ipAddress
-            )
+            val response = authService.refreshAccessToken(request.refreshToken)
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Token refresh failed" }
@@ -98,12 +70,10 @@ class AuthController(
     @PostMapping("/logout")
     fun logout(
         @AuthenticationPrincipal user: User,
-        @Valid @RequestBody request: RefreshTokenRequest,
-        httpRequest: HttpServletRequest
+        @Valid @RequestBody request: RefreshTokenRequest
     ): ResponseEntity<ApiResponse<Unit>> {
         return try {
-            val ipAddress = getClientIpAddress(httpRequest)
-            authService.logout(user.id!!, request.refreshToken, ipAddress)
+            authService.logout(user.id!!, request.refreshToken)
             ResponseEntity.ok(ApiResponse(success = true, message = "Logged out successfully"))
         } catch (e: Exception) {
             logger.error(e) { "Logout failed" }

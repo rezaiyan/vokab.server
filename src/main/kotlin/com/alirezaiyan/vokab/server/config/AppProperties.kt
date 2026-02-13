@@ -45,12 +45,7 @@ data class CorsConfig(
 )
 
 data class FeatureFlagsConfig(
-    var premiumFeaturesEnabled: Boolean = true,
-    var aiImageExtractionEnabled: Boolean = true,
-    var aiDailyInsightEnabled: Boolean = true,
-    var pushNotificationsEnabled: Boolean = true,
-    var subscriptionsEnabled: Boolean = true,
-    var freeAiExtractionLimit: Int = 10  // Free tier gets 10 AI image extractions
+    var pushNotificationsEnabled: Boolean = true
 )
 
 data class SecurityConfig(

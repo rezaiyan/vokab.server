@@ -33,10 +33,7 @@ data class ProgressStatsDto(
 
 data class VocabularyExtractionResponse(
     val extractedText: String,
-    val wordCount: Int,
-    val aiExtractionUsageCount: Int,
-    val aiExtractionUsageLimit: Int,
-    val remainingAiExtractions: Int
+    val wordCount: Int
 )
 
 data class InsightResponse(

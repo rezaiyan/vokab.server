@@ -29,13 +29,12 @@ class UserService(
     }
     
     @Transactional
-    fun updateUser(userId: Long, name: String?, profileImageUrl: String?): UserDto {
+    fun updateUser(userId: Long, name: String?): UserDto {
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
-        
+
         val updatedUser = user.copy(
-            name = name ?: user.name,
-            profileImageUrl = profileImageUrl ?: user.profileImageUrl
+            name = name ?: user.name
         )
         
         val saved = userRepository.save(updatedUser)
@@ -60,9 +59,9 @@ class UserService(
             id = this.id!!,
             email = this.email,
             name = this.name,
-            profileImageUrl = this.profileImageUrl,
             subscriptionStatus = this.subscriptionStatus,
-            subscriptionExpiresAt = this.subscriptionExpiresAt?.toString()
+            subscriptionExpiresAt = this.subscriptionExpiresAt?.toString(),
+            currentStreak = this.currentStreak
         )
     }
 }

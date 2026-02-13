@@ -35,11 +35,10 @@ class UserController(
     @PatchMapping("/me")
     fun updateCurrentUser(
         @AuthenticationPrincipal user: User,
-        @RequestParam(required = false) name: String?,
-        @RequestParam(required = false) profileImageUrl: String?
+        @RequestParam(required = false) name: String?
     ): ResponseEntity<ApiResponse<UserDto>> {
         return try {
-            val updated = userService.updateUser(user.id!!, name, profileImageUrl)
+            val updated = userService.updateUser(user.id!!, name)
             ResponseEntity.ok(ApiResponse(success = true, data = updated))
         } catch (e: Exception) {
             logger.error(e) { "Failed to update user" }

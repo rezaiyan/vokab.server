@@ -30,9 +30,9 @@ class DailyInsightService(
     @Transactional
     fun generateDailyInsightForUser(user: User): DailyInsight? {
         logger.info { "Generating daily insight for user: ${user.email}" }
-        
+
         // Check if user has premium access for AI insights
-        if (!featureAccessService.canUseAiDailyInsight(user)) {
+        if (!featureAccessService.hasActivePremiumAccess(user)) {
             logger.info { "User ${user.email} doesn't have premium access for AI insights" }
             return null
         }
@@ -133,10 +133,10 @@ class DailyInsightService(
     @Transactional
     fun generateInsightsForAllUsers(): Int {
         logger.info { "Starting batch daily insight generation" }
-        
+
         // Get all users with premium access for AI insights
         val eligibleUsers = userRepository.findAll().filter { user ->
-            featureAccessService.canUseAiDailyInsight(user)
+            featureAccessService.hasActivePremiumAccess(user)
         }
         
         logger.info { "Found ${eligibleUsers.size} eligible users for daily insights" }

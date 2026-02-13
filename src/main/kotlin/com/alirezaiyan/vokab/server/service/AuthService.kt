@@ -50,28 +50,23 @@ class AuthService(
      * @throws IllegalArgumentException if token is invalid or email is missing
      */
     @Transactional
-    fun authenticateWithGoogle(
-        idToken: String,
-        deviceId: String? = null,
-        userAgent: String? = null,
-        ipAddress: String? = null
-    ): AuthResponse {
+    fun authenticateWithGoogle(idToken: String): AuthResponse {
         val firebaseToken = verifyFirebaseToken(idToken)
             ?: throw IllegalArgumentException("Invalid Firebase ID token")
-        
-        val email = firebaseToken.email 
+
+        val email = firebaseToken.email
             ?: throw IllegalArgumentException("Email not found in Firebase token")
-        
+
         logger.info { "Authenticating user: $email" }
-        
+
         val user = findOrCreateUser(firebaseToken)
         val savedUser = userRepository.save(user)
-        
-        val tokenPair = generateTokenPair(savedUser, deviceId, userAgent, ipAddress)
-        saveRefreshToken(tokenPair.refreshToken, savedUser, tokenPair.familyId, deviceId, userAgent, ipAddress)
-        
+
+        val tokenPair = generateTokenPair(savedUser)
+        saveRefreshToken(tokenPair.refreshToken, savedUser)
+
         logger.info { "✅ User authenticated: ${savedUser.email}" }
-        auditLogService.logLogin(savedUser.id!!, savedUser.email, "Google", ipAddress, userAgent)
+        auditLogService.logLogin(savedUser.id!!, savedUser.email, "Google", null, null)
         
         return AuthResponse(
             accessToken = tokenPair.accessToken,
@@ -96,36 +91,33 @@ class AuthService(
     fun authenticateWithApple(
         idToken: String,
         fullName: String?,
-        appleUserId: String?,
-        deviceId: String? = null,
-        userAgent: String? = null,
-        ipAddress: String? = null
+        appleUserId: String?
     ): AuthResponse {
         val appleToken = verifyAppleToken(idToken)
             ?: throw IllegalArgumentException("Invalid Apple ID token")
-        
+
         val appleId = appleToken["sub"] as? String
             ?: throw IllegalArgumentException("Apple ID (sub) not found in token")
-        
+
         // Use provided appleUserId if available, otherwise use sub from token
         val resolvedAppleId = appleUserId ?: appleId
-        
+
         // Email may be missing if user hides their email
         val email = appleToken["email"] as? String
-        
+
         // Generate fallback email if email is not available
         val resolvedEmail = email ?: "apple_${resolvedAppleId.replace(".", "_").replace(" ", "_")}@apple.hidden"
-        
+
         logger.info { "Authenticating user with Apple: appleId=$resolvedAppleId, email=${if (email != null) email else "hidden (using fallback)"}" }
-        
+
         val user = findOrCreateAppleUser(resolvedAppleId, resolvedEmail, fullName, email == null)
         val savedUser = userRepository.save(user)
-        
-        val tokenPair = generateTokenPair(savedUser, deviceId, userAgent, ipAddress)
-        saveRefreshToken(tokenPair.refreshToken, savedUser, tokenPair.familyId, deviceId, userAgent, ipAddress)
-        
+
+        val tokenPair = generateTokenPair(savedUser)
+        saveRefreshToken(tokenPair.refreshToken, savedUser)
+
         logger.info { "✅ User authenticated with Apple: ${savedUser.email}" }
-        auditLogService.logLogin(savedUser.id!!, savedUser.email, "Apple", ipAddress, userAgent)
+        auditLogService.logLogin(savedUser.id!!, savedUser.email, "Apple", null, null)
         
         return AuthResponse(
             accessToken = tokenPair.accessToken,
@@ -142,8 +134,7 @@ class AuthService(
         val googleId = firebaseToken.uid
         val email = firebaseToken.email!!
         val name = firebaseToken.name ?: email
-        val profileImageUrl = firebaseToken.picture
-        
+
         return userRepository.findByGoogleId(googleId)
             .map { existingUser ->
                 // Update last login time
@@ -160,7 +151,6 @@ class AuthService(
                         existingUser.copy(
                             googleId = googleId,
                             name = name,
-                            profileImageUrl = profileImageUrl ?: existingUser.profileImageUrl,
                             lastLoginAt = Instant.now(),
                             updatedAt = Instant.now()
                         )
@@ -172,7 +162,6 @@ class AuthService(
                             email = email,
                             name = name,
                             googleId = googleId,
-                            profileImageUrl = profileImageUrl,
                             lastLoginAt = Instant.now()
                         )
                     }
@@ -253,20 +242,13 @@ class AuthService(
      * Generates access and refresh token pair for a user.
      * Access token is a JWT (RS256), refresh token is an opaque random string.
      */
-    private fun generateTokenPair(
-        user: User,
-        deviceId: String?,
-        userAgent: String?,
-        ipAddress: String?
-    ): TokenPair {
+    private fun generateTokenPair(user: User): TokenPair {
         val accessToken = jwtTokenProvider.generateAccessToken(user.id!!, user.email)
         val refreshToken = refreshTokenHashService.generateSecureToken(32)
-        val familyId = refreshTokenHashService.generateFamilyId()
-        
+
         return TokenPair(
             accessToken = accessToken,
             refreshToken = refreshToken,
-            familyId = familyId,
             user = user.toDto()
         )
     }
@@ -274,7 +256,6 @@ class AuthService(
     private data class TokenPair(
         val accessToken: String,
         val refreshToken: String,
-        val familyId: String,
         val user: UserDto
     )
     
@@ -284,28 +265,16 @@ class AuthService(
      * Note: We store the BCrypt hash in a separate field if needed, or verify using the lookup hash.
      * For now, we'll use lookup hash for storage and verify by finding and checking BCrypt.
      */
-    private fun saveRefreshToken(
-        token: String,
-        user: User,
-        familyId: String?,
-        deviceId: String?,
-        userAgent: String?,
-        ipAddress: String?
-    ) {
+    private fun saveRefreshToken(token: String, user: User) {
         val lookupHash = refreshTokenHashService.createLookupHash(token)
-        val resolvedFamilyId = familyId ?: refreshTokenHashService.generateFamilyId()
-        
+
         val refreshTokenEntity = RefreshToken(
             tokenHash = lookupHash,
             user = user,
-            familyId = resolvedFamilyId,
-            expiresAt = Instant.now().plusMillis(appProperties.jwt.refreshExpirationMs),
-            deviceId = deviceId,
-            userAgent = userAgent,
-            ipAddress = ipAddress
+            expiresAt = Instant.now().plusMillis(appProperties.jwt.refreshExpirationMs)
         )
         refreshTokenRepository.save(refreshTokenEntity)
-        
+
         logger.debug { "Saved refresh token with lookup hash: ${lookupHash.take(16)}..." }
     }
     
@@ -327,52 +296,34 @@ class AuthService(
      * @throws IllegalArgumentException if refresh token is invalid, revoked, expired, or reused
      */
     @Transactional
-    fun refreshAccessToken(
-        refreshToken: String,
-        deviceId: String? = null,
-        userAgent: String? = null,
-        ipAddress: String? = null
-    ): AuthResponse {
+    fun refreshAccessToken(refreshToken: String): AuthResponse {
         val lookupHash = refreshTokenHashService.createLookupHash(refreshToken)
-        
+
         val tokenEntity = refreshTokenRepository.findByTokenHash(lookupHash)
             .orElseThrow { IllegalArgumentException("Refresh token not found") }
-        
+
         validateTokenEntity(tokenEntity)
-        
-        if (tokenEntity.replacedBy != null) {
-            logger.warn { "Token reuse detected for family ${tokenEntity.familyId} - revoking entire family" }
-            auditLogService.logTokenReuse(tokenEntity.user.id!!, tokenEntity.familyId, ipAddress)
-            refreshTokenRepository.revokeByFamilyId(tokenEntity.familyId)
-            throw IllegalArgumentException("Refresh token has been reused - security violation")
-        }
-        
+
         val user = tokenEntity.user
-        
+
         val newAccessToken = jwtTokenProvider.generateAccessToken(user.id!!, user.email)
         val newRefreshToken = refreshTokenHashService.generateSecureToken(32)
         val newLookupHash = refreshTokenHashService.createLookupHash(newRefreshToken)
-        
+
+        // Save new refresh token
         val newRefreshTokenEntity = RefreshToken(
             tokenHash = newLookupHash,
             user = user,
-            familyId = tokenEntity.familyId,
-            expiresAt = Instant.now().plusMillis(appProperties.jwt.refreshExpirationMs),
-            deviceId = deviceId ?: tokenEntity.deviceId,
-            userAgent = userAgent ?: tokenEntity.userAgent,
-            ipAddress = ipAddress ?: tokenEntity.ipAddress
+            expiresAt = Instant.now().plusMillis(appProperties.jwt.refreshExpirationMs)
         )
-        val savedNewToken = refreshTokenRepository.save(newRefreshTokenEntity)
-        
-        val updatedOldToken = tokenEntity.copy(
-            replacedBy = savedNewToken.id,
-            revoked = true,
-            revokedAt = Instant.now()
-        )
+        refreshTokenRepository.save(newRefreshTokenEntity)
+
+        // Revoke old token
+        val updatedOldToken = tokenEntity.copy(revoked = true)
         refreshTokenRepository.save(updatedOldToken)
-        
-        logger.info { "✅ Tokens rotated for user: ${user.email}, family: ${tokenEntity.familyId}" }
-        auditLogService.logRefresh(user.id!!, user.email, tokenEntity.familyId, ipAddress, userAgent)
+
+        logger.info { "✅ Tokens rotated for user: ${user.email}" }
+        auditLogService.logRefresh(user.id!!, user.email, "N/A", null, null)
         
         return AuthResponse(
             accessToken = newAccessToken,
@@ -402,15 +353,15 @@ class AuthService(
      * @param refreshToken The refresh token to revoke
      */
     @Transactional
-    fun logout(userId: Long, refreshToken: String, ipAddress: String? = null) {
+    fun logout(userId: Long, refreshToken: String) {
         logger.info { "Logging out user: $userId" }
         val lookupHash = refreshTokenHashService.createLookupHash(refreshToken)
         refreshTokenRepository.revokeByTokenHash(lookupHash)
         logger.debug { "✅ Refresh token revoked for user: $userId" }
-        
+
         val user = userRepository.findById(userId).orElse(null)
         if (user != null) {
-            auditLogService.logLogout(userId, user.email, refreshToken, ipAddress)
+            auditLogService.logLogout(userId, user.email, refreshToken, null)
         }
     }
     
@@ -659,10 +610,8 @@ class AuthService(
         id = this.id!!,
         email = this.email,
         name = this.name,
-        profileImageUrl = this.profileImageUrl,
         subscriptionStatus = this.subscriptionStatus,
         subscriptionExpiresAt = this.subscriptionExpiresAt?.toString(),
-        currentStreak = this.currentStreak,
-        longestStreak = this.longestStreak
+        currentStreak = this.currentStreak
     )
 }

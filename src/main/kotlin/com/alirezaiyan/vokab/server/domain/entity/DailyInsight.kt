@@ -37,7 +37,6 @@ data class DailyInsight(
             name = "",
             googleId = null,
             appleId = null,
-            profileImageUrl = null,
             revenueCatUserId = null,
             subscriptionStatus = SubscriptionStatus.FREE,
             subscriptionExpiresAt = null,
@@ -45,8 +44,6 @@ data class DailyInsight(
             updatedAt = Instant.now(),
             lastLoginAt = null,
             currentStreak = 0,
-            longestStreak = 0,
-            aiExtractionUsageCount = 0,
             active = true,
             pushTokens = mutableListOf()
         ),

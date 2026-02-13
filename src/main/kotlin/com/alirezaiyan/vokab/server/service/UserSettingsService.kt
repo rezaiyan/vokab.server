@@ -22,12 +22,7 @@ class UserSettingsService(
         current.languageCode = dto.languageCode
         current.themeMode = dto.themeMode
         current.notificationsEnabled = dto.notificationsEnabled
-        current.reviewReminders = dto.reviewReminders
-        current.motivationalMessages = dto.motivationalMessages
         current.dailyReminderTime = dto.dailyReminderTime
-        current.minimumDueCards = dto.minimumDueCards
-        current.successesToAdvance = dto.successesToAdvance
-        current.forgotPenalty = dto.forgotPenalty
         return repo.save(current).toDto()
     }
 }
@@ -36,12 +31,7 @@ private fun UserSettings.toDto() = SettingsDto(
     languageCode = languageCode,
     themeMode = themeMode,
     notificationsEnabled = notificationsEnabled,
-    reviewReminders = reviewReminders,
-    motivationalMessages = motivationalMessages,
-    dailyReminderTime = dailyReminderTime,
-    minimumDueCards = minimumDueCards,
-    successesToAdvance = successesToAdvance,
-    forgotPenalty = forgotPenalty,
+    dailyReminderTime = dailyReminderTime
 )
 
 

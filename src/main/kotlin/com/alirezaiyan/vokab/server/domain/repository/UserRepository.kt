@@ -15,15 +15,4 @@ interface UserRepository : JpaRepository<User, Long> {
     fun findByAppleId(appleId: String): Optional<User>
     fun findByRevenueCatUserId(revenueCatUserId: String): Optional<User>
     fun findByCurrentStreakGreaterThanAndActiveTrue(currentStreak: Int): List<User>
-
-    @Modifying(clearAutomatically = false, flushAutomatically = true)
-    @Query(
-        "update User u " +
-            "set u.aiExtractionUsageCount = u.aiExtractionUsageCount + 1 " +
-            "where u.id = :userId and u.aiExtractionUsageCount < :limit"
-    )
-    fun incrementAiExtractionUsageIfBelowLimit(
-        @Param("userId") userId: Long,
-        @Param("limit") limit: Int
-    ): Int
 }
