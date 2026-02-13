@@ -22,7 +22,6 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
     validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:false}
-    ignore-migration-patterns: "**/h2/**"
 
   jpa:
     hibernate:

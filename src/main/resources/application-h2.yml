@@ -3,4 +3,4 @@
 # Flyway runs H2-compatible migrations only (no PostgreSQL DO $$ blocks).
 spring:
   flyway:
-    locations: classpath:db/migration/h2
+    locations: classpath:db/migration-h2
