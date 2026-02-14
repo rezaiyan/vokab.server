@@ -128,6 +128,40 @@ class AuthService(
     }
     
     /**
+     * Check if an email is in the test emails list
+     */
+    private fun isTestUser(email: String): Boolean {
+        val testEmails = appProperties.security.testEmails
+        if (testEmails.isBlank()) {
+            return false
+        }
+
+        val testEmailList = testEmails.split(",").map { it.trim() }
+        return testEmailList.contains(email)
+    }
+
+    /**
+     * Apply premium access to test users
+     * If user's email is in the test emails list, grant them ACTIVE subscription status
+     * with a far future expiry date (100 years from now)
+     */
+    private fun applyTestUserPremiumAccess(user: User): User {
+        if (!isTestUser(user.email)) {
+            return user
+        }
+
+        logger.info { "Granting premium access to test user: ${user.email}" }
+
+        // Set subscription to ACTIVE with a far future expiry date (100 years from now)
+        val farFutureExpiry = Instant.now().plusSeconds(100L * 365 * 24 * 60 * 60)
+
+        return user.copy(
+            subscriptionStatus = com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE,
+            subscriptionExpiresAt = farFutureExpiry
+        )
+    }
+
+    /**
      * Finds an existing user or creates a new one from Firebase token data.
      */
     private fun findOrCreateUser(firebaseToken: FirebaseToken): User {
@@ -137,10 +171,12 @@ class AuthService(
 
         return userRepository.findByGoogleId(googleId)
             .map { existingUser ->
-                // Update last login time
-                existingUser.copy(
-                    lastLoginAt = Instant.now(),
-                    updatedAt = Instant.now()
+                // Update last login time and apply test user premium access if applicable
+                applyTestUserPremiumAccess(
+                    existingUser.copy(
+                        lastLoginAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
                 )
             }
             .orElseGet {
@@ -148,21 +184,25 @@ class AuthService(
                 userRepository.findByEmail(email)
                     .map { existingUser ->
                         logger.info { "Linking Google account to existing user: $email" }
-                        existingUser.copy(
-                            googleId = googleId,
-                            name = name,
-                            lastLoginAt = Instant.now(),
-                            updatedAt = Instant.now()
+                        applyTestUserPremiumAccess(
+                            existingUser.copy(
+                                googleId = googleId,
+                                name = name,
+                                lastLoginAt = Instant.now(),
+                                updatedAt = Instant.now()
+                            )
                         )
                     }
                     .orElseGet {
                         // Create new user
                         logger.info { "Creating new user: $email" }
-                        User(
-                            email = email,
-                            name = name,
-                            googleId = googleId,
-                            lastLoginAt = Instant.now()
+                        applyTestUserPremiumAccess(
+                            User(
+                                email = email,
+                                name = name,
+                                googleId = googleId,
+                                lastLoginAt = Instant.now()
+                            )
                         )
                     }
             }
@@ -171,7 +211,7 @@ class AuthService(
     /**
      * Finds an existing user or creates a new one from Apple Sign In data.
      * When email is hidden, prioritizes Apple ID lookup over email lookup.
-     * 
+     *
      * @param appleId Apple user identifier (always available)
      * @param email User email (may be fallback email if user hides their email)
      * @param fullName Optional full name from first sign-in
@@ -179,25 +219,29 @@ class AuthService(
      */
     private fun findOrCreateAppleUser(appleId: String, email: String, fullName: String?, emailHidden: Boolean): User {
         val name = fullName ?: email.substringBefore("@")
-        
+
         // Always try to find by Apple ID first (most reliable identifier)
         val existingByAppleId = userRepository.findByAppleId(appleId)
-        
+
         return existingByAppleId
             .map { existingUser ->
-                // User found by Apple ID - update last login time
+                // User found by Apple ID - update last login time and apply test user premium access
                 // If email changed and was previously hidden, update it
                 if (emailHidden && existingUser.email != email) {
                     logger.info { "Updating fallback email for Apple user: ${existingUser.email} -> $email" }
-                    existingUser.copy(
-                        email = email,
-                        lastLoginAt = Instant.now(),
-                        updatedAt = Instant.now()
+                    applyTestUserPremiumAccess(
+                        existingUser.copy(
+                            email = email,
+                            lastLoginAt = Instant.now(),
+                            updatedAt = Instant.now()
+                        )
                     )
                 } else {
-                    existingUser.copy(
-                        lastLoginAt = Instant.now(),
-                        updatedAt = Instant.now()
+                    applyTestUserPremiumAccess(
+                        existingUser.copy(
+                            lastLoginAt = Instant.now(),
+                            updatedAt = Instant.now()
+                        )
                     )
                 }
             }
@@ -207,32 +251,38 @@ class AuthService(
                     userRepository.findByEmail(email)
                         .map { existingUser ->
                             logger.info { "Linking Apple account to existing user: $email" }
-                            existingUser.copy(
-                                appleId = appleId,
-                                name = if (fullName != null) fullName else existingUser.name,
-                                lastLoginAt = Instant.now(),
-                                updatedAt = Instant.now()
+                            applyTestUserPremiumAccess(
+                                existingUser.copy(
+                                    appleId = appleId,
+                                    name = if (fullName != null) fullName else existingUser.name,
+                                    lastLoginAt = Instant.now(),
+                                    updatedAt = Instant.now()
+                                )
                             )
                         }
                         .orElseGet {
                             // Create new user
                             logger.info { "Creating new user with Apple: $email" }
-                            User(
-                                email = email,
-                                name = name,
-                                appleId = appleId,
-                                lastLoginAt = Instant.now()
+                            applyTestUserPremiumAccess(
+                                User(
+                                    email = email,
+                                    name = name,
+                                    appleId = appleId,
+                                    lastLoginAt = Instant.now()
+                                )
                             )
                         }
                 } else {
                     // Email is hidden, so we can't use email for account linking
                     // Create new user with Apple ID
                     logger.info { "Creating new user with Apple (email hidden): $email" }
-                    User(
-                        email = email,
-                        name = name,
-                        appleId = appleId,
-                        lastLoginAt = Instant.now()
+                    applyTestUserPremiumAccess(
+                        User(
+                            email = email,
+                            name = name,
+                            appleId = appleId,
+                            lastLoginAt = Instant.now()
+                        )
                     )
                 }
             }
