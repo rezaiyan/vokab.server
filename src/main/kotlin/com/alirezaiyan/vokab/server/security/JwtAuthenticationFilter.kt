@@ -83,22 +83,41 @@ class JwtAuthenticationFilter(
                     
                     if (userId != null) {
                         val testEmails = getTestEmails()
-                        val user = userRepository.findById(userId)
-                        val isPresent = user.isPresent
-                        val userEmail = if (isPresent) user.get().email else null
+                        var userOptional = userRepository.findById(userId)
+                        val isPresent = userOptional.isPresent
+                        val userEmail = if (isPresent) userOptional.get().email else null
                         val isTestAccount = userEmail in testEmails
-                        val isActive = if (isPresent) user.get().active else false
+                        val isActive = if (isPresent) userOptional.get().active else false
                         logger.info { "🗄️ JWT Filter [DB_LOOKUP]: User found=$isPresent, active=$isActive, email=$userEmail, testAccount=$isTestAccount for $path" }
                         logger.info { "📧 JWT Filter [TEST_EMAILS]: Configured test emails=$testEmails, user email=$userEmail" }
-                        
+
+                        // Auto-grant premium access to test users if they don't have it
+                        if (isPresent && isTestAccount) {
+                            var currentUser = userOptional.get()
+                            val needsPremium = currentUser.subscriptionStatus != com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE
+
+                            if (needsPremium) {
+                                logger.info { "🎁 JWT Filter [TEST_USER_PREMIUM]: Auto-granting premium to test user $userEmail" }
+                                val farFutureExpiry = java.time.Instant.now().plusSeconds(100L * 365 * 24 * 60 * 60)
+                                currentUser = currentUser.copy(
+                                    subscriptionStatus = com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE,
+                                    subscriptionExpiresAt = farFutureExpiry,
+                                    updatedAt = java.time.Instant.now()
+                                )
+                                userRepository.save(currentUser)
+                                userOptional = java.util.Optional.of(currentUser)
+                                logger.info { "✅ JWT Filter [PREMIUM_GRANTED]: Test user $userEmail now has ACTIVE subscription until $farFutureExpiry" }
+                            }
+                        }
+
                         if (isPresent && (isActive || isTestAccount)) {
                             val authentication = UsernamePasswordAuthenticationToken(
-                                user.get(),
+                                userOptional.get(),
                                 null,
                                 emptyList()
                             )
                             authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
-                            
+
                             SecurityContextHolder.getContext().authentication = authentication
                             logger.info { "✅ JWT Filter [AUTH_SUCCESS]: Set authentication for user=$userId, testAccount=$isTestAccount for $path" }
                             logger.info { "🔄 JWT Filter [FILTER_CHAIN]: Proceeding to next filter for $path" }
