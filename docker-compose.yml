@@ -41,6 +41,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       REVENUECAT_API_KEY: ${REVENUECAT_API_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8081}
+      TEST_EMAILS: ${TEST_EMAILS:-}
       PORT: 8080
     ports:
       - "127.0.0.1:8080:8080"  # Localhost only; use nginx (HTTPS) for external access
