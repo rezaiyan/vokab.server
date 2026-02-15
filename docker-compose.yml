@@ -36,13 +36,19 @@ services:
       DATABASE_DRIVER: org.postgresql.Driver
       HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/keys/jwt-private-key.pem}
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-/app/keys/jwt-public-key.pem}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       REVENUECAT_API_KEY: ${REVENUECAT_API_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8081}
       TEST_EMAILS: ${TEST_EMAILS:-}
       PORT: 8080
+    volumes:
+      # Persist JWT keys across container restarts
+      - jwt_keys:/app/keys
     ports:
       - "127.0.0.1:8080:8080"  # Localhost only; use nginx (HTTPS) for external access
     networks:
@@ -57,6 +63,7 @@ services:
 
 volumes:
   postgres_data:
+  jwt_keys:  # Persist JWT RSA keys across container restarts
 
 networks:
   vokab-network:

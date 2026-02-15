@@ -58,8 +58,16 @@ class FirebaseConfig(
             // Firebase ID token verification works by fetching Google's public keys over HTTPS
             // No service account or credentials needed for this functionality
             logger.info { "Initializing Firebase in auth-only mode (no credentials required)" }
+
+            // Get Firebase project ID from environment (required for auth-only mode)
+            val projectId = System.getenv("FIREBASE_PROJECT_ID")?.trim()
+            if (projectId.isNullOrBlank()) {
+                logger.error { "FIREBASE_PROJECT_ID environment variable not set. Firebase auth will not work." }
+                return null
+            }
+
             val options = FirebaseOptions.builder()
-                .setProjectId("vokab-737ec") // Your Firebase project ID
+                .setProjectId(projectId)
                 .build()
             
             val app = FirebaseApp.initializeApp(options)

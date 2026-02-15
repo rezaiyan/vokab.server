@@ -54,6 +54,13 @@ out/
 application-local.yml
 application-local.properties
 
+### JWT Keys ###
+# Private keys must never be committed
+keys/*-private-key.pem
+keys/jwt-private-key.pem
+# Public keys can be committed (they're public!)
+# !keys/*-public-key.pem
+
 ### Logs ###
 *.log
 logs/

@@ -32,6 +32,9 @@ RUN addgroup -S spring && adduser -S spring -G spring
 # Copy built JAR from builder stage
 COPY --from=builder /app/build/libs/*.jar app.jar
 
+# Create keys directory for JWT RSA keys (will be mounted as volume)
+RUN mkdir -p /app/keys && chown -R spring:spring /app/keys
+
 # Firebase service account is provided via a secure path or secret at runtime
 
 # Change ownership

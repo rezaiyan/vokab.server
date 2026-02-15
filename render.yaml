@@ -74,9 +74,12 @@ services:
         sync: false # Set manually in Render Dashboard
       
       
-      # Firebase Configuration (OPTIONAL)
+      # Firebase Configuration (REQUIRED for Google Sign-In)
+      - key: FIREBASE_PROJECT_ID
+        sync: false # Set manually in Render Dashboard
+
       - key: FIREBASE_SERVICE_ACCOUNT_PATH
-        value: "" # Leave empty if using Firebase from secret file
+        value: "" # Leave empty if using FIREBASE_CREDENTIALS_JSON
       
       # OpenRouter AI (REQUIRED - Set in Render Dashboard)
       - key: OPENROUTER_API_KEY
