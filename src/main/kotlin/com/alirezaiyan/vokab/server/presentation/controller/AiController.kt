@@ -258,12 +258,19 @@ class AiController(
             val nativeLanguage = request.nativeLanguage.trim()
             val currentLevel = request.currentLevel.trim()
 
-            // Existing vocabulary for this user in the same target language
+            // Existing vocabulary for this user in the same target language.
+            // NOTE: In the current data model, Word.originalWord is typically in the user's
+            // native language, and Word.translation is in the target language.
+            // Our AI suggestions, however, use:
+            //   - originalWord  = target language
+            //   - translation  = native language
+            // So for deduplication we must compare suggestion.originalWord (target)
+            // against existing.translation (target).
             val existingWords = wordRepository.findAllByUser(user)
                 .filter { it.targetLanguage.equals(targetLanguage, ignoreCase = true) }
             val existingKeys = existingWords
                 .mapNotNull { existing ->
-                    existing.originalWord.trim()
+                    existing.translation.trim()
                         .takeIf { it.isNotEmpty() }
                         ?.lowercase()
                 }
