@@ -63,6 +63,12 @@ app:
     api-key: ${OPENROUTER_API_KEY:your-openrouter-api-key}
     base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
 
+  vocabulary:
+    # How many vocabulary items to ask the AI to generate
+    # for onboarding and suggest-vocabulary flows.
+    # Can be overridden via VOCABULARY_SUGGESTION_COUNT in the environment.
+    suggestionCount: ${VOCABULARY_SUGGESTION_COUNT:50}
+
   revenuecat:
     webhook-secret: ${REVENUECAT_WEBHOOK_SECRET:your-revenuecat-webhook-secret}
     api-key: ${REVENUECAT_API_KEY:your-revenuecat-api-key}

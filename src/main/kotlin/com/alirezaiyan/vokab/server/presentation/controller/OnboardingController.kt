@@ -2,7 +2,7 @@ package com.alirezaiyan.vokab.server.presentation.controller
 
 import com.alirezaiyan.vokab.server.config.RateLimitConfig
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
-import com.alirezaiyan.vokab.server.presentation.dto.SuggestVocabularyRequest
+import com.alirezaiyan.vokab.server.presentation.dto.OnboardingPreferencesRequest
 import com.alirezaiyan.vokab.server.presentation.dto.SuggestVocabularyResponse
 import com.alirezaiyan.vokab.server.service.OpenRouterService
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -29,17 +29,33 @@ class OnboardingController(
 
     /**
      * POST /api/v1/onboarding/preferences
-     * Body: { "targetLanguage": "German", "currentLevel": "beginner", "nativeLanguage": "English" }
+     * Body:
+     * {
+     *   "targetLanguage": "German",
+     *   "nativeLanguage": "English",
+     *   "currentLevel": "beginner",
+     *   "interests": ["travel", "work", "daily life"] // optional
+     * }
      * Returns: { "success": true, "data": { "targetLanguage", "nativeLanguage", "currentLevel", "items": [...] } }
-     * Items are up to 100 vocabulary entries (originalWord, translation, description) for the user to review and import.
+     * Items are up to the configured vocabulary suggestion count (default 50)
+     * vocabulary entries (originalWord, translation, description) for the user to review and import.
      */
     @PostMapping("/preferences")
     fun submitPreferences(
-        @Valid @RequestBody request: SuggestVocabularyRequest,
+        @Valid @RequestBody request: OnboardingPreferencesRequest,
         httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<SuggestVocabularyResponse>> {
         val clientIp = getClientIp(httpRequest)
-        logger.info { "Onboarding preferences from $clientIp: target=${request.targetLanguage}, level=${request.currentLevel}, native=${request.nativeLanguage}" }
+        logger.info {
+            val interestsSummary = if (request.interests.isEmpty()) {
+                "none"
+            } else {
+                request.interests.joinToString(limit = 5)
+            }
+            "Onboarding preferences from $clientIp: " +
+                "target=${request.targetLanguage}, level=${request.currentLevel}, " +
+                "native=${request.nativeLanguage}, interests=$interestsSummary"
+        }
 
         val bucket = rateLimitConfig.getOnboardingBucket(clientIp)
         if (!bucket.tryConsume(1)) {
@@ -49,19 +65,32 @@ class OnboardingController(
         }
 
         return try {
-            val items = openRouterService.generateVocabularyFromPreferences(
-                targetLanguage = request.targetLanguage.trim(),
-                currentLevel = request.currentLevel.trim(),
-                nativeLanguage = request.nativeLanguage.trim()
+            val cleanedInterests = request.interests
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+
+            val rawItems = openRouterService.generateVocabularyFromPreferences(
+                request.targetLanguage.trim(),
+                request.currentLevel.trim(),
+                request.nativeLanguage.trim(),
+                cleanedInterests
             ).block() ?: emptyList()
+
+            // Deduplicate within the AI response itself by normalized originalWord
+            val seen = mutableSetOf<String>()
+            val dedupedItems = rawItems.filter { item ->
+                val key = item.originalWord.trim().lowercase()
+                if (key.isBlank()) return@filter false
+                seen.add(key)
+            }
 
             val response = SuggestVocabularyResponse(
                 targetLanguage = request.targetLanguage.trim(),
                 nativeLanguage = request.nativeLanguage.trim(),
                 currentLevel = request.currentLevel.trim(),
-                items = items
+                items = dedupedItems
             )
-            logger.info { "Onboarding: returning ${items.size} vocabulary items to $clientIp" }
+            logger.info { "Onboarding: returning ${dedupedItems.size} vocabulary items to $clientIp (raw=${rawItems.size})" }
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (error: Exception) {
             logger.error(error) { "Onboarding vocabulary generation failed for $clientIp" }

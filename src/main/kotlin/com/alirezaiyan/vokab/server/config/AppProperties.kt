@@ -13,7 +13,8 @@ data class AppProperties(
     var cors: CorsConfig = CorsConfig(),
     var features: FeatureFlagsConfig = FeatureFlagsConfig(),
     var security: SecurityConfig = SecurityConfig(),
-    var logging: LoggingConfig = LoggingConfig()
+    var logging: LoggingConfig = LoggingConfig(),
+    var vocabulary: VocabularyConfig = VocabularyConfig()
 )
 
 data class JwtConfig(
@@ -58,4 +59,18 @@ data class LoggingConfig(
     var excludePatterns: String = "/actuator/health,/h2-console/**",
     var logLevel: String = "INFO"
 )
+
+/**
+ * Vocabulary-related configuration.
+ *
+ * The suggestionCount value controls how many vocabulary items the AI
+ * should generate for onboarding and suggest-vocabulary flows.
+ * It can be overridden via environment variable:
+ *
+ *   APP_VOCABULARY_SUGGESTIONCOUNT=150
+ */
+data class VocabularyConfig(
+    var suggestionCount: Int = 50
+)
+
 

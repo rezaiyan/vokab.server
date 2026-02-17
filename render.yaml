@@ -124,6 +124,10 @@ services:
       - key: FREE_AI_EXTRACTION_LIMIT
         value: 10
       
+      # Vocabulary generation
+      - key: VOCABULARY_SUGGESTION_COUNT
+        value: 50
+      
       # Java Options for optimization
       - key: JAVA_OPTS
         value: -Xmx512m -Xms256m

@@ -4,6 +4,7 @@ import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.RateLimitConfig
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
+import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import com.alirezaiyan.vokab.server.service.DailyInsightService
 import com.alirezaiyan.vokab.server.service.FeatureAccessService
@@ -12,6 +13,7 @@ import com.alirezaiyan.vokab.server.service.UserProgressService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Mono
@@ -234,6 +236,9 @@ class AiController(
         }
     }
     
+    @Autowired
+    lateinit var wordRepository: WordRepository
+
     @PostMapping("/suggest-vocabulary")
     fun suggestVocabulary(
         @AuthenticationPrincipal user: User,
@@ -247,21 +252,56 @@ class AiController(
             return ResponseEntity.status(429)
                 .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
         }
-
+        
         return try {
-            val items = openRouterService.generateVocabularyFromPreferences(
-                targetLanguage = request.targetLanguage.trim(),
-                currentLevel = request.currentLevel.trim(),
-                nativeLanguage = request.nativeLanguage.trim()
+            val targetLanguage = request.targetLanguage.trim()
+            val nativeLanguage = request.nativeLanguage.trim()
+            val currentLevel = request.currentLevel.trim()
+
+            // Existing vocabulary for this user in the same target language
+            val existingWords = wordRepository.findAllByUser(user)
+                .filter { it.targetLanguage.equals(targetLanguage, ignoreCase = true) }
+            val existingKeys = existingWords
+                .mapNotNull { existing ->
+                    existing.originalWord.trim()
+                        .takeIf { it.isNotEmpty() }
+                        ?.lowercase()
+                }
+                .toSet()
+
+            // Raw AI-generated suggestions (may contain duplicates and overlaps)
+            val rawItems = openRouterService.generateVocabularyFromPreferences(
+                targetLanguage = targetLanguage,
+                currentLevel = currentLevel,
+                nativeLanguage = nativeLanguage,
+                interests = emptyList()
             ).block() ?: emptyList()
 
+            val baseCount = appProperties.vocabulary.suggestionCount
+
+            // Filter out:
+            // 1) Words the user already has for this target language
+            // 2) Duplicates inside the AI response itself (by normalized originalWord)
+            val seenNew = mutableSetOf<String>()
+            val uniqueNewItems = rawItems.filter { item ->
+                val key = item.originalWord.trim().lowercase()
+                if (key.isBlank()) return@filter false
+                if (existingKeys.contains(key)) return@filter false
+                seenNew.add(key)
+            }.take(baseCount)
+
+            logger.info {
+                "Suggest-vocabulary dedup for user ${user.email}: " +
+                    "existing=${existingKeys.size}, raw=${rawItems.size}, " +
+                    "uniqueNew=${uniqueNewItems.size}, targetCount=$baseCount"
+            }
+
             val response = SuggestVocabularyResponse(
-                targetLanguage = request.targetLanguage.trim(),
-                nativeLanguage = request.nativeLanguage.trim(),
-                currentLevel = request.currentLevel.trim(),
-                items = items
+                targetLanguage = targetLanguage,
+                nativeLanguage = nativeLanguage,
+                currentLevel = currentLevel,
+                items = uniqueNewItems
             )
-            logger.info { "Returning ${items.size} suggested vocabulary items to user ${user.email}" }
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (error: Exception) {
             logger.error(error) { "Failed to suggest vocabulary for user ${user.email}" }

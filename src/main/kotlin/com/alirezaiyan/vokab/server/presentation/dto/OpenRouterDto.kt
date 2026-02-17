@@ -68,6 +68,29 @@ data class SuggestVocabularyRequest(
 )
 
 /**
+ * Public onboarding preferences payload.
+ *
+ * This is used by the unauthenticated onboarding flow to generate
+ * a first batch of vocabulary based on the learner profile and interests.
+ */
+data class OnboardingPreferencesRequest(
+    @field:NotBlank(message = "Target language (language to learn) is required")
+    val targetLanguage: String,
+
+    @field:NotBlank(message = "Native or current language is required")
+    val nativeLanguage: String,
+
+    @field:NotBlank(message = "Current level in the target language is required")
+    val currentLevel: String,
+
+    /**
+     * Optional list of interests or topics (e.g., "travel", "business", "university")
+     * that should guide the generated vocabulary set.
+     */
+    val interests: List<String> = emptyList()
+)
+
+/**
  * Single vocabulary item for display and optional import.
  * originalWord is in the target language; translation is in the user's native language.
  */

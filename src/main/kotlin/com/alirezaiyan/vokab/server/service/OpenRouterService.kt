@@ -456,29 +456,50 @@ class OpenRouterService(
     }
     
     /**
-     * Generate exactly 100 vocabulary items based on user's language preferences.
+     * Generate a configurable number of vocabulary items based on user's language preferences.
      * Words are in target language with translations in native language, appropriate for currentLevel.
+     * The number of items is controlled by app.vocabulary.suggestionCount (default 100).
      */
     fun generateVocabularyFromPreferences(
         targetLanguage: String,
         currentLevel: String,
-        nativeLanguage: String
+        nativeLanguage: String,
+        interests: List<String> = emptyList()
     ): Mono<List<SuggestVocabularyItemResponse>> {
-        logger.info { "Generating vocabulary: target=$targetLanguage, level=$currentLevel, native=$nativeLanguage" }
+        val itemCount = appProperties.vocabulary.suggestionCount
+        val requestedCount = itemCount + 10
+        logger.info {
+            val interestsSummary = if (interests.isEmpty()) {
+                "none"
+            } else {
+                interests.joinToString(limit = 5)
+            }
+            "Generating vocabulary: target=$targetLanguage, level=$currentLevel, " +
+                "native=$nativeLanguage, itemsRequested=$requestedCount (base=$itemCount), interests=$interestsSummary"
+        }
 
         val prompt = buildString {
             appendLine("You are an expert language teacher and curriculum designer.")
             appendLine()
-            appendLine("Task: Generate exactly 100 vocabulary items for a learner with the following profile:")
+            appendLine("Task: Generate exactly $requestedCount vocabulary items for a learner with the following profile:")
             appendLine("- Language they want to learn (target): $targetLanguage")
             appendLine("- Their current level in $targetLanguage: $currentLevel")
             appendLine("- Their native or primary language (for translations): $nativeLanguage")
+            if (interests.isNotEmpty()) {
+                appendLine("- Their interests / focus areas: ${interests.joinToString()}")
+            }
             appendLine()
             appendLine("Requirements:")
             appendLine("1. Choose words and short phrases that are appropriate for level \"$currentLevel\" (e.g. beginner = A1, elementary; intermediate = B1-B2; advanced = C1-C2).")
             appendLine("2. Each item must be useful for real-world use: everyday vocabulary, common verbs, nouns, adjectives, and essential phrases.")
             appendLine("3. Cover a balanced mix: greetings, numbers, time, family, food, travel, work, emotions, actions, places, and common expressions.")
-            appendLine("4. Provide exactly 100 items. No fewer, no more.")
+            if (interests.isNotEmpty()) {
+                appendLine("4. Prioritize vocabulary that is especially relevant to these interests: ${interests.joinToString()}.")
+                appendLine("5. Still include some general everyday vocabulary so the set feels balanced for an onboarding experience.")
+            } else {
+                appendLine("4. Keep the set balanced for an onboarding experience, covering everyday situations a new learner is likely to face.")
+            }
+            appendLine("Provide exactly $requestedCount items. No fewer, no more.")
             appendLine()
             appendLine("Output format (strict):")
             appendLine("- One entry per line.")
@@ -495,7 +516,7 @@ class OpenRouterService(
             appendLine("danke,thank you,")
             appendLine("Brot,bread,common noun")
             appendLine()
-            appendLine("Output exactly 100 lines in the format above, nothing else.")
+            appendLine("Output exactly $requestedCount lines in the format above, nothing else.")
         }
 
         val request = OpenRouterRequest(
@@ -529,11 +550,12 @@ class OpenRouterService(
                     throw RuntimeException("No vocabulary generated. Please try again.")
                 }
                 val items = parseSuggestVocabularyResponse(content)
-                if (items.size < 50) {
-                    logger.warn { "AI returned only ${items.size} items; expected ~100" }
+                val minExpected = maxOf(20, requestedCount / 2)
+                if (items.size < minExpected) {
+                    logger.warn { "AI returned only ${items.size} items; expected around $requestedCount" }
                 }
-                logger.info { "Generated ${items.size} vocabulary items for $targetLanguage ($currentLevel)" }
-                items.take(100)
+                logger.info { "Generated ${items.size} vocabulary items for $targetLanguage ($currentLevel); returning up to $requestedCount" }
+                items.take(requestedCount)
             }
             .doOnError { error ->
                 logger.error(error) { "Failed to generate vocabulary from preferences" }
