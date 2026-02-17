@@ -1,5 +1,6 @@
 package com.alirezaiyan.vokab.server.presentation.controller
 
+import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.RateLimitConfig
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
 import com.alirezaiyan.vokab.server.presentation.dto.OnboardingPreferencesRequest
@@ -24,7 +25,8 @@ private val logger = KotlinLogging.logger {}
 @RequestMapping("/api/v1/onboarding")
 class OnboardingController(
     private val openRouterService: OpenRouterService,
-    private val rateLimitConfig: RateLimitConfig
+    private val rateLimitConfig: RateLimitConfig,
+    private val appProperties: AppProperties
 ) {
 
     /**
@@ -84,13 +86,16 @@ class OnboardingController(
                 seen.add(key)
             }
 
+            val baseCount = appProperties.vocabulary.suggestionCount
+            val limitedItems = dedupedItems.take(baseCount)
+
             val response = SuggestVocabularyResponse(
                 targetLanguage = request.targetLanguage.trim(),
                 nativeLanguage = request.nativeLanguage.trim(),
                 currentLevel = request.currentLevel.trim(),
-                items = dedupedItems
+                items = limitedItems
             )
-            logger.info { "Onboarding: returning ${dedupedItems.size} vocabulary items to $clientIp (raw=${rawItems.size})" }
+            logger.info { "Onboarding: returning ${limitedItems.size} vocabulary items to $clientIp (raw=${rawItems.size}, deduped=${dedupedItems.size}, targetCount=$baseCount)" }
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (error: Exception) {
             logger.error(error) { "Onboarding vocabulary generation failed for $clientIp" }
