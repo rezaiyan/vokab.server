@@ -2,7 +2,9 @@ package com.alirezaiyan.vokab.server.presentation.controller
 
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
+import com.alirezaiyan.vokab.server.presentation.dto.ProfileStatsResponse
 import com.alirezaiyan.vokab.server.presentation.dto.UserDto
+import com.alirezaiyan.vokab.server.service.ProfileStatsService
 import com.alirezaiyan.vokab.server.service.UserService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.ResponseEntity
@@ -15,7 +17,8 @@ private val logger = KotlinLogging.logger {}
 @RequestMapping("/api/v1/users")
 class UserController(
     private val userService: UserService,
-    private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService
+    private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService,
+    private val profileStatsService: ProfileStatsService
 ) {
     
     @GetMapping("/me")
@@ -98,6 +101,20 @@ class UserController(
             logger.error(e) { "Failed to get feature flags" }
             ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = "Failed to get feature flags: ${e.message}"))
+        }
+    }
+
+    @GetMapping("/profile-stats")
+    fun getProfileStats(
+        @AuthenticationPrincipal user: User
+    ): ResponseEntity<ApiResponse<ProfileStatsResponse>> {
+        return try {
+            val stats = profileStatsService.getProfileStats(user)
+            ResponseEntity.ok(ApiResponse(success = true, data = stats))
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to get profile stats" }
+            ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Failed to get profile stats: ${e.message}"))
         }
     }
 }

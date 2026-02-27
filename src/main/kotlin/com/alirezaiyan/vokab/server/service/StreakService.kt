@@ -98,13 +98,15 @@ class StreakService(
         
         logger.info { "📈 Streak calculated: $newCurrentStreak consecutive days (last activity: $today)" }
 
-        // Update user
+        // Update user including longest streak
+        val newLongestStreak = maxOf(user.longestStreak, newCurrentStreak)
         val updatedUser = user.copy(
-            currentStreak = newCurrentStreak
+            currentStreak = newCurrentStreak,
+            longestStreak = newLongestStreak
         )
 
         val saved = userRepository.save(updatedUser)
-        logger.info { "✅ Streak updated for ${user.email}: current=$newCurrentStreak" }
+        logger.info { "✅ Streak updated for ${user.email}: current=$newCurrentStreak, longest=$newLongestStreak" }
         
         return saved
     }

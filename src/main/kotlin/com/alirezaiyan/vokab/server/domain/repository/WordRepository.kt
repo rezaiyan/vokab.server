@@ -9,6 +9,13 @@ import org.springframework.data.jpa.repository.Query
 interface WordRepository : JpaRepository<Word, Long> {
     fun findAllByUser(user: User): List<Word>
 
+    @Query(
+        "SELECT w.sourceLanguage, w.targetLanguage, COUNT(w) " +
+            "FROM Word w WHERE w.user = :user " +
+            "GROUP BY w.sourceLanguage, w.targetLanguage"
+    )
+    fun findLanguagePairsWithCount(user: User): List<Array<Any>>
+
     @Modifying
     @Query("DELETE FROM Word w WHERE w.id IN :ids AND w.user.id = :userId")
     fun deleteAllByIdInAndUserId(ids: List<Long>, userId: Long): Int

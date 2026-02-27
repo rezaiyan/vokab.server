@@ -47,6 +47,9 @@ data class User(
     @Column(name = "current_streak", nullable = false)
     val currentStreak: Int = 0,
 
+    @Column(name = "longest_streak", nullable = false)
+    val longestStreak: Int = 0,
+
     @Column(nullable = false)
     val active: Boolean = true,
     
