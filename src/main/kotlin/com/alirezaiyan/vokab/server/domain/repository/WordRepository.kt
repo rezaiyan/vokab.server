@@ -3,9 +3,49 @@ package com.alirezaiyan.vokab.server.domain.repository
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.entity.Word
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 
 interface WordRepository : JpaRepository<Word, Long> {
     fun findAllByUser(user: User): List<Word>
+
+    @Modifying
+    @Query("DELETE FROM Word w WHERE w.id IN :ids AND w.user.id = :userId")
+    fun deleteAllByIdInAndUserId(ids: List<Long>, userId: Long): Int
+
+    @Modifying
+    @Query(
+        "UPDATE Word w SET w.sourceLanguage = :sourceLanguage, w.targetLanguage = :targetLanguage, " +
+            "w.updatedAt = CURRENT_TIMESTAMP WHERE w.id IN :ids AND w.user.id = :userId"
+    )
+    fun updateLanguagesByIdInAndUserId(
+        ids: List<Long>,
+        userId: Long,
+        sourceLanguage: String,
+        targetLanguage: String
+    ): Int
+
+    @Modifying
+    @Query(
+        "UPDATE Word w SET w.sourceLanguage = :sourceLanguage, " +
+            "w.updatedAt = CURRENT_TIMESTAMP WHERE w.id IN :ids AND w.user.id = :userId"
+    )
+    fun updateSourceLanguageByIdInAndUserId(
+        ids: List<Long>,
+        userId: Long,
+        sourceLanguage: String
+    ): Int
+
+    @Modifying
+    @Query(
+        "UPDATE Word w SET w.targetLanguage = :targetLanguage, " +
+            "w.updatedAt = CURRENT_TIMESTAMP WHERE w.id IN :ids AND w.user.id = :userId"
+    )
+    fun updateTargetLanguageByIdInAndUserId(
+        ids: List<Long>,
+        userId: Long,
+        targetLanguage: String
+    ): Int
 }
 
 

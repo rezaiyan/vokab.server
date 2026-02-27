@@ -50,19 +50,33 @@ class WordService(
     }
     
     @Transactional
-    fun batchDelete(user: User, ids: List<Long>) {
-        if (ids.isEmpty()) return
-        
-        // Fetch all words to delete and verify ownership
-        val wordsToDelete = wordRepository.findAllById(ids)
-        
-        // Verify all words belong to the user
-        wordsToDelete.forEach { word ->
-            require(word.user?.id == user.id) { "Forbidden: Cannot delete word ${word.id}" }
+    fun batchDelete(user: User, ids: List<Long>): Int {
+        if (ids.isEmpty()) return 0
+        return wordRepository.deleteAllByIdInAndUserId(ids, user.id!!)
+    }
+
+    @Transactional
+    fun batchUpdateLanguages(
+        user: User,
+        ids: List<Long>,
+        sourceLanguage: String?,
+        targetLanguage: String?
+    ): Int {
+        if (ids.isEmpty()) return 0
+        if (sourceLanguage == null && targetLanguage == null) return 0
+
+        val userId = user.id!!
+
+        return when {
+            sourceLanguage != null && targetLanguage != null ->
+                wordRepository.updateLanguagesByIdInAndUserId(ids, userId, sourceLanguage, targetLanguage)
+
+            sourceLanguage != null ->
+                wordRepository.updateSourceLanguageByIdInAndUserId(ids, userId, sourceLanguage)
+
+            else ->
+                wordRepository.updateTargetLanguageByIdInAndUserId(ids, userId, targetLanguage!!)
         }
-        
-        // Delete all in batch
-        wordRepository.deleteAll(wordsToDelete)
     }
 }
 

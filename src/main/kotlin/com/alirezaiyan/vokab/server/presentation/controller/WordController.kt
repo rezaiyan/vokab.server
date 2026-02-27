@@ -53,12 +53,29 @@ class WordController(
         @AuthenticationPrincipal user: User,
         @RequestBody request: BatchDeleteRequest
     ): ResponseEntity<ApiResponse<BatchDeleteResponse>> {
-        wordService.batchDelete(user, request.ids)
+        val deletedCount = wordService.batchDelete(user, request.ids)
         return ResponseEntity.ok(
             ApiResponse(
-                success = true, 
-                message = "Deleted ${request.ids.size} words",
-                data = BatchDeleteResponse(deletedCount = request.ids.size)
+                success = true,
+                message = "Deleted $deletedCount words",
+                data = BatchDeleteResponse(deletedCount = deletedCount)
+            )
+        )
+    }
+
+    @PostMapping("/batch-update")
+    fun batchUpdate(
+        @AuthenticationPrincipal user: User,
+        @RequestBody request: BatchUpdateLanguagesRequest
+    ): ResponseEntity<ApiResponse<BatchUpdateLanguagesResponse>> {
+        val updatedCount = wordService.batchUpdateLanguages(
+            user, request.ids, request.sourceLanguage, request.targetLanguage
+        )
+        return ResponseEntity.ok(
+            ApiResponse(
+                success = true,
+                message = "Updated $updatedCount words",
+                data = BatchUpdateLanguagesResponse(updatedCount = updatedCount)
             )
         )
     }
@@ -76,6 +93,22 @@ data class BatchDeleteRequest(
  */
 data class BatchDeleteResponse(
     val deletedCount: Int
+)
+
+/**
+ * Request DTO for batch language update operation
+ */
+data class BatchUpdateLanguagesRequest(
+    val ids: List<Long>,
+    val sourceLanguage: String? = null,
+    val targetLanguage: String? = null
+)
+
+/**
+ * Response DTO for batch language update operation
+ */
+data class BatchUpdateLanguagesResponse(
+    val updatedCount: Int
 )
 
 
