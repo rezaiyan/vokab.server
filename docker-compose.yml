@@ -36,6 +36,9 @@ services:
       DATABASE_DRIVER: org.postgresql.Driver
       HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-7776000000}
+      JWT_REFRESH_TOKEN_GRACE_PERIOD_MS: ${JWT_REFRESH_TOKEN_GRACE_PERIOD_MS:-30000}
       JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/keys/jwt-private-key.pem}
       JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-/app/keys/jwt-public-key.pem}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
