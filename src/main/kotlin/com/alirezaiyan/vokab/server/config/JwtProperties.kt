@@ -8,6 +8,6 @@ import org.springframework.context.annotation.Configuration
 data class JwtProperties(
     var secret: String = "",
     var expirationMs: Long = 86400000,
-    var refreshExpirationMs: Long = 604800000
+    var refreshExpirationMs: Long = 7776000000
 )
 

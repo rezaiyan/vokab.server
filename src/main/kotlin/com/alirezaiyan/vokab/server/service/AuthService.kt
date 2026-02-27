@@ -368,8 +368,13 @@ class AuthService(
         )
         refreshTokenRepository.save(newRefreshTokenEntity)
 
-        // Revoke old token
-        val updatedOldToken = tokenEntity.copy(revoked = true)
+        // Grace period: instead of immediate revocation, allow old token for a short window
+        // so the client can retry if it crashes before saving the new tokens.
+        // After the grace period, the token expires naturally.
+        val gracePeriodMs = appProperties.jwt.refreshTokenGracePeriodMs
+        val updatedOldToken = tokenEntity.copy(
+            expiresAt = Instant.now().plusMillis(gracePeriodMs)
+        )
         refreshTokenRepository.save(updatedOldToken)
 
         logger.info { "✅ Tokens rotated for user: ${user.email}" }

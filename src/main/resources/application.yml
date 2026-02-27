@@ -53,7 +53,8 @@ app:
   jwt:
     secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
-    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:7776000000}
+    refresh-token-grace-period-ms: ${JWT_REFRESH_TOKEN_GRACE_PERIOD_MS:30000}
     private-key-path: ${JWT_PRIVATE_KEY_PATH:}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:}
     issuer: ${JWT_ISSUER:vokab-server}
