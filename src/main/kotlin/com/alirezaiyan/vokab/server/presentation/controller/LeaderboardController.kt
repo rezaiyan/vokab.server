@@ -23,7 +23,7 @@ class LeaderboardController(
     @GetMapping
     fun getLeaderboard(
         @AuthenticationPrincipal user: User,
-        @RequestParam(defaultValue = "50") limit: Int
+        @RequestParam(defaultValue = "20") limit: Int
     ): ResponseEntity<ApiResponse<LeaderboardResponse>> {
         return try {
             val response = leaderboardService.getLeaderboard(user, limit.coerceIn(1, 100))

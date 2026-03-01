@@ -30,23 +30,23 @@ class LeaderboardServiceTest {
     }
 
     @Test
-    fun `getLeaderboard returns entries ranked by mastered words`() {
+    fun `getLeaderboard returns all users including those with zero mastered words`() {
         val user1 = createUser(id = 1L, currentStreak = 10, longestStreak = 20)
         val user2 = createUser(id = 2L, currentStreak = 5, longestStreak = 30)
+        val user3 = createUser(id = 3L, currentStreak = 0, longestStreak = 0)
 
-        every { wordRepository.findTopUserIdsByMasteredWords(any()) } returns listOf(
-            arrayOf(2L as Any, 50L as Any),
-            arrayOf(1L as Any, 30L as Any)
+        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(user1, user2, user3)
+        every { wordRepository.countMasteredWordsByUserIds(listOf(1L, 2L, 3L)) } returns listOf(
+            arrayOf(1L as Any, 50L as Any),
+            arrayOf(2L as Any, 10L as Any)
         )
-        every { userRepository.findAllById(listOf(2L, 1L)) } returns listOf(user2, user1)
 
         val result = leaderboardService.getLeaderboard(user1)
 
-        assertEquals(2, result.entries.size)
-        assertEquals(1, result.entries[0].rank)
-        assertEquals(2, result.entries[1].rank)
+        assertEquals(3, result.entries.size)
         assertEquals(50, result.entries[0].masteredWords)
-        assertEquals(30, result.entries[1].masteredWords)
+        assertEquals(10, result.entries[1].masteredWords)
+        assertEquals(0, result.entries[2].masteredWords)
         assertNull(result.userEntry)
     }
 
@@ -55,13 +55,10 @@ class LeaderboardServiceTest {
         val user1 = createUser(id = 1L, currentStreak = 10, longestStreak = 20)
         val user2 = createUser(id = 2L, currentStreak = 5, longestStreak = 30)
 
-        every { wordRepository.findTopUserIdsByMasteredWords(any()) } returns listOf(
-            arrayOf(2L as Any, 50L as Any),
-            arrayOf(1L as Any, 30L as Any)
-        )
-        every { userRepository.findAllById(listOf(2L, 1L)) } returns listOf(user2, user1)
+        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(user1, user2)
+        every { wordRepository.countMasteredWordsByUserIds(listOf(1L, 2L)) } returns emptyList()
 
-        val result = leaderboardService.getLeaderboard(user1)
+        val result = leaderboardService.getLeaderboard(user2)
 
         assertFalse(result.entries[0].isCurrentUser)
         assertTrue(result.entries[1].isCurrentUser)
@@ -72,16 +69,17 @@ class LeaderboardServiceTest {
         val topUser = createUser(id = 1L, currentStreak = 50, longestStreak = 100)
         val requestingUser = createUser(id = 99L, currentStreak = 1, longestStreak = 2)
 
-        every { wordRepository.findTopUserIdsByMasteredWords(any()) } returns listOf(
+        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(topUser)
+        every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns listOf(
             arrayOf(1L as Any, 80L as Any)
         )
-        every { userRepository.findAllById(listOf(1L)) } returns listOf(topUser)
         every { wordRepository.countMasteredWordsByUserId(99L) } returns 5L
+        every { userRepository.findUserRankByMasteredWords(5L) } returns 42L
 
         val result = leaderboardService.getLeaderboard(requestingUser)
 
         assertNotNull(result.userEntry)
-        assertEquals(2, result.userEntry!!.rank)
+        assertEquals(42, result.userEntry!!.rank)
         assertEquals(5, result.userEntry!!.masteredWords)
         assertTrue(result.userEntry!!.isCurrentUser)
     }
@@ -90,10 +88,8 @@ class LeaderboardServiceTest {
     fun `getLeaderboard uses display alias when available`() {
         val userWithAlias = createUser(id = 1L, currentStreak = 5, longestStreak = 10, displayAlias = "CoolLearner42")
 
-        every { wordRepository.findTopUserIdsByMasteredWords(any()) } returns listOf(
-            arrayOf(1L as Any, 10L as Any)
-        )
-        every { userRepository.findAllById(listOf(1L)) } returns listOf(userWithAlias)
+        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(userWithAlias)
+        every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(userWithAlias)
 
@@ -104,10 +100,8 @@ class LeaderboardServiceTest {
     fun `getLeaderboard generates alias when display alias is null`() {
         val userWithoutAlias = createUser(id = 1L, currentStreak = 5, longestStreak = 10, displayAlias = null)
 
-        every { wordRepository.findTopUserIdsByMasteredWords(any()) } returns listOf(
-            arrayOf(1L as Any, 10L as Any)
-        )
-        every { userRepository.findAllById(listOf(1L)) } returns listOf(userWithoutAlias)
+        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(userWithoutAlias)
+        every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(userWithoutAlias)
 
@@ -118,15 +112,15 @@ class LeaderboardServiceTest {
     fun `getLeaderboard handles empty leaderboard`() {
         val requestingUser = createUser(id = 1L, currentStreak = 0, longestStreak = 0)
 
-        every { wordRepository.findTopUserIdsByMasteredWords(any()) } returns emptyList()
+        every { userRepository.findTopUsersByMasteredWords(any()) } returns emptyList()
         every { wordRepository.countMasteredWordsByUserId(1L) } returns 0L
+        every { userRepository.findUserRankByMasteredWords(0L) } returns 1L
 
         val result = leaderboardService.getLeaderboard(requestingUser)
 
         assertTrue(result.entries.isEmpty())
         assertNotNull(result.userEntry)
         assertEquals(1, result.userEntry!!.rank)
-        assertEquals(0, result.userEntry!!.masteredWords)
     }
 
     @Test

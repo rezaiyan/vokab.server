@@ -20,35 +20,34 @@ class LeaderboardService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getLeaderboard(requestingUser: User, limit: Int = 50): LeaderboardResponse {
-        val topUserData = wordRepository.findTopUserIdsByMasteredWords(PageRequest.of(0, limit))
-        val topUserIds = topUserData.map { it[0] as Long }
-        val masteredCounts = topUserData.associate { (it[0] as Long) to (it[1] as Long).toInt() }
+    fun getLeaderboard(requestingUser: User, limit: Int = 20): LeaderboardResponse {
+        val topUsers = userRepository.findTopUsersByMasteredWords(PageRequest.of(0, limit))
+        val userIds = topUsers.mapNotNull { it.id }
 
-        val users = if (topUserIds.isNotEmpty()) {
-            userRepository.findAllById(topUserIds).associateBy { it.id }
+        val masteredCounts = if (userIds.isNotEmpty()) {
+            wordRepository.countMasteredWordsByUserIds(userIds)
+                .associate { row -> (row[0] as Long) to (row[1] as Long).toInt() }
         } else {
             emptyMap()
         }
 
-        val entries = topUserIds.mapIndexedNotNull { index, userId ->
-            val user = users[userId] ?: return@mapIndexedNotNull null
+        val entries = topUsers.mapIndexed { index, user ->
             toEntryDto(
                 user = user,
                 rank = index + 1,
-                masteredWords = masteredCounts[userId] ?: 0,
-                isCurrentUser = userId == requestingUser.id
+                masteredWords = masteredCounts[user.id] ?: 0,
+                isCurrentUser = user.id == requestingUser.id
             )
         }
 
         val userInTop = entries.any { it.isCurrentUser }
         val userEntry = if (!userInTop) {
-            val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!).toInt()
-            val userRank = masteredCounts.values.count { it > userMastered } + 1
+            val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!)
+            val userRank = userRepository.findUserRankByMasteredWords(userMastered).toInt()
             toEntryDto(
                 user = requestingUser,
                 rank = userRank,
-                masteredWords = userMastered,
+                masteredWords = userMastered.toInt(),
                 isCurrentUser = true
             )
         } else {

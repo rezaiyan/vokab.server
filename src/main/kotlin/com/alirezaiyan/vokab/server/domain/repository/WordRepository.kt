@@ -2,7 +2,6 @@ package com.alirezaiyan.vokab.server.domain.repository
 
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.entity.Word
-import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -15,13 +14,6 @@ interface WordRepository : JpaRepository<Word, Long> {
             "WHERE w.level = 6 AND w.user.id IN :userIds GROUP BY w.user.id"
     )
     fun countMasteredWordsByUserIds(userIds: List<Long>): List<Array<Any>>
-
-    @Query(
-        "SELECT w.user.id, COUNT(w) FROM Word w " +
-            "WHERE w.level = 6 AND w.user.active = true " +
-            "GROUP BY w.user.id ORDER BY COUNT(w) DESC"
-    )
-    fun findTopUserIdsByMasteredWords(pageable: Pageable): List<Array<Any>>
 
     @Query("SELECT COUNT(w) FROM Word w WHERE w.level = 6 AND w.user.id = :userId")
     fun countMasteredWordsByUserId(userId: Long): Long
