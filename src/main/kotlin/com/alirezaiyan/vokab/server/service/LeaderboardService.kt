@@ -21,7 +21,7 @@ class LeaderboardService(
 
     @Transactional(readOnly = true)
     fun getLeaderboard(requestingUser: User, limit: Int = 20): LeaderboardResponse {
-        val topUsers = userRepository.findTopUsersByMasteredWords(PageRequest.of(0, limit))
+        val topUsers = userRepository.findTopUsersByScore(PageRequest.of(0, limit))
         val userIds = topUsers.mapNotNull { it.id }
 
         val masteredCounts = if (userIds.isNotEmpty()) {
@@ -42,10 +42,10 @@ class LeaderboardService(
         }
 
         val userInTop = entries.any { it.isCurrentUser }
-        logger.info { "Requesting user id=$requestingUserId, topUserIds=$userIds, userInTop=$userInTop" }
         val userEntry = if (!userInTop) {
             val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!)
-            val userRank = userRepository.findUserRankByMasteredWords(userMastered).toInt()
+            val userScore = computeScore(userMastered, requestingUser.currentStreak, requestingUser.longestStreak)
+            val userRank = userRepository.findUserRankByScore(userScore).toInt()
             toEntryDto(
                 user = requestingUser,
                 rank = userRank,
@@ -72,5 +72,9 @@ class LeaderboardService(
             isCurrentUser = isCurrentUser,
             profileImageUrl = user.profileImageUrl
         )
+    }
+
+    private fun computeScore(masteredWords: Long, currentStreak: Int, longestStreak: Int): Long {
+        return masteredWords * 10 + currentStreak * 3 + longestStreak * 2
     }
 }

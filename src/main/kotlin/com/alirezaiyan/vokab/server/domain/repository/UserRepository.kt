@@ -17,13 +17,20 @@ interface UserRepository : JpaRepository<User, Long> {
 
     @Query(
         "SELECT u FROM User u WHERE u.active = true " +
-            "ORDER BY (SELECT COUNT(w) FROM Word w WHERE w.level = 6 AND w.user = u) DESC"
+            "ORDER BY (" +
+            "(SELECT COUNT(w) FROM Word w WHERE w.level = 6 AND w.user = u) * 10 " +
+            "+ u.currentStreak * 3 " +
+            "+ u.longestStreak * 2" +
+            ") DESC"
     )
-    fun findTopUsersByMasteredWords(pageable: Pageable): List<User>
+    fun findTopUsersByScore(pageable: Pageable): List<User>
 
     @Query(
-        "SELECT COUNT(u) + 1 FROM User u WHERE u.active = true AND " +
-            "(SELECT COUNT(w) FROM Word w WHERE w.level = 6 AND w.user = u) > :userMasteredCount"
+        "SELECT COUNT(u) + 1 FROM User u WHERE u.active = true AND (" +
+            "(SELECT COUNT(w) FROM Word w WHERE w.level = 6 AND w.user = u) * 10 " +
+            "+ u.currentStreak * 3 " +
+            "+ u.longestStreak * 2" +
+            ") > :userScore"
     )
-    fun findUserRankByMasteredWords(userMasteredCount: Long): Long
+    fun findUserRankByScore(userScore: Long): Long
 }

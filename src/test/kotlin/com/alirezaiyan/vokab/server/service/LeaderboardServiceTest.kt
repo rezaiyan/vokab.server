@@ -30,12 +30,12 @@ class LeaderboardServiceTest {
     }
 
     @Test
-    fun `getLeaderboard returns all users including those with zero mastered words`() {
+    fun `getLeaderboard returns users ranked by composite score`() {
         val user1 = createUser(id = 1L, currentStreak = 10, longestStreak = 20)
         val user2 = createUser(id = 2L, currentStreak = 5, longestStreak = 30)
         val user3 = createUser(id = 3L, currentStreak = 0, longestStreak = 0)
 
-        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(user1, user2, user3)
+        every { userRepository.findTopUsersByScore(any()) } returns listOf(user1, user2, user3)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L, 2L, 3L)) } returns listOf(
             arrayOf(1L as Any, 50L as Any),
             arrayOf(2L as Any, 10L as Any)
@@ -55,7 +55,7 @@ class LeaderboardServiceTest {
         val user1 = createUser(id = 1L, currentStreak = 10, longestStreak = 20)
         val user2 = createUser(id = 2L, currentStreak = 5, longestStreak = 30)
 
-        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(user1, user2)
+        every { userRepository.findTopUsersByScore(any()) } returns listOf(user1, user2)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L, 2L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(user2)
@@ -69,12 +69,13 @@ class LeaderboardServiceTest {
         val topUser = createUser(id = 1L, currentStreak = 50, longestStreak = 100)
         val requestingUser = createUser(id = 99L, currentStreak = 1, longestStreak = 2)
 
-        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(topUser)
+        every { userRepository.findTopUsersByScore(any()) } returns listOf(topUser)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns listOf(
             arrayOf(1L as Any, 80L as Any)
         )
         every { wordRepository.countMasteredWordsByUserId(99L) } returns 5L
-        every { userRepository.findUserRankByMasteredWords(5L) } returns 42L
+        // score = 5*10 + 1*3 + 2*2 = 57
+        every { userRepository.findUserRankByScore(57L) } returns 42L
 
         val result = leaderboardService.getLeaderboard(requestingUser)
 
@@ -88,7 +89,7 @@ class LeaderboardServiceTest {
     fun `getLeaderboard uses display alias when available`() {
         val userWithAlias = createUser(id = 1L, currentStreak = 5, longestStreak = 10, displayAlias = "CoolLearner42")
 
-        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(userWithAlias)
+        every { userRepository.findTopUsersByScore(any()) } returns listOf(userWithAlias)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(userWithAlias)
@@ -100,7 +101,7 @@ class LeaderboardServiceTest {
     fun `getLeaderboard generates alias when display alias is null`() {
         val userWithoutAlias = createUser(id = 1L, currentStreak = 5, longestStreak = 10, displayAlias = null)
 
-        every { userRepository.findTopUsersByMasteredWords(any()) } returns listOf(userWithoutAlias)
+        every { userRepository.findTopUsersByScore(any()) } returns listOf(userWithoutAlias)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(userWithoutAlias)
@@ -112,9 +113,10 @@ class LeaderboardServiceTest {
     fun `getLeaderboard handles empty leaderboard`() {
         val requestingUser = createUser(id = 1L, currentStreak = 0, longestStreak = 0)
 
-        every { userRepository.findTopUsersByMasteredWords(any()) } returns emptyList()
+        every { userRepository.findTopUsersByScore(any()) } returns emptyList()
         every { wordRepository.countMasteredWordsByUserId(1L) } returns 0L
-        every { userRepository.findUserRankByMasteredWords(0L) } returns 1L
+        // score = 0*10 + 0*3 + 0*2 = 0
+        every { userRepository.findUserRankByScore(0L) } returns 1L
 
         val result = leaderboardService.getLeaderboard(requestingUser)
 
