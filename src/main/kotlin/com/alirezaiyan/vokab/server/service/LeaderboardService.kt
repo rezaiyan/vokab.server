@@ -21,34 +21,30 @@ class LeaderboardService(
 
     @Transactional(readOnly = true)
     fun getLeaderboard(requestingUser: User, limit: Int = 50): LeaderboardResponse {
-        val topUsers = userRepository.findTopUsersByScore(PageRequest.of(0, limit))
-        val userIds = topUsers.mapNotNull { it.id }
+        val topUserData = wordRepository.findTopUserIdsByMasteredWords(PageRequest.of(0, limit))
+        val topUserIds = topUserData.map { it[0] as Long }
+        val masteredCounts = topUserData.associate { (it[0] as Long) to (it[1] as Long).toInt() }
 
-        val masteredCounts = if (userIds.isNotEmpty()) {
-            wordRepository.countMasteredWordsByUserIds(userIds)
-                .associate { row -> (row[0] as Long) to (row[1] as Long).toInt() }
+        val users = if (topUserIds.isNotEmpty()) {
+            userRepository.findAllById(topUserIds).associateBy { it.id }
         } else {
             emptyMap()
         }
 
-        val entries = topUsers.mapIndexed { index, user ->
+        val entries = topUserIds.mapIndexedNotNull { index, userId ->
+            val user = users[userId] ?: return@mapIndexedNotNull null
             toEntryDto(
                 user = user,
                 rank = index + 1,
-                masteredWords = masteredCounts[user.id] ?: 0,
-                isCurrentUser = user.id == requestingUser.id
+                masteredWords = masteredCounts[userId] ?: 0,
+                isCurrentUser = userId == requestingUser.id
             )
         }
 
         val userInTop = entries.any { it.isCurrentUser }
         val userEntry = if (!userInTop) {
-            val userRank = userRepository.findUserRank(requestingUser.id!!).toInt()
-            val userMastered = if (requestingUser.id in masteredCounts) {
-                masteredCounts[requestingUser.id]!!
-            } else {
-                wordRepository.countMasteredWordsByUserIds(listOf(requestingUser.id!!))
-                    .firstOrNull()?.let { (it[1] as Long).toInt() } ?: 0
-            }
+            val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!).toInt()
+            val userRank = masteredCounts.values.count { it > userMastered } + 1
             toEntryDto(
                 user = requestingUser,
                 rank = userRank,
@@ -71,14 +67,8 @@ class LeaderboardService(
             displayName = displayName,
             currentStreak = user.currentStreak,
             longestStreak = user.longestStreak,
-            score = calculateScore(user.currentStreak, user.longestStreak),
             masteredWords = masteredWords,
             isCurrentUser = isCurrentUser
         )
-    }
-
-    companion object {
-        fun calculateScore(currentStreak: Int, longestStreak: Int): Double =
-            currentStreak * 0.4 + longestStreak * 0.6
     }
 }

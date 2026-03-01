@@ -5,7 +5,6 @@ data class LeaderboardEntryDto(
     val displayName: String,
     val currentStreak: Int,
     val longestStreak: Int,
-    val score: Double,
     val masteredWords: Int,
     val isCurrentUser: Boolean
 )
