@@ -6,7 +6,8 @@ data class LeaderboardEntryDto(
     val currentStreak: Int,
     val longestStreak: Int,
     val masteredWords: Int,
-    val isCurrentUser: Boolean
+    val isCurrentUser: Boolean,
+    val profileImageUrl: String? = null
 )
 
 data class LeaderboardResponse(

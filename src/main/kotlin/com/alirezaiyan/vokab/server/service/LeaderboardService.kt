@@ -31,16 +31,18 @@ class LeaderboardService(
             emptyMap()
         }
 
+        val requestingUserId = requestingUser.id
         val entries = topUsers.mapIndexed { index, user ->
             toEntryDto(
                 user = user,
                 rank = index + 1,
                 masteredWords = masteredCounts[user.id] ?: 0,
-                isCurrentUser = user.id == requestingUser.id
+                isCurrentUser = user.id == requestingUserId
             )
         }
 
         val userInTop = entries.any { it.isCurrentUser }
+        logger.debug { "Requesting user id=$requestingUserId, topUserIds=${userIds}, userInTop=$userInTop" }
         val userEntry = if (!userInTop) {
             val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!)
             val userRank = userRepository.findUserRankByMasteredWords(userMastered).toInt()
@@ -67,7 +69,8 @@ class LeaderboardService(
             currentStreak = user.currentStreak,
             longestStreak = user.longestStreak,
             masteredWords = masteredWords,
-            isCurrentUser = isCurrentUser
+            isCurrentUser = isCurrentUser,
+            profileImageUrl = user.profileImageUrl
         )
     }
 }
