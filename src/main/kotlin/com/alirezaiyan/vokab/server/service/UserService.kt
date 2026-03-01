@@ -29,18 +29,30 @@ class UserService(
     }
     
     @Transactional
-    fun updateUser(userId: Long, name: String?): UserDto {
+    fun updateUser(userId: Long, name: String?, displayAlias: String? = null): UserDto {
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
 
+        if (displayAlias != null) {
+            validateDisplayAlias(displayAlias)
+        }
+
         val updatedUser = user.copy(
-            name = name ?: user.name
+            name = name ?: user.name,
+            displayAlias = displayAlias ?: user.displayAlias
         )
-        
+
         val saved = userRepository.save(updatedUser)
         logger.info { "User updated: ${saved.email}" }
-        
+
         return saved.toDto()
+    }
+
+    private fun validateDisplayAlias(alias: String) {
+        val aliasRegex = "^[a-zA-Z0-9 _-]{2,30}$".toRegex()
+        require(aliasRegex.matches(alias)) {
+            "Username must be 2-30 characters and contain only letters, numbers, spaces, underscores, or hyphens"
+        }
     }
     
     @Transactional
@@ -61,7 +73,9 @@ class UserService(
             name = this.name,
             subscriptionStatus = this.subscriptionStatus,
             subscriptionExpiresAt = this.subscriptionExpiresAt?.toString(),
-            currentStreak = this.currentStreak
+            currentStreak = this.currentStreak,
+            displayAlias = this.displayAlias,
+            profileImageUrl = this.profileImageUrl
         )
     }
 }

@@ -35,6 +35,9 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 # Create keys directory for JWT RSA keys (will be mounted as volume)
 RUN mkdir -p /app/keys && chown -R spring:spring /app/keys
 
+# Create avatar uploads directory (will be mounted as volume)
+RUN mkdir -p /var/www/uploads/avatars && chown -R spring:spring /var/www/uploads
+
 # Firebase service account is provided via a secure path or secret at runtime
 
 # Change ownership

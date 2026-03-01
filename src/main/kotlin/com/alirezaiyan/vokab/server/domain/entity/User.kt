@@ -53,6 +53,9 @@ data class User(
     @Column(name = "display_alias", length = 50)
     val displayAlias: String? = null,
 
+    @Column(name = "profile_image_url", length = 512)
+    val profileImageUrl: String? = null,
+
     @Column(nullable = false)
     val active: Boolean = true,
     

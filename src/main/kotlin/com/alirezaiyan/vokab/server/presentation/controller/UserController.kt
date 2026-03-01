@@ -2,14 +2,19 @@ package com.alirezaiyan.vokab.server.presentation.controller
 
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
+import com.alirezaiyan.vokab.server.presentation.dto.AvatarResponse
 import com.alirezaiyan.vokab.server.presentation.dto.ProfileStatsResponse
+import com.alirezaiyan.vokab.server.presentation.dto.UpdateProfileRequest
 import com.alirezaiyan.vokab.server.presentation.dto.UserDto
+import com.alirezaiyan.vokab.server.service.AvatarService
 import com.alirezaiyan.vokab.server.service.ProfileStatsService
 import com.alirezaiyan.vokab.server.service.UserService
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 
 private val logger = KotlinLogging.logger {}
 
@@ -18,7 +23,8 @@ private val logger = KotlinLogging.logger {}
 class UserController(
     private val userService: UserService,
     private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService,
-    private val profileStatsService: ProfileStatsService
+    private val profileStatsService: ProfileStatsService,
+    private val avatarService: AvatarService
 ) {
     
     @GetMapping("/me")
@@ -38,15 +44,44 @@ class UserController(
     @PatchMapping("/me")
     fun updateCurrentUser(
         @AuthenticationPrincipal user: User,
-        @RequestParam(required = false) name: String?
+        @Valid @RequestBody request: UpdateProfileRequest
     ): ResponseEntity<ApiResponse<UserDto>> {
         return try {
-            val updated = userService.updateUser(user.id!!, name)
+            val updated = userService.updateUser(user.id!!, request.name, request.displayAlias)
             ResponseEntity.ok(ApiResponse(success = true, data = updated))
         } catch (e: Exception) {
             logger.error(e) { "Failed to update user" }
             ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = "Failed to update user: ${e.message}"))
+        }
+    }
+
+    @PostMapping("/me/avatar")
+    fun uploadAvatar(
+        @AuthenticationPrincipal user: User,
+        @RequestParam("file") file: MultipartFile
+    ): ResponseEntity<ApiResponse<AvatarResponse>> {
+        return try {
+            val url = avatarService.uploadAvatar(user.id!!, file)
+            ResponseEntity.ok(ApiResponse(success = true, data = AvatarResponse(profileImageUrl = url)))
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to upload avatar" }
+            ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Failed to upload avatar: ${e.message}"))
+        }
+    }
+
+    @DeleteMapping("/me/avatar")
+    fun deleteAvatar(
+        @AuthenticationPrincipal user: User
+    ): ResponseEntity<ApiResponse<Unit>> {
+        return try {
+            avatarService.deleteAvatar(user.id!!)
+            ResponseEntity.ok(ApiResponse(success = true, message = "Avatar deleted successfully"))
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to delete avatar" }
+            ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Failed to delete avatar: ${e.message}"))
         }
     }
     

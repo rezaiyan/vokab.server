@@ -667,6 +667,8 @@ class AuthService(
         name = this.name,
         subscriptionStatus = this.subscriptionStatus,
         subscriptionExpiresAt = this.subscriptionExpiresAt?.toString(),
-        currentStreak = this.currentStreak
+        currentStreak = this.currentStreak,
+        displayAlias = this.displayAlias,
+        profileImageUrl = this.profileImageUrl
     )
 }
