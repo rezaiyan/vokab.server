@@ -42,7 +42,7 @@ class LeaderboardService(
         }
 
         val userInTop = entries.any { it.isCurrentUser }
-        logger.debug { "Requesting user id=$requestingUserId, topUserIds=${userIds}, userInTop=$userInTop" }
+        logger.info { "Requesting user id=$requestingUserId, topUserIds=$userIds, userInTop=$userInTop" }
         val userEntry = if (!userInTop) {
             val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!)
             val userRank = userRepository.findUserRankByMasteredWords(userMastered).toInt()
