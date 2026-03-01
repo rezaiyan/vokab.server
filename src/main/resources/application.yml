@@ -3,8 +3,6 @@ spring:
     name: vokab-server
 
   datasource:
-    # Render: set DATABASE_URL to a JDBC URL, e.g.:
-    # jdbc:postgresql://<HOST>:5432/vokabdb?sslmode=require
     url: ${DATABASE_URL:jdbc:h2:mem:vokabdb}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:}
@@ -65,6 +63,8 @@ app:
     refresh-token-grace-period-ms: ${JWT_REFRESH_TOKEN_GRACE_PERIOD_MS:30000}
     private-key-path: ${JWT_PRIVATE_KEY_PATH:}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:}
+    private-key: ${JWT_PRIVATE_KEY:}
+    public-key: ${JWT_PUBLIC_KEY:}
     issuer: ${JWT_ISSUER:vokab-server}
     audience: ${JWT_AUDIENCE:vokab-client}
 

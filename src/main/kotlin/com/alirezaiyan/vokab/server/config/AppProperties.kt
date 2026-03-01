@@ -24,6 +24,8 @@ data class JwtConfig(
     var refreshTokenGracePeriodMs: Long = 30_000, // 30 seconds grace period for rotated tokens
     var privateKeyPath: String = "",
     var publicKeyPath: String = "",
+    var privateKey: String = "", // Base64-encoded RSA private key (for ephemeral deployments)
+    var publicKey: String = "",  // Base64-encoded RSA public key (for ephemeral deployments)
     var issuer: String = "vokab-server",
     var audience: String = "vokab-client"
 )

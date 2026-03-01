@@ -35,19 +35,38 @@ class RS256JwtTokenProvider(
 
     /**
      * Initialize key pair with the following strategy:
-     * 1. If key files exist, load them
-     * 2. If key paths are configured but files don't exist, generate and save keys
-     * 3. If no paths configured, use default paths (./keys/ directory)
+     * 1. If raw key content is provided via environment variables (JWT_PRIVATE_KEY / JWT_PUBLIC_KEY), use them
+     * 2. If key files exist on disk, load them
+     * 3. Otherwise, generate new keys and save to files
      *
-     * This ensures keys are always persisted and reused across server restarts.
+     * Strategy 1 is critical for deployments with ephemeral filesystems (Railway, Fly.io, Render, etc.)
+     * where files don't survive restarts/redeploys.
      */
     private fun initializeKeyPair(): KeyPair {
+        val rawPrivateKey = appProperties.jwt.privateKey
+        val rawPublicKey = appProperties.jwt.publicKey
+
+        // Strategy 1: Load from environment variables (Base64-encoded key content)
+        if (rawPrivateKey.isNotBlank() && rawPublicKey.isNotBlank()) {
+            return try {
+                logger.info { "Loading RSA key pair from environment variables..." }
+                loadKeyPairFromContent(rawPrivateKey, rawPublicKey)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to load keys from environment variables, falling back to file-based keys" }
+                loadOrGenerateFromFiles()
+            }
+        }
+
+        // Strategy 2 & 3: Load from files or generate
+        return loadOrGenerateFromFiles()
+    }
+
+    private fun loadOrGenerateFromFiles(): KeyPair {
         val privateKeyPath = appProperties.jwt.privateKeyPath.ifBlank { "./keys/jwt-private-key.pem" }
         val publicKeyPath = appProperties.jwt.publicKeyPath.ifBlank { "./keys/jwt-public-key.pem" }
 
         logger.info { "JWT Key Paths - Private: $privateKeyPath, Public: $publicKeyPath" }
 
-        // Check if both key files exist
         val privateKeyFile = File(privateKeyPath)
         val publicKeyFile = File(publicKeyPath)
 
@@ -63,6 +82,21 @@ class RS256JwtTokenProvider(
             logger.info { "Key files not found, generating and saving new RSA key pair..." }
             generateAndSaveKeyPair(privateKeyPath, publicKeyPath)
         }
+    }
+
+    /**
+     * Load RSA key pair from Base64-encoded key content (provided via environment variables)
+     */
+    private fun loadKeyPairFromContent(privateKeyBase64: String, publicKeyBase64: String): KeyPair {
+        val privateKeySpec = PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyBase64))
+        val publicKeySpec = X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyBase64))
+
+        val keyFactory = KeyFactory.getInstance("RSA")
+        val privateKey = keyFactory.generatePrivate(privateKeySpec) as RSAPrivateKey
+        val publicKey = keyFactory.generatePublic(publicKeySpec) as RSAPublicKey
+
+        logger.info { "Successfully loaded RSA key pair from environment variables" }
+        return KeyPair(publicKey, privateKey)
     }
 
     /**
