@@ -10,6 +10,12 @@ interface WordRepository : JpaRepository<Word, Long> {
     fun findAllByUser(user: User): List<Word>
 
     @Query(
+        "SELECT w.user.id, COUNT(w) FROM Word w " +
+            "WHERE w.level = 6 AND w.user.id IN :userIds GROUP BY w.user.id"
+    )
+    fun countMasteredWordsByUserIds(userIds: List<Long>): List<Array<Any>>
+
+    @Query(
         "SELECT w.sourceLanguage, w.targetLanguage, COUNT(w) " +
             "FROM Word w WHERE w.user = :user " +
             "GROUP BY w.sourceLanguage, w.targetLanguage"

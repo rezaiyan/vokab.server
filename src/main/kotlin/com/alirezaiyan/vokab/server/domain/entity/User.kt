@@ -50,6 +50,9 @@ data class User(
     @Column(name = "longest_streak", nullable = false)
     val longestStreak: Int = 0,
 
+    @Column(name = "display_alias", length = 50)
+    val displayAlias: String? = null,
+
     @Column(nullable = false)
     val active: Boolean = true,
     
