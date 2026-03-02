@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Server URL
-SERVER_URL="${SERVER_URL:-https://vokab-server-hcsu.onrender.com}"
+SERVER_URL="${SERVER_URL:-http://localhost:8080}"
 API_BASE="${SERVER_URL}/api/v1"
 
 echo "🔍 Verifying Vokab Server Deployment"
@@ -115,7 +115,7 @@ echo
 echo "🔥 Firebase Configuration"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Note: Cannot directly verify Firebase from here."
-echo "Check Render logs for:"
+echo "Check server logs for:"
 echo "  - '✅ Firebase initialized successfully'"
 echo "  - or '✅ Firebase initialized for authentication'"
 echo
@@ -126,7 +126,7 @@ if [ $FAILED -eq 0 ]; then
     echo -e "${GREEN}✓ All checks passed!${NC}"
     echo
     echo "Next steps:"
-    echo "1. Check Render logs for Firebase initialization"
+    echo "1. Check server logs for Firebase initialization"
     echo "2. Test Google Sign-In from mobile app"
     echo "3. Monitor logs for authentication attempts"
     exit 0
@@ -134,10 +134,9 @@ else
     echo -e "${RED}✗ $FAILED check(s) failed${NC}"
     echo
     echo "Troubleshooting:"
-    echo "1. Check Render dashboard - is service 'Live'?"
-    echo "2. Review Render logs for errors"
-    echo "3. Verify environment variables are set"
-    echo "4. See PRODUCTION_GOOGLE_AUTH_CHECKLIST.md for detailed guide"
+    echo "1. Check server logs for errors"
+    echo "2. Verify environment variables are set"
+    echo "3. See PRODUCTION_GOOGLE_AUTH_CHECKLIST.md for detailed guide"
     exit 1
 fi
 

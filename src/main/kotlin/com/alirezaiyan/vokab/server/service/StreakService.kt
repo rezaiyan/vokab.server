@@ -22,22 +22,22 @@ class StreakService(
      * Called when user opens review section
      */
     @Transactional
-    fun recordActivity(userId: Long): User {
+    fun recordActivity(userId: Long, count: Int = 1): User {
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
-        
+
         val today = LocalDate.now()
-        
+
         // Check if activity already recorded today
         val existingActivity = dailyActivityRepository.findByUserAndActivityDate(user, today)
-        
+
         if (existingActivity.isPresent) {
-            // Already recorded today, just increment review count
+            // Already recorded today, increment review count by the number of words reviewed
             val activity = existingActivity.get()
-            activity.reviewCount++
+            activity.reviewCount += count
             dailyActivityRepository.save(activity)
             logger.debug { "Updated review count for user ${user.email} on $today, count=${activity.reviewCount}" }
-            
+
             // Return user as-is (streak already updated when first activity was recorded today)
             return user
         } else {
@@ -45,11 +45,11 @@ class StreakService(
             val newActivity = DailyActivity(
                 user = user,
                 activityDate = today,
-                reviewCount = 1
+                reviewCount = count
             )
             dailyActivityRepository.save(newActivity)
-            logger.info { "✅ Recorded new activity for user ${user.email} on $today" }
-            
+            logger.info { "✅ Recorded new activity for user ${user.email} on $today, count=$count" }
+
             // Update streak based on last activity
             val updatedUser = updateStreakOnNewActivity(user, today)
             return updatedUser

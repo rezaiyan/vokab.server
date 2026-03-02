@@ -4,4 +4,8 @@ data class StreakResponse(
     val currentStreak: Int
 )
 
+data class RecordActivityRequest(
+    val count: Int = 1
+)
+
 

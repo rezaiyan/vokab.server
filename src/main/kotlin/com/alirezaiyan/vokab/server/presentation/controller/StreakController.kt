@@ -1,6 +1,7 @@
 package com.alirezaiyan.vokab.server.presentation.controller
 
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
+import com.alirezaiyan.vokab.server.presentation.dto.RecordActivityRequest
 import com.alirezaiyan.vokab.server.presentation.dto.StreakResponse
 import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
 import com.alirezaiyan.vokab.server.service.StreakService
@@ -23,16 +24,18 @@ class StreakController(
      */
     @PostMapping("/record")
     fun recordActivity(
-        @RequestHeader("Authorization") authorization: String
+        @RequestHeader("Authorization") authorization: String,
+        @RequestBody(required = false) request: RecordActivityRequest?
     ): ResponseEntity<ApiResponse<StreakResponse>> {
         return try {
             val token = authorization.removePrefix("Bearer ")
             val userId = jwtTokenProvider.getUserIdFromToken(token)
                 ?: throw IllegalArgumentException("Invalid token")
-            
-            logger.debug { "Recording activity for user: $userId" }
-            
-            val user = streakService.recordActivity(userId)
+
+            val count = request?.count ?: 1
+            logger.debug { "Recording activity for user: $userId, count: $count" }
+
+            val user = streakService.recordActivity(userId, count)
 
             val response = StreakResponse(
                 currentStreak = user.currentStreak
