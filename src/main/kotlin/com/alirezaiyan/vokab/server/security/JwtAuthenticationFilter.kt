@@ -24,8 +24,9 @@ class JwtAuthenticationFilter(
     // Paths that should skip JWT authentication
     private val excludedPaths = listOf(
         "/api/v1/auth/google",
-        "/api/v1/auth/apple", 
+        "/api/v1/auth/apple",
         "/api/v1/auth/refresh",
+        "/api/v1/auth/ci-token",
         "/api/v1/auth/jwks",
         "/api/v1/webhooks/",
         "/api/v1/health",

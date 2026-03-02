@@ -128,6 +128,51 @@ class AuthService(
     }
     
     /**
+     * Authenticates a dedicated CI test user without Firebase/Apple token verification.
+     * The CI endpoint is gated by a shared secret header, so no OAuth flow is needed.
+     * Finds or creates the CI test user, grants premium access, and returns JWT tokens.
+     */
+    @Transactional
+    fun authenticateForCi(): AuthResponse {
+        val email = appProperties.ciAuth.testEmail
+        logger.info { "CI authentication for test user: $email" }
+
+        val user = userRepository.findByEmail(email)
+            .map { existingUser ->
+                applyTestUserPremiumAccess(
+                    existingUser.copy(
+                        lastLoginAt = Instant.now(),
+                        updatedAt = Instant.now()
+                    )
+                )
+            }
+            .orElseGet {
+                logger.info { "Creating new CI test user: $email" }
+                applyTestUserPremiumAccess(
+                    User(
+                        email = email,
+                        name = "CI Test User",
+                        lastLoginAt = Instant.now()
+                    )
+                )
+            }
+
+        val savedUser = userRepository.save(user)
+        val tokenPair = generateTokenPair(savedUser)
+        saveRefreshToken(tokenPair.refreshToken, savedUser)
+
+        logger.info { "CI test user authenticated: ${savedUser.email}" }
+        auditLogService.logLogin(savedUser.id!!, savedUser.email, "CI", null, null)
+
+        return AuthResponse(
+            accessToken = tokenPair.accessToken,
+            refreshToken = tokenPair.refreshToken,
+            expiresIn = jwtTokenProvider.getExpirationTime(),
+            user = tokenPair.user
+        )
+    }
+
+    /**
      * Check if an email is in the test emails list
      */
     private fun isTestUser(email: String): Boolean {

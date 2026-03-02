@@ -14,7 +14,8 @@ data class AppProperties(
     var features: FeatureFlagsConfig = FeatureFlagsConfig(),
     var security: SecurityConfig = SecurityConfig(),
     var logging: LoggingConfig = LoggingConfig(),
-    var vocabulary: VocabularyConfig = VocabularyConfig()
+    var vocabulary: VocabularyConfig = VocabularyConfig(),
+    var ciAuth: CiAuthConfig = CiAuthConfig()
 )
 
 data class JwtConfig(
@@ -76,4 +77,8 @@ data class VocabularyConfig(
     var suggestionCount: Int = 50
 )
 
-
+data class CiAuthConfig(
+    var enabled: Boolean = false,
+    var secret: String = "",
+    var testEmail: String = "ci-maestro@test.vokab.dev"
+)

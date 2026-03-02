@@ -105,6 +105,11 @@ app:
     exclude-patterns: ${REQUEST_LOGGING_EXCLUDE_PATTERNS:/actuator/health,/h2-console/**}
     log-level: ${REQUEST_LOGGING_LEVEL:INFO}
 
+  ci-auth:
+    enabled: ${CI_TEST_AUTH_ENABLED:false}
+    secret: ${CI_TEST_SECRET:}
+    test-email: ${CI_TEST_EMAIL:ci-maestro@test.vokab.dev}
+
   github-vocabulary:
     repo-url: ${GITHUB_REPO_URL:https://api.github.com/repos/rezaiyan/Vokab-collection}
     # GitHub personal access token for higher rate limits (5000/hour instead of 60/hour)

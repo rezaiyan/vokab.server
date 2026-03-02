@@ -1,5 +1,6 @@
 package com.alirezaiyan.vokab.server.presentation.controller
 
+import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import com.alirezaiyan.vokab.server.service.AuthService
@@ -16,7 +17,8 @@ private val logger = KotlinLogging.logger {}
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthController(
-    private val authService: AuthService
+    private val authService: AuthService,
+    private val appProperties: AppProperties
 ) {
     
     @PostMapping("/google")
@@ -53,6 +55,30 @@ class AuthController(
         }
     }
     
+    @PostMapping("/ci-token")
+    fun authenticateForCi(
+        @RequestHeader("X-CI-Secret", required = false) ciSecret: String?
+    ): ResponseEntity<ApiResponse<AuthResponse>> {
+        if (!appProperties.ciAuth.enabled) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse(success = false, message = "Not found"))
+        }
+
+        if (ciSecret.isNullOrBlank() || ciSecret != appProperties.ciAuth.secret) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse(success = false, message = "Unauthorized"))
+        }
+
+        return try {
+            val response = authService.authenticateForCi()
+            ResponseEntity.ok(ApiResponse(success = true, data = response))
+        } catch (e: Exception) {
+            logger.error(e) { "CI authentication failed" }
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse(success = false, message = "CI authentication failed: ${e.message}"))
+        }
+    }
+
     @PostMapping("/refresh")
     fun refreshToken(
         @Valid @RequestBody request: RefreshTokenRequest
