@@ -4,12 +4,10 @@ spring:
       mode: always
       schema-locations: classpath:schema.sql
       continue-on-error: false
-  
+
   flyway:
     enabled: false
 
   jpa:
     hibernate:
       ddl-auto: none
-
-

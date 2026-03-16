@@ -32,7 +32,7 @@ interface WordRepository : JpaRepository<Word, Long> {
     @Modifying
     @Query(
         "UPDATE Word w SET w.sourceLanguage = :sourceLanguage, w.targetLanguage = :targetLanguage, " +
-            "w.updatedAt = CURRENT_TIMESTAMP WHERE w.id IN :ids AND w.user.id = :userId"
+            "w.updatedAt = instant WHERE w.id IN :ids AND w.user.id = :userId"
     )
     fun updateLanguagesByIdInAndUserId(
         ids: List<Long>,
@@ -44,7 +44,7 @@ interface WordRepository : JpaRepository<Word, Long> {
     @Modifying
     @Query(
         "UPDATE Word w SET w.sourceLanguage = :sourceLanguage, " +
-            "w.updatedAt = CURRENT_TIMESTAMP WHERE w.id IN :ids AND w.user.id = :userId"
+            "w.updatedAt = instant WHERE w.id IN :ids AND w.user.id = :userId"
     )
     fun updateSourceLanguageByIdInAndUserId(
         ids: List<Long>,
@@ -55,7 +55,7 @@ interface WordRepository : JpaRepository<Word, Long> {
     @Modifying
     @Query(
         "UPDATE Word w SET w.targetLanguage = :targetLanguage, " +
-            "w.updatedAt = CURRENT_TIMESTAMP WHERE w.id IN :ids AND w.user.id = :userId"
+            "w.updatedAt = instant WHERE w.id IN :ids AND w.user.id = :userId"
     )
     fun updateTargetLanguageByIdInAndUserId(
         ids: List<Long>,

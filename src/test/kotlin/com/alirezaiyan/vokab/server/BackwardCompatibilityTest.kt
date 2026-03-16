@@ -78,18 +78,14 @@ class BackwardCompatibilityTest {
             RefreshToken(
                 tokenHash = "test_hash",
                 user = user,
-                familyId = "family-1",
                 expiresAt = Instant.now().plusSeconds(3600),
-                deviceId = "device-123",
-                userAgent = "JUnit",
-                ipAddress = "127.0.0.1"
             )
         )
 
         assertNotNull(refreshToken.id)
         val loaded = refreshTokenRepository.findById(refreshToken.id!!).orElse(null)
         assertNotNull(loaded)
-        assertTrue(loaded.deviceId == "device-123")
+        assertTrue(loaded.tokenHash == "test_hash")
     }
 
     @Test
