@@ -295,32 +295,43 @@ class AnalyticsService(
     }
 
     /**
-     * Returns the weekly progress report, or null if there is no activity
-     * worth showing. The card should only appear when the user has studied
-     * in the current week OR the previous week (so we can show a comparison).
+     * Returns the weekly progress report, or null when the card should be hidden.
+     *
+     * Visibility rule: the user must have at least one study session in
+     * the **last 7 days** (rolling window ending today). This ensures:
+     * - New users with no history → 204 (no card)
+     * - Lapsed users (no study for 8+ days) → 204 (no card)
+     * - Active users → 200 with current-week stats + previous-week comparison
+     *
+     * Display uses calendar weeks (Mon–Sun) for consistency:
+     * - "This week" = Monday to Sunday containing today
+     * - "Last week" = the 7 calendar days before this week's Monday
      */
     @Transactional(readOnly = true)
     fun getWeeklyReport(user: User): WeeklyReportResponse? {
         val today = LocalDate.now(ZoneOffset.UTC)
-        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val weekEnd = weekStart.plusDays(6)
-
-        val prevWeekStart = weekStart.minusWeeks(1)
-        val prevWeekEnd = weekStart.minusDays(1)
 
         fun dateToMs(date: LocalDate): Long = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         fun endOfDayMs(date: LocalDate): Long = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli() - 1
 
+        // Gate: any session in the rolling last 7 days?
+        val recencyStartMs = dateToMs(today.minusDays(6))
+        val recencyEndMs = endOfDayMs(today)
+        val recentSessions = studySessionRepository.findByUserAndDateRange(user, recencyStartMs, recencyEndMs)
+        if (recentSessions.isEmpty()) return null
+
+        // Display windows: calendar weeks
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val weekEnd = weekStart.plusDays(6)
+        val prevWeekStart = weekStart.minusWeeks(1)
+
         val currentStartMs = dateToMs(weekStart)
         val currentEndMs = endOfDayMs(weekEnd)
         val prevStartMs = dateToMs(prevWeekStart)
-        val prevEndMs = endOfDayMs(prevWeekEnd)
+        val prevEndMs = dateToMs(weekStart) - 1
 
         val currentSessions = studySessionRepository.findByUserAndDateRange(user, currentStartMs, currentEndMs)
         val prevSessions = studySessionRepository.findByUserAndDateRange(user, prevStartMs, prevEndMs)
-
-        // No activity in either week → nothing to show
-        if (currentSessions.isEmpty() && prevSessions.isEmpty()) return null
 
         val cardsReviewed = currentSessions.sumOf { it.totalCards }
         val correctCount = currentSessions.sumOf { it.correctCount }
