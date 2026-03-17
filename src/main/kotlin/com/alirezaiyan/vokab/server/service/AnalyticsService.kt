@@ -294,8 +294,13 @@ class AnalyticsService(
         }
     }
 
+    /**
+     * Returns the weekly progress report, or null if there is no activity
+     * worth showing. The card should only appear when the user has studied
+     * in the current week OR the previous week (so we can show a comparison).
+     */
     @Transactional(readOnly = true)
-    fun getWeeklyReport(user: User): WeeklyReportResponse {
+    fun getWeeklyReport(user: User): WeeklyReportResponse? {
         val today = LocalDate.now(ZoneOffset.UTC)
         val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weekEnd = weekStart.plusDays(6)
@@ -311,9 +316,11 @@ class AnalyticsService(
         val prevStartMs = dateToMs(prevWeekStart)
         val prevEndMs = endOfDayMs(prevWeekEnd)
 
-        // Current week sessions
         val currentSessions = studySessionRepository.findByUserAndDateRange(user, currentStartMs, currentEndMs)
         val prevSessions = studySessionRepository.findByUserAndDateRange(user, prevStartMs, prevEndMs)
+
+        // No activity in either week → nothing to show
+        if (currentSessions.isEmpty() && prevSessions.isEmpty()) return null
 
         val cardsReviewed = currentSessions.sumOf { it.totalCards }
         val correctCount = currentSessions.sumOf { it.correctCount }
@@ -325,10 +332,8 @@ class AnalyticsService(
         val changePercent = if (prevCardsReviewed == 0) null
         else ((cardsReviewed - prevCardsReviewed).toDouble() / prevCardsReviewed * 100)
 
-        // Words mastered this week (level transitions to 6)
         val wordsMastered = reviewEventRepository.countWordsMasteredInRange(user, currentStartMs, currentEndMs)
 
-        // Best day: group current sessions by date, find the day with most cards
         val bestDay = currentSessions
             .groupBy { session ->
                 Instant.ofEpochMilli(session.startedAt).atZone(ZoneOffset.UTC).toLocalDate()
