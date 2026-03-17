@@ -178,3 +178,24 @@ data class DailyStatsResponse(
     val incorrectCount: Int,
     val studyTimeMs: Long
 )
+
+// === Weekly Report ===
+
+data class WeeklyReportResponse(
+    val cardsReviewed: Int,
+    val previousWeekCardsReviewed: Int,
+    val changePercent: Double?,
+    val accuracyPercent: Double,
+    val wordsMastered: Int,
+    val totalStudyTimeMs: Long,
+    val sessionsCount: Int,
+    val bestDay: BestDayResponse?,
+    val weekStartDate: String,
+    val weekEndDate: String,
+)
+
+data class BestDayResponse(
+    val dayName: String,
+    val cardsReviewed: Int,
+    val accuracyPercent: Double,
+)

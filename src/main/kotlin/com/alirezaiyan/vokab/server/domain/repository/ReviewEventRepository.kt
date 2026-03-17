@@ -26,6 +26,13 @@ interface ReviewEventRepository : JpaRepository<ReviewEvent, Long> {
     )
     fun countWordsMastered(user: User): Long
 
+    @Query(
+        """SELECT COUNT(DISTINCT e.wordId) FROM ReviewEvent e
+           WHERE e.user = :user AND e.newLevel = 6 AND e.previousLevel < 6
+           AND e.reviewedAt >= :startMs AND e.reviewedAt <= :endMs"""
+    )
+    fun countWordsMasteredInRange(user: User, startMs: Long, endMs: Long): Long
+
     @Query("SELECT AVG(e.responseTimeMs) FROM ReviewEvent e WHERE e.user = :user AND e.responseTimeMs > 0")
     fun getAverageResponseTime(user: User): Double?
 

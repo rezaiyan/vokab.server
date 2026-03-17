@@ -10,9 +10,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.format.TextStyle
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 private val logger = KotlinLogging.logger {}
 
@@ -288,5 +292,70 @@ class AnalyticsService(
                 wordTranslation = p.wordTranslation
             )
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun getWeeklyReport(user: User): WeeklyReportResponse {
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val weekEnd = weekStart.plusDays(6)
+
+        val prevWeekStart = weekStart.minusWeeks(1)
+        val prevWeekEnd = weekStart.minusDays(1)
+
+        fun dateToMs(date: LocalDate): Long = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+        fun endOfDayMs(date: LocalDate): Long = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli() - 1
+
+        val currentStartMs = dateToMs(weekStart)
+        val currentEndMs = endOfDayMs(weekEnd)
+        val prevStartMs = dateToMs(prevWeekStart)
+        val prevEndMs = endOfDayMs(prevWeekEnd)
+
+        // Current week sessions
+        val currentSessions = studySessionRepository.findByUserAndDateRange(user, currentStartMs, currentEndMs)
+        val prevSessions = studySessionRepository.findByUserAndDateRange(user, prevStartMs, prevEndMs)
+
+        val cardsReviewed = currentSessions.sumOf { it.totalCards }
+        val correctCount = currentSessions.sumOf { it.correctCount }
+        val totalStudyTimeMs = currentSessions.sumOf { it.durationMs }
+        val sessionsCount = currentSessions.size
+        val accuracyPercent = if (cardsReviewed > 0) (correctCount.toDouble() / cardsReviewed * 100) else 0.0
+
+        val prevCardsReviewed = prevSessions.sumOf { it.totalCards }
+        val changePercent = if (prevCardsReviewed == 0) null
+        else ((cardsReviewed - prevCardsReviewed).toDouble() / prevCardsReviewed * 100)
+
+        // Words mastered this week (level transitions to 6)
+        val wordsMastered = reviewEventRepository.countWordsMasteredInRange(user, currentStartMs, currentEndMs)
+
+        // Best day: group current sessions by date, find the day with most cards
+        val bestDay = currentSessions
+            .groupBy { session ->
+                Instant.ofEpochMilli(session.startedAt).atZone(ZoneOffset.UTC).toLocalDate()
+            }
+            .maxByOrNull { (_, daySessions) -> daySessions.sumOf { it.totalCards } }
+            ?.let { (date, daySessions) ->
+                val dayCards = daySessions.sumOf { it.totalCards }
+                val dayCorrect = daySessions.sumOf { it.correctCount }
+                val dayAccuracy = if (dayCards > 0) (dayCorrect.toDouble() / dayCards * 100) else 0.0
+                BestDayResponse(
+                    dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
+                    cardsReviewed = dayCards,
+                    accuracyPercent = dayAccuracy,
+                )
+            }
+
+        return WeeklyReportResponse(
+            cardsReviewed = cardsReviewed,
+            previousWeekCardsReviewed = prevCardsReviewed,
+            changePercent = changePercent,
+            accuracyPercent = accuracyPercent,
+            wordsMastered = wordsMastered.toInt(),
+            totalStudyTimeMs = totalStudyTimeMs,
+            sessionsCount = sessionsCount,
+            bestDay = bestDay,
+            weekStartDate = weekStart.toString(),
+            weekEndDate = weekEnd.toString(),
+        )
     }
 }

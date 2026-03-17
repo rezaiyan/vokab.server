@@ -250,4 +250,18 @@ class AnalyticsController(
                 .body(ApiResponse(success = false, message = "Failed to get comeback words: ${e.message}"))
         }
     }
+
+    @GetMapping("/weekly-report")
+    fun getWeeklyReport(
+        @AuthenticationPrincipal user: User
+    ): ResponseEntity<ApiResponse<WeeklyReportResponse>> {
+        return try {
+            val data = analyticsService.getWeeklyReport(user)
+            ResponseEntity.ok(ApiResponse(success = true, data = data))
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to get weekly report" }
+            ResponseEntity.badRequest()
+                .body(ApiResponse(success = false, message = "Failed to get weekly report: ${e.message}"))
+        }
+    }
 }
