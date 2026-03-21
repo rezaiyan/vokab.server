@@ -28,6 +28,9 @@ data class SyncSessionRequest(
     @field:NotBlank
     val reviewType: String,
     val completedNormally: Boolean,
+    val sourceLanguage: String? = null,
+    val targetLanguage: String? = null,
+    val triggerSource: String = "unknown",
     @field:Valid
     @field:Size(max = 1000, message = "Maximum 1000 events per session")
     val events: List<SyncReviewEventRequest>

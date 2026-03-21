@@ -17,7 +17,8 @@ private val logger = KotlinLogging.logger {}
 @Service
 class SubscriptionService(
     private val subscriptionRepository: SubscriptionRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val eventService: EventService,
 ) {
     
     @Transactional
@@ -78,7 +79,14 @@ class SubscriptionService(
         
         // Update user subscription status
         updateUserSubscriptionStatus(user, SubscriptionStatus.ACTIVE, expiresAt)
-        
+
+        val isTrial = event.is_trial_conversion == true
+        eventService.trackAsync(
+            user.id!!,
+            if (isTrial) "trial_started" else "subscription_started",
+            mapOf("product_id" to productId, "is_trial" to isTrial.toString())
+        )
+
         logger.info { "Initial purchase processed for user: ${user.email}, product: $productId" }
     }
     
@@ -98,7 +106,9 @@ class SubscriptionService(
         }
         
         updateUserSubscriptionStatus(user, SubscriptionStatus.ACTIVE, expiresAt)
-        
+        eventService.trackAsync(user.id!!, "subscription_renewed",
+            mapOf("product_id" to (event.product_id ?: "")))
+
         logger.info { "Subscription renewed for user: ${user.email}" }
     }
     
@@ -127,7 +137,9 @@ class SubscriptionService(
         }
         
         updateUserSubscriptionStatus(user, status, expiresAt)
-        
+        eventService.trackAsync(user.id!!, "subscription_cancelled",
+            mapOf("product_id" to (event.product_id ?: "")))
+
         logger.info { "Subscription cancelled for user: ${user.email}" }
     }
     
@@ -186,7 +198,9 @@ class SubscriptionService(
         }
         
         updateUserSubscriptionStatus(user, SubscriptionStatus.EXPIRED, null)
-        
+        eventService.trackAsync(user.id!!, "subscription_expired",
+            mapOf("product_id" to (event.product_id ?: "")))
+
         logger.info { "Subscription expired for user: ${user.email}" }
     }
     

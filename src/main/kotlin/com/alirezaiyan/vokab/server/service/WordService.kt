@@ -2,15 +2,18 @@ package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.entity.Word
+import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.presentation.dto.WordDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 @Service
 class WordService(
     private val wordRepository: WordRepository,
-    private val wordUpsertPreparer: WordUpsertPreparer
+    private val wordUpsertPreparer: WordUpsertPreparer,
+    private val userRepository: UserRepository,
 ) {
     fun list(user: User): List<WordDto> {
         return wordRepository.findAllByUser(user).map { it.toDto() }
@@ -21,7 +24,12 @@ class WordService(
         if (words.isEmpty()) return
 
         val entities = wordUpsertPreparer.prepareUpsertEntities(user, words)
+        val hasNewWords = entities.any { it.id == null }
         wordRepository.saveAll(entities)
+
+        if (hasNewWords && user.firstWordAddedAt == null) {
+            userRepository.save(user.copy(firstWordAddedAt = Instant.now()))
+        }
     }
 
     @Transactional

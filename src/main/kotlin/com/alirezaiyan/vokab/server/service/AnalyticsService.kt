@@ -5,6 +5,7 @@ import com.alirezaiyan.vokab.server.domain.entity.StudySession
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.ReviewEventRepository
 import com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository
+import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.data.domain.PageRequest
@@ -23,7 +24,8 @@ private val logger = KotlinLogging.logger {}
 @Service
 class AnalyticsService(
     private val studySessionRepository: StudySessionRepository,
-    private val reviewEventRepository: ReviewEventRepository
+    private val reviewEventRepository: ReviewEventRepository,
+    private val userRepository: UserRepository,
 ) {
 
     @Transactional
@@ -49,6 +51,9 @@ class AnalyticsService(
                     incorrectCount = sessionReq.incorrectCount,
                     reviewType = sessionReq.reviewType,
                     completedNormally = sessionReq.completedNormally,
+                    sourceLanguage = sessionReq.sourceLanguage,
+                    targetLanguage = sessionReq.targetLanguage,
+                    triggerSource = sessionReq.triggerSource,
                 )
             )
 
@@ -69,6 +74,10 @@ class AnalyticsService(
                 )
             }
             reviewEventRepository.saveAll(events)
+
+            if (user.firstReviewAt == null) {
+                userRepository.save(user.copy(firstReviewAt = Instant.now()))
+            }
 
             syncedIds.add(sessionReq.clientSessionId)
         }

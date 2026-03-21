@@ -6,6 +6,7 @@ import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.AuthResponse
+import com.alirezaiyan.vokab.server.presentation.dto.TrackEventRequest
 import com.alirezaiyan.vokab.server.presentation.dto.UserDto
 import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
@@ -42,6 +43,7 @@ class AuthService(
     private val pushNotificationService: PushNotificationService,
     private val appProperties: com.alirezaiyan.vokab.server.config.AppProperties,
     private val auditLogService: AuditLogService,
+    private val eventService: EventService,
     webClientBuilder: WebClient.Builder
 ) {
     private val webClient = webClientBuilder.build()
@@ -65,6 +67,7 @@ class AuthService(
         logger.info { "Authenticating user: $email" }
 
         val user = findOrCreateUser(firebaseToken)
+        val isNewUser = user.id == null
         val savedUser = userRepository.save(user)
 
         val tokenPair = generateTokenPair(savedUser)
@@ -72,6 +75,9 @@ class AuthService(
 
         logger.info { "✅ User authenticated: ${savedUser.email}" }
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "Google", null, null)
+        if (isNewUser) {
+            eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "google"))
+        }
         
         return AuthResponse(
             accessToken = tokenPair.accessToken,
@@ -116,6 +122,7 @@ class AuthService(
         logger.info { "Authenticating user with Apple: appleId=$resolvedAppleId, email=${if (email != null) email else "hidden (using fallback)"}" }
 
         val user = findOrCreateAppleUser(resolvedAppleId, resolvedEmail, fullName, email == null)
+        val isNewUser = user.id == null
         val savedUser = userRepository.save(user)
 
         val tokenPair = generateTokenPair(savedUser)
@@ -123,6 +130,9 @@ class AuthService(
 
         logger.info { "✅ User authenticated with Apple: ${savedUser.email}" }
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "Apple", null, null)
+        if (isNewUser) {
+            eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "apple"))
+        }
         
         return AuthResponse(
             accessToken = tokenPair.accessToken,

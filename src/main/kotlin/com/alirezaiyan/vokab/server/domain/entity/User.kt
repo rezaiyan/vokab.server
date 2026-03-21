@@ -56,6 +56,12 @@ data class User(
     @Column(name = "profile_image_url", length = 512)
     val profileImageUrl: String? = null,
 
+    @Column(name = "first_word_added_at")
+    val firstWordAddedAt: Instant? = null,
+
+    @Column(name = "first_review_at")
+    val firstReviewAt: Instant? = null,
+
     @Column(nullable = false)
     val active: Boolean = true,
     

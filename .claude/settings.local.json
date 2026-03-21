@@ -12,7 +12,10 @@
       "Bash(java:*)",
       "Bash(./gradlew compileKotlin:*)",
       "Bash(JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.7/libexec/openjdk.jdk/Contents/Home ./gradlew compileKotlin:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(find /Users/ali/projects/vokab.server/src/main -name *etabase* -o -name *Analytics*)",
+      "Bash(/usr/libexec/java_home -V)",
+      "Bash(JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/21.0.7/libexec/openjdk.jdk/Contents/Home ./gradlew compileTestKotlin)"
     ]
   }
 }

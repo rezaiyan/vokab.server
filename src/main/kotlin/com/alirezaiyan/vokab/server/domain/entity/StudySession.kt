@@ -46,6 +46,15 @@ data class StudySession(
     @Column(name = "completed_normally", nullable = false)
     val completedNormally: Boolean = true,
 
+    @Column(name = "source_language")
+    val sourceLanguage: String? = null,
+
+    @Column(name = "target_language")
+    val targetLanguage: String? = null,
+
+    @Column(name = "trigger_source", nullable = false)
+    val triggerSource: String = "unknown",
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 ) {

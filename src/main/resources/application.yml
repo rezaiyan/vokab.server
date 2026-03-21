@@ -130,7 +130,11 @@ management:
   endpoints:
     web:
       exposure:
-        exclude: "*"
+        include: "health"
+        exclude: "env,beans,conditions,configprops,flyway,heapdump,info,loggers,mappings,metrics,scheduledtasks,shutdown,threaddump"
+  endpoint:
+    health:
+      show-details: never
   trace:
     http:
       enabled: false
