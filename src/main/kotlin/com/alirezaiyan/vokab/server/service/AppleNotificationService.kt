@@ -23,7 +23,8 @@ class AppleNotificationService(
     private val userRepository: UserRepository,
     private val applePublicKeyService: ApplePublicKeyService,
     private val objectMapper: ObjectMapper,
-    private val pushNotificationService: PushNotificationService
+    private val pushNotificationService: PushNotificationService,
+    private val authService: AuthService
 ) {
     
     /**
@@ -215,42 +216,11 @@ class AppleNotificationService(
      * According to Apple's guidelines, we should delete user data
      */
     private fun handleAccountDelete(user: com.alirezaiyan.vokab.server.domain.entity.User, event: AccountDeleteEvent?) {
-        logger.info { "Account deletion requested for user: ${user.email}" }
-        logger.info { "  Reason: ${event?.reason ?: "Not provided"}" }
-        
-        // CRITICAL FIX: Send push notification to all devices before deleting account
-        // This ensures all devices are notified that the account is being deleted
-        try {
-            val notificationResults = pushNotificationService.sendNotificationToUser(
-                userId = user.id!!,
-                title = "Account Deleted",
-                body = "Your account has been permanently deleted. Please restart the app.",
-                data = mapOf(
-                    "type" to "account_deleted",
-                    "action" to "clear_local_data",
-                    "clear_daily_insights" to "true"
-                ),
-                category = NotificationCategory.SYSTEM
-            )
-            logger.info { "Sent Apple account deletion notification to ${notificationResults.size} devices" }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to send Apple account deletion notification, continuing with deletion" }
-        }
-        
-        // Option 1: Soft delete - mark as deleted but keep data for compliance
-        val deletedUser = user.copy(
-            active = false,
-            email = "deleted_${user.id}@apple.deleted",
-            name = "Deleted User",
-            appleId = null,
-            updatedAt = Instant.now()
-        )
-        userRepository.save(deletedUser)
-        
-        // Option 2: Hard delete (if required by your privacy policy)
-        // userRepository.delete(user)
-        
+        logger.info { "Account deletion requested for user: ${user.email}, reason: ${event?.reason ?: "Not provided"}" }
+
+        // Delegate to the shared hard-delete flow (push notification + Firebase + RevenueCat + all local data)
+        authService.deleteAccount(user.id!!)
+
         logger.info { "✅ Processed account deletion for user: ${user.id}" }
-        logger.warn { "⚠️  Consider hard delete if required by your privacy policy" }
     }
 }

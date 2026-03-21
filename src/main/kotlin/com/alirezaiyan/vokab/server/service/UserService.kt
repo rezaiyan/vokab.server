@@ -55,17 +55,6 @@ class UserService(
         }
     }
     
-    @Transactional
-    fun deleteUser(userId: Long) {
-        val user = userRepository.findById(userId)
-            .orElseThrow { IllegalArgumentException("User not found") }
-        
-        val deactivatedUser = user.copy(active = false)
-        userRepository.save(deactivatedUser)
-        
-        logger.info { "User deactivated: ${user.email}" }
-    }
-    
     private fun User.toDto(): UserDto {
         return UserDto(
             id = this.id!!,

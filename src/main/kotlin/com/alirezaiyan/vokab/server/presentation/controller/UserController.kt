@@ -6,6 +6,7 @@ import com.alirezaiyan.vokab.server.presentation.dto.AvatarResponse
 import com.alirezaiyan.vokab.server.presentation.dto.ProfileStatsResponse
 import com.alirezaiyan.vokab.server.presentation.dto.UpdateProfileRequest
 import com.alirezaiyan.vokab.server.presentation.dto.UserDto
+import com.alirezaiyan.vokab.server.service.AuthService
 import com.alirezaiyan.vokab.server.service.AvatarService
 import com.alirezaiyan.vokab.server.service.ProfileStatsService
 import com.alirezaiyan.vokab.server.service.UserService
@@ -22,6 +23,7 @@ private val logger = KotlinLogging.logger {}
 @RequestMapping("/api/v1/users")
 class UserController(
     private val userService: UserService,
+    private val authService: AuthService,
     private val featureAccessService: com.alirezaiyan.vokab.server.service.FeatureAccessService,
     private val profileStatsService: ProfileStatsService,
     private val avatarService: AvatarService
@@ -90,12 +92,12 @@ class UserController(
         @AuthenticationPrincipal user: User
     ): ResponseEntity<ApiResponse<Unit>> {
         return try {
-            userService.deleteUser(user.id!!)
-            ResponseEntity.ok(ApiResponse(success = true, message = "User deleted successfully"))
+            authService.deleteAccount(user.id!!)
+            ResponseEntity.ok(ApiResponse(success = true, message = "Account deleted successfully"))
         } catch (e: Exception) {
-            logger.error(e) { "Failed to delete user" }
+            logger.error(e) { "Failed to delete account" }
             ResponseEntity.badRequest()
-                .body(ApiResponse(success = false, message = "Failed to delete user: ${e.message}"))
+                .body(ApiResponse(success = false, message = "Failed to delete account: ${e.message}"))
         }
     }
     

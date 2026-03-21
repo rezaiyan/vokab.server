@@ -79,3 +79,10 @@ interface ComebackWordProjection {
     val wordText: String
     val wordTranslation: String
 }
+
+interface DailyEventStatsProjection {
+    val day: String
+    val uniqueWords: Long
+    val leveledUp: Long
+    val leveledDown: Long
+}

@@ -257,11 +257,7 @@ class AnalyticsController(
     ): ResponseEntity<ApiResponse<WeeklyReportResponse>> {
         return try {
             val data = analyticsService.getWeeklyReport(user)
-            if (data == null) {
-                ResponseEntity.noContent().build()
-            } else {
-                ResponseEntity.ok(ApiResponse(success = true, data = data))
-            }
+            ResponseEntity.ok(ApiResponse(success = true, data = data))
         } catch (e: Exception) {
             logger.error(e) { "Failed to get weekly report" }
             ResponseEntity.badRequest()

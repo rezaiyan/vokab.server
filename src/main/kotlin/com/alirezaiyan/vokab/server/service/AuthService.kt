@@ -14,6 +14,7 @@ import com.google.firebase.auth.FirebaseToken
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.reactive.function.client.WebClient
 import java.time.Instant
 import java.util.*
 
@@ -36,10 +37,14 @@ class AuthService(
     private val subscriptionRepository: com.alirezaiyan.vokab.server.domain.repository.SubscriptionRepository,
     private val pushTokenRepository: com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository,
     private val dailyInsightRepository: com.alirezaiyan.vokab.server.domain.repository.DailyInsightRepository,
+    private val reviewEventRepository: com.alirezaiyan.vokab.server.domain.repository.ReviewEventRepository,
+    private val studySessionRepository: com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository,
     private val pushNotificationService: PushNotificationService,
     private val appProperties: com.alirezaiyan.vokab.server.config.AppProperties,
-    private val auditLogService: AuditLogService
+    private val auditLogService: AuditLogService,
+    webClientBuilder: WebClient.Builder
 ) {
+    private val webClient = webClientBuilder.build()
     
     /**
      * Authenticates a user using a Firebase ID token from Google Sign-In.
@@ -519,7 +524,33 @@ class AuthService(
             .orElseThrow { IllegalArgumentException("User not found") }
         
         logger.info { "Deleting account for email: ${user.email}" }
-        
+
+        // Delete Firebase Auth account so the user cannot sign back in silently
+        if (user.googleId != null) {
+            try {
+                FirebaseAuth.getInstance().deleteUser(user.googleId)
+                logger.info { "✅ Firebase Auth user deleted for: $userId" }
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to delete Firebase Auth user, continuing with deletion" }
+            }
+        }
+
+        // Notify RevenueCat to delete subscriber data (GDPR: third-party processor obligation)
+        val rcUserId = user.revenueCatUserId
+        if (rcUserId != null && appProperties.revenuecat.apiKey.isNotBlank()) {
+            try {
+                webClient.delete()
+                    .uri("https://api.revenuecat.com/v1/subscribers/$rcUserId")
+                    .header("Authorization", "Bearer ${appProperties.revenuecat.apiKey}")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block()
+                logger.info { "✅ RevenueCat subscriber deleted for: $userId" }
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to delete RevenueCat subscriber, continuing with deletion" }
+            }
+        }
+
         // CRITICAL FIX: Send push notification to all devices before deleting account
         // This ensures all devices are notified that the account is being deleted
         try {
@@ -577,17 +608,28 @@ class AuthService(
         subscriptionRepository.deleteAll(subscriptions)
         logger.debug { "✅ ${subscriptions.size} subscriptions deleted for user: $userId" }
         
-        // 7. Delete user settings
+        // 7. Delete review events (must come before study_sessions due to FK)
+        val reviewEvents = reviewEventRepository.findByUser(user)
+        reviewEventRepository.deleteAll(reviewEvents)
+        logger.debug { "✅ ${reviewEvents.size} review events deleted for user: $userId" }
+
+        // 8. Delete study sessions
+        val studySessions = studySessionRepository.findByUser(user)
+        studySessionRepository.deleteAll(studySessions)
+        logger.debug { "✅ ${studySessions.size} study sessions deleted for user: $userId" }
+
+        // 9. Delete user settings
         val settings = userSettingsRepository.findByUser(user)
         if (settings != null) {
             userSettingsRepository.delete(settings)
             logger.debug { "✅ User settings deleted for user: $userId" }
         }
-        
-        // 8. Finally, delete the user
+
+        // 10. Record deletion before removing the user row (audit log has no FK, survives deletion)
+        auditLogService.logAccountDeletion(userId, user.email, null)
+
         userRepository.delete(user)
         logger.info { "✅ Account deleted successfully for user: $userId (${user.email})" }
-        auditLogService.logAccountDeletion(userId, user.email, null)
     }
     
     /**

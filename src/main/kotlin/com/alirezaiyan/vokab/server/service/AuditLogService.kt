@@ -1,66 +1,123 @@
 package com.alirezaiyan.vokab.server.service
 
+import com.alirezaiyan.vokab.server.domain.entity.AuditEventType
+import com.alirezaiyan.vokab.server.domain.entity.AuditLog
+import com.alirezaiyan.vokab.server.domain.repository.AuditLogRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
-import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * Service for audit logging of authentication events
- * Logs login, refresh, logout, revocation, and account deletion events
- */
 @Service
-class AuditLogService {
-    
+class AuditLogService(
+    private val auditLogRepository: AuditLogRepository
+) {
+
+    @Async
     fun logLogin(userId: Long, email: String, provider: String, ipAddress: String?, userAgent: String?) {
-        logger.info {
-            "AUDIT: Login event - userId=$userId, email=$email, provider=$provider, " +
-            "ipAddress=$ipAddress, userAgent=$userAgent, timestamp=${Instant.now()}"
-        }
+        logger.info { "AUDIT: LOGIN userId=$userId email=$email provider=$provider ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.LOGIN,
+            userId = userId,
+            email = email,
+            ipAddress = ipAddress,
+            userAgent = userAgent,
+            metadata = """{"provider":"$provider"}"""
+        )
     }
-    
+
+    @Async
     fun logRefresh(userId: Long, email: String, familyId: String, ipAddress: String?, userAgent: String?) {
-        logger.info {
-            "AUDIT: Token refresh event - userId=$userId, email=$email, familyId=$familyId, " +
-            "ipAddress=$ipAddress, userAgent=$userAgent, timestamp=${Instant.now()}"
-        }
+        logger.info { "AUDIT: TOKEN_REFRESH userId=$userId familyId=$familyId ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.TOKEN_REFRESH,
+            userId = userId,
+            email = email,
+            ipAddress = ipAddress,
+            userAgent = userAgent,
+            metadata = """{"familyId":"$familyId"}"""
+        )
     }
-    
+
+    @Async
     fun logLogout(userId: Long, email: String, refreshToken: String, ipAddress: String?) {
-        logger.info {
-            "AUDIT: Logout event - userId=$userId, email=$email, refreshToken=${refreshToken.take(8)}..., " +
-            "ipAddress=$ipAddress, timestamp=${Instant.now()}"
-        }
+        logger.info { "AUDIT: LOGOUT userId=$userId ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.LOGOUT,
+            userId = userId,
+            email = email,
+            ipAddress = ipAddress,
+            metadata = """{"tokenPrefix":"${refreshToken.take(8)}"}"""
+        )
     }
-    
+
+    @Async
     fun logLogoutAll(userId: Long, email: String, ipAddress: String?) {
-        logger.info {
-            "AUDIT: Logout all sessions event - userId=$userId, email=$email, " +
-            "ipAddress=$ipAddress, timestamp=${Instant.now()}"
-        }
+        logger.info { "AUDIT: LOGOUT_ALL userId=$userId ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.LOGOUT_ALL,
+            userId = userId,
+            email = email,
+            ipAddress = ipAddress
+        )
     }
-    
+
+    @Async
     fun logTokenRevocation(userId: Long, familyId: String, reason: String, ipAddress: String?) {
-        logger.warn {
-            "AUDIT: Token revocation event - userId=$userId, familyId=$familyId, reason=$reason, " +
-            "ipAddress=$ipAddress, timestamp=${Instant.now()}"
-        }
+        logger.warn { "AUDIT: TOKEN_REVOCATION userId=$userId familyId=$familyId reason=$reason ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.TOKEN_REVOCATION,
+            userId = userId,
+            ipAddress = ipAddress,
+            metadata = """{"familyId":"$familyId","reason":"$reason"}"""
+        )
     }
-    
-    fun logAccountDeletion(userId: Long, email: String, ipAddress: String?) {
-        logger.warn {
-            "AUDIT: Account deletion event - userId=$userId, email=$email, " +
-            "ipAddress=$ipAddress, timestamp=${Instant.now()}"
-        }
-    }
-    
+
+    @Async
     fun logTokenReuse(userId: Long, familyId: String, ipAddress: String?) {
-        logger.error {
-            "AUDIT: Token reuse detected (security violation) - userId=$userId, familyId=$familyId, " +
-            "ipAddress=$ipAddress, timestamp=${Instant.now()}"
+        logger.error { "AUDIT: TOKEN_REUSE (security violation) userId=$userId familyId=$familyId ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.TOKEN_REUSE,
+            userId = userId,
+            ipAddress = ipAddress,
+            metadata = """{"familyId":"$familyId"}"""
+        )
+    }
+
+    // Not @Async — account deletion audit must be committed before the user row is deleted
+    fun logAccountDeletion(userId: Long, email: String, ipAddress: String?) {
+        logger.warn { "AUDIT: ACCOUNT_DELETION userId=$userId email=$email ip=$ipAddress" }
+        save(
+            eventType = AuditEventType.ACCOUNT_DELETION,
+            userId = userId,
+            email = email,
+            ipAddress = ipAddress
+        )
+    }
+
+    private fun save(
+        eventType: AuditEventType,
+        userId: Long? = null,
+        email: String? = null,
+        ipAddress: String? = null,
+        userAgent: String? = null,
+        metadata: String? = null
+    ) {
+        try {
+            auditLogRepository.save(
+                AuditLog(
+                    eventType = eventType,
+                    userId = userId,
+                    email = email,
+                    ipAddress = ipAddress,
+                    userAgent = userAgent,
+                    metadata = metadata
+                )
+            )
+        } catch (e: Exception) {
+            // Audit failure must never break the main flow
+            logger.error(e) { "Failed to persist audit log for $eventType userId=$userId" }
         }
     }
 }
-
-

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository
 @Repository
 interface ReviewEventRepository : JpaRepository<ReviewEvent, Long> {
 
+    fun findByUser(user: User): List<ReviewEvent>
+
     @Query("SELECT COUNT(e) FROM ReviewEvent e WHERE e.user = :user")
     fun countByUser(user: User): Long
 
@@ -168,4 +170,21 @@ interface ReviewEventRepository : JpaRepository<ReviewEvent, Long> {
                AND e2.newLevel <= e2.previousLevel - 2)"""
     )
     fun findComebackWords(user: User): List<ComebackWordProjection>
+
+    @Query(
+        value = """SELECT TO_CHAR(CAST(TO_TIMESTAMP(reviewed_at / 1000.0) AS DATE), 'YYYY-MM-DD') AS "day",
+           COUNT(DISTINCT word_id) AS "uniqueWords",
+           SUM(CASE WHEN new_level > previous_level THEN 1 ELSE 0 END) AS "leveledUp",
+           SUM(CASE WHEN new_level < previous_level THEN 1 ELSE 0 END) AS "leveledDown"
+           FROM review_events WHERE user_id = :userId
+           AND reviewed_at >= :startMs AND reviewed_at <= :endMs
+           GROUP BY TO_CHAR(CAST(TO_TIMESTAMP(reviewed_at / 1000.0) AS DATE), 'YYYY-MM-DD')
+           ORDER BY 1""",
+        nativeQuery = true
+    )
+    fun getDailyEventStats(
+        @Param("userId") userId: Long,
+        @Param("startMs") startMs: Long,
+        @Param("endMs") endMs: Long,
+    ): List<DailyEventStatsProjection>
 }

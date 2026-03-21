@@ -12,6 +12,8 @@ import java.util.*
 @Repository
 interface StudySessionRepository : JpaRepository<StudySession, Long> {
 
+    fun findByUser(user: User): List<StudySession>
+
     fun findByUserAndClientSessionId(user: User, clientSessionId: String): Optional<StudySession>
 
     fun findByUserOrderByStartedAtDesc(user: User, pageable: Pageable): List<StudySession>

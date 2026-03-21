@@ -113,17 +113,23 @@ class AnalyticsService(
         val start = LocalDate.parse(startDate).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         val end = LocalDate.parse(endDate).plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli() - 1
         val sessions = studySessionRepository.findByUserAndDateRange(user, start, end)
+        val eventStats = reviewEventRepository.getDailyEventStats(user.id!!, start, end)
+            .associateBy { it.day }
 
         return sessions.groupBy {
             Instant.ofEpochMilli(it.startedAt).atZone(ZoneOffset.UTC).toLocalDate().toString()
         }.map { (date, daySessions) ->
+            val ev = eventStats[date]
             DailyStatsResponse(
                 date = date,
                 sessionsCount = daySessions.size,
                 cardsReviewed = daySessions.sumOf { it.totalCards },
                 correctCount = daySessions.sumOf { it.correctCount },
                 incorrectCount = daySessions.sumOf { it.incorrectCount },
-                studyTimeMs = daySessions.sumOf { it.durationMs }
+                studyTimeMs = daySessions.sumOf { it.durationMs },
+                uniqueWordsReviewed = ev?.uniqueWords?.toInt() ?: 0,
+                wordsLeveledUp = ev?.leveledUp?.toInt() ?: 0,
+                wordsLeveledDown = ev?.leveledDown?.toInt() ?: 0,
             )
         }.sortedBy { it.date }
     }
@@ -308,7 +314,7 @@ class AnalyticsService(
      * - "Last week" = the 7 calendar days before this week's Monday
      */
     @Transactional(readOnly = true)
-    fun getWeeklyReport(user: User): WeeklyReportResponse? {
+    fun getWeeklyReport(user: User): WeeklyReportResponse {
         val today = LocalDate.now(ZoneOffset.UTC)
 
         fun dateToMs(date: LocalDate): Long = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
@@ -318,7 +324,18 @@ class AnalyticsService(
         val recencyStartMs = dateToMs(today.minusDays(6))
         val recencyEndMs = endOfDayMs(today)
         val recentSessions = studySessionRepository.findByUserAndDateRange(user, recencyStartMs, recencyEndMs)
-        if (recentSessions.isEmpty()) return null
+        if (recentSessions.isEmpty()) return WeeklyReportResponse(
+            cardsReviewed = 0,
+            previousWeekCardsReviewed = 0,
+            changePercent = null,
+            accuracyPercent = 0.0,
+            wordsMastered = 0,
+            totalStudyTimeMs = 0,
+            sessionsCount = 0,
+            bestDay = null,
+            weekStartDate = "",
+            weekEndDate = "",
+        )
 
         // Display windows: calendar weeks
         val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

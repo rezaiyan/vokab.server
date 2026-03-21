@@ -176,7 +176,10 @@ data class DailyStatsResponse(
     val cardsReviewed: Int,
     val correctCount: Int,
     val incorrectCount: Int,
-    val studyTimeMs: Long
+    val studyTimeMs: Long,
+    val uniqueWordsReviewed: Int,
+    val wordsLeveledUp: Int,
+    val wordsLeveledDown: Int,
 )
 
 // === Weekly Report ===
