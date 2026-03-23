@@ -49,15 +49,29 @@ class Word(
 
     @Column(nullable = false)
     var nextReviewDate: Long = 0L,
-    
+
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: Instant = Instant.now(),
-    
+
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
-    
+
     @Version
-    var version: Long = 0
-)
+    var version: Long = 0,
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "word_tags",
+        joinColumns = [JoinColumn(name = "word_id")],
+        inverseJoinColumns = [JoinColumn(name = "tag_id")]
+    )
+    var tags: MutableSet<Tag> = mutableSetOf(),
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Word) return false
+        return id != null && id == other.id
+    }
 
+    override fun hashCode(): Int = id?.hashCode() ?: 0
+}

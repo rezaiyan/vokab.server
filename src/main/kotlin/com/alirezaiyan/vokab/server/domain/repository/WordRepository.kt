@@ -5,9 +5,13 @@ import com.alirezaiyan.vokab.server.domain.entity.Word
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
+import java.time.Instant
 
 interface WordRepository : JpaRepository<Word, Long> {
     fun findAllByUser(user: User): List<Word>
+
+    @Query("SELECT DISTINCT w FROM Word w LEFT JOIN FETCH w.tags WHERE w.user = :user")
+    fun findAllByUserWithTags(user: User): List<Word>
 
     @Query(
         "SELECT w.user.id, COUNT(w) FROM Word w " +
@@ -32,36 +36,37 @@ interface WordRepository : JpaRepository<Word, Long> {
     @Modifying
     @Query(
         "UPDATE Word w SET w.sourceLanguage = :sourceLanguage, w.targetLanguage = :targetLanguage, " +
-            "w.updatedAt = instant WHERE w.id IN :ids AND w.user.id = :userId"
+            "w.updatedAt = :now WHERE w.id IN :ids AND w.user.id = :userId"
     )
     fun updateLanguagesByIdInAndUserId(
         ids: List<Long>,
         userId: Long,
         sourceLanguage: String,
-        targetLanguage: String
+        targetLanguage: String,
+        now: Instant,
     ): Int
 
     @Modifying
     @Query(
         "UPDATE Word w SET w.sourceLanguage = :sourceLanguage, " +
-            "w.updatedAt = instant WHERE w.id IN :ids AND w.user.id = :userId"
+            "w.updatedAt = :now WHERE w.id IN :ids AND w.user.id = :userId"
     )
     fun updateSourceLanguageByIdInAndUserId(
         ids: List<Long>,
         userId: Long,
-        sourceLanguage: String
+        sourceLanguage: String,
+        now: Instant,
     ): Int
 
     @Modifying
     @Query(
         "UPDATE Word w SET w.targetLanguage = :targetLanguage, " +
-            "w.updatedAt = instant WHERE w.id IN :ids AND w.user.id = :userId"
+            "w.updatedAt = :now WHERE w.id IN :ids AND w.user.id = :userId"
     )
     fun updateTargetLanguageByIdInAndUserId(
         ids: List<Long>,
         userId: Long,
-        targetLanguage: String
+        targetLanguage: String,
+        now: Instant,
     ): Int
 }
-
-

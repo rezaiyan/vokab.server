@@ -3,6 +3,7 @@ package com.alirezaiyan.vokab.server.exception
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
 import com.alirezaiyan.vokab.server.presentation.dto.ErrorResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.BadCredentialsException
@@ -16,7 +17,7 @@ private val logger = KotlinLogging.logger {}
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
-    
+
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgumentException(ex: IllegalArgumentException): ResponseEntity<ApiResponse<Unit>> {
         logger.warn { "IllegalArgumentException: ${ex.message}" }
@@ -24,7 +25,7 @@ class GlobalExceptionHandler {
             .status(HttpStatus.BAD_REQUEST)
             .body(ApiResponse(success = false, message = ex.message ?: "Invalid argument"))
     }
-    
+
     @ExceptionHandler(AuthenticationException::class)
     fun handleAuthenticationException(ex: AuthenticationException): ResponseEntity<ApiResponse<Unit>> {
         logger.warn { "AuthenticationException: ${ex.message}" }
@@ -32,7 +33,7 @@ class GlobalExceptionHandler {
             .status(HttpStatus.UNAUTHORIZED)
             .body(ApiResponse(success = false, message = "Authentication failed: ${ex.message}"))
     }
-    
+
     @ExceptionHandler(BadCredentialsException::class)
     fun handleBadCredentialsException(ex: BadCredentialsException): ResponseEntity<ApiResponse<Unit>> {
         logger.warn { "BadCredentialsException: ${ex.message}" }
@@ -40,7 +41,7 @@ class GlobalExceptionHandler {
             .status(HttpStatus.UNAUTHORIZED)
             .body(ApiResponse(success = false, message = "Invalid credentials"))
     }
-    
+
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationException(ex: MethodArgumentNotValidException): ResponseEntity<ApiResponse<Unit>> {
         val errors = ex.bindingResult.allErrors.joinToString(", ") { error ->
@@ -53,7 +54,7 @@ class GlobalExceptionHandler {
             .status(HttpStatus.BAD_REQUEST)
             .body(ApiResponse(success = false, message = "Validation failed: $errors"))
     }
-    
+
     @ExceptionHandler(NoSuchElementException::class)
     fun handleNoSuchElementException(ex: NoSuchElementException): ResponseEntity<ApiResponse<Unit>> {
         logger.warn { "NoSuchElementException: ${ex.message}" }
@@ -61,7 +62,15 @@ class GlobalExceptionHandler {
             .status(HttpStatus.NOT_FOUND)
             .body(ApiResponse(success = false, message = "Resource not found: ${ex.message}"))
     }
-    
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrityViolationException(ex: DataIntegrityViolationException): ResponseEntity<ApiResponse<Unit>> {
+        logger.warn { "DataIntegrityViolationException: ${ex.message}" }
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse(success = false, message = "Resource already exists"))
+    }
+
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception): ResponseEntity<ApiResponse<Unit>> {
         logger.error(ex) { "Unhandled exception: ${ex.message}" }
@@ -72,7 +81,7 @@ class GlobalExceptionHandler {
                 message = "An unexpected error occurred: ${ex.message ?: "Unknown error"}"
             ))
     }
-    
+
     @ExceptionHandler(org.hibernate.LazyInitializationException::class)
     fun handleLazyInitializationException(ex: org.hibernate.LazyInitializationException): ResponseEntity<ApiResponse<Unit>> {
         logger.error(ex) { "LazyInitializationException - entity not properly mapped to DTO" }
@@ -84,4 +93,3 @@ class GlobalExceptionHandler {
             ))
     }
 }
-

@@ -2,8 +2,10 @@ package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.entity.Word
+import com.alirezaiyan.vokab.server.domain.repository.TagRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.domain.repository.WordRepository
+import com.alirezaiyan.vokab.server.presentation.dto.UpdateWordRequest
 import com.alirezaiyan.vokab.server.presentation.dto.WordDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -12,11 +14,13 @@ import java.time.Instant
 @Service
 class WordService(
     private val wordRepository: WordRepository,
+    private val tagRepository: TagRepository,
     private val wordUpsertPreparer: WordUpsertPreparer,
     private val userRepository: UserRepository,
 ) {
+    @Transactional(readOnly = true)
     fun list(user: User): List<WordDto> {
-        return wordRepository.findAllByUser(user).map { it.toDto() }
+        return wordRepository.findAllByUserWithTags(user).map { it.toDto() }
     }
 
     @Transactional
@@ -33,20 +37,21 @@ class WordService(
     }
 
     @Transactional
-    fun update(user: User, id: Long, dto: WordDto) {
+    fun update(user: User, id: Long, request: UpdateWordRequest) {
         val entity = wordRepository.findById(id).orElseThrow()
         require(entity.user?.id == user.id) { "Forbidden" }
-        entity.originalWord = dto.originalWord
-        entity.translation = dto.translation
-        entity.description = dto.description
-        entity.sourceLanguage = dto.sourceLanguage
-        entity.targetLanguage = dto.targetLanguage
-        entity.level = dto.level
-        entity.easeFactor = dto.easeFactor
-        entity.interval = dto.interval
-        entity.repetitions = dto.repetitions
-        entity.lastReviewDate = dto.lastReviewDate
-        entity.nextReviewDate = dto.nextReviewDate
+        entity.originalWord = request.originalWord
+        entity.translation = request.translation
+        entity.description = request.description
+        entity.sourceLanguage = request.sourceLanguage
+        entity.targetLanguage = request.targetLanguage
+        entity.level = request.level
+        entity.easeFactor = request.easeFactor
+        entity.interval = request.interval
+        entity.repetitions = request.repetitions
+        entity.lastReviewDate = request.lastReviewDate
+        entity.nextReviewDate = request.nextReviewDate
+        entity.updatedAt = Instant.now()
         wordRepository.save(entity)
     }
 
@@ -56,7 +61,7 @@ class WordService(
         require(entity.user?.id == user.id) { "Forbidden" }
         wordRepository.delete(entity)
     }
-    
+
     @Transactional
     fun batchDelete(user: User, ids: List<Long>): Int {
         if (ids.isEmpty()) return 0
@@ -68,23 +73,33 @@ class WordService(
         user: User,
         ids: List<Long>,
         sourceLanguage: String?,
-        targetLanguage: String?
+        targetLanguage: String?,
     ): Int {
         if (ids.isEmpty()) return 0
         if (sourceLanguage == null && targetLanguage == null) return 0
 
         val userId = user.id!!
+        val now = Instant.now()
 
         return when {
             sourceLanguage != null && targetLanguage != null ->
-                wordRepository.updateLanguagesByIdInAndUserId(ids, userId, sourceLanguage, targetLanguage)
+                wordRepository.updateLanguagesByIdInAndUserId(ids, userId, sourceLanguage, targetLanguage, now)
 
             sourceLanguage != null ->
-                wordRepository.updateSourceLanguageByIdInAndUserId(ids, userId, sourceLanguage)
+                wordRepository.updateSourceLanguageByIdInAndUserId(ids, userId, sourceLanguage, now)
 
             else ->
-                wordRepository.updateTargetLanguageByIdInAndUserId(ids, userId, targetLanguage!!)
+                wordRepository.updateTargetLanguageByIdInAndUserId(ids, userId, targetLanguage!!, now)
         }
+    }
+
+    @Transactional
+    fun updateWordTags(user: User, wordId: Long, tagIds: List<Long>) {
+        val word = wordRepository.findById(wordId).orElseThrow { NoSuchElementException("Word not found") }
+        require(word.user?.id == user.id) { "Forbidden" }
+        word.tags = if (tagIds.isEmpty()) mutableSetOf()
+        else tagRepository.findAllByUserAndIdIn(user, tagIds).toMutableSet()
+        wordRepository.save(word)
     }
 }
 
@@ -101,6 +116,5 @@ private fun Word.toDto(): WordDto = WordDto(
     repetitions = repetitions,
     lastReviewDate = lastReviewDate,
     nextReviewDate = nextReviewDate,
+    tagIds = tags.mapNotNull { it.id },
 )
-
-
