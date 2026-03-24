@@ -40,6 +40,7 @@ data class UpdateWordRequest(
     val repetitions: Int,
     val lastReviewDate: Long,
     val nextReviewDate: Long,
+    val tagIds: List<Long> = emptyList(),
 )
 
 data class BatchDeleteRequest(

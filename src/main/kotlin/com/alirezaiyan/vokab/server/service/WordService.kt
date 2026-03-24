@@ -52,6 +52,10 @@ class WordService(
         entity.lastReviewDate = request.lastReviewDate
         entity.nextReviewDate = request.nextReviewDate
         entity.updatedAt = Instant.now()
+        // Only update tags when the client explicitly provides them; empty list means "no tag info"
+        if (request.tagIds.isNotEmpty()) {
+            entity.tags = tagRepository.findAllByUserAndIdIn(user, request.tagIds).toMutableSet()
+        }
         wordRepository.save(entity)
     }
 
