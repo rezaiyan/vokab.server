@@ -1,26 +1,20 @@
 package com.alirezaiyan.vokab.server.scheduler
 
-import com.alirezaiyan.vokab.server.service.StreakReminderService
+import com.alirezaiyan.vokab.server.service.SmartNotificationDispatcher
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 private val logger = KotlinLogging.logger {}
 
 @Component
 class StreakReminderScheduler(
-    private val streakReminderService: StreakReminderService
+    private val smartNotificationDispatcher: SmartNotificationDispatcher
 ) {
-    
-    @Scheduled(cron = "0 0 22 * * *")
+    // Streak reminders are now dispatched via SmartNotificationDispatcher
+    // based on each user's optimal send hour (computed from review behavior).
+    // The fixed 22:00 UTC job has been replaced by ScheduledTasks.dispatchSmartNotifications().
     fun sendStreakReminders() {
-        logger.info { "Starting scheduled streak reminder job at 22:00" }
-        
-        try {
-            streakReminderService.sendReminderNotifications()
-            logger.info { "Scheduled streak reminder job completed successfully" }
-        } catch (e: Exception) {
-            logger.error(e) { "Error in scheduled streak reminder job" }
-        }
+        logger.info { "sendStreakReminders delegating to SmartNotificationDispatcher" }
+        smartNotificationDispatcher.dispatchForCurrentHour()
     }
 }

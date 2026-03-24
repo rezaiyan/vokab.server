@@ -187,4 +187,10 @@ interface ReviewEventRepository : JpaRepository<ReviewEvent, Long> {
         @Param("startMs") startMs: Long,
         @Param("endMs") endMs: Long,
     ): List<DailyEventStatsProjection>
+
+    @Query(
+        value = "SELECT re.reviewed_at FROM review_events re WHERE re.user_id = :userId AND re.reviewed_at >= :sinceMs",
+        nativeQuery = true
+    )
+    fun findReviewedAtByUserIdSince(@Param("userId") userId: Long, @Param("sinceMs") sinceMs: Long): List<Long>
 }

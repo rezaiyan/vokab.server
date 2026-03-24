@@ -179,6 +179,17 @@ class DailyInsightService(
     }
 
     /**
+     * Generate and push a daily insight for a single user. Used by SmartNotificationDispatcher.
+     */
+    @Transactional
+    fun generateAndSendForUser(user: User) {
+        val insight = generateDailyInsightForUser(user) ?: return
+        if (!insight.sentViaPush) {
+            sendDailyInsightPush(insight)
+        }
+    }
+
+    /**
      * Get today's insight for a user (for fallback when push notification is missed).
      */
     fun getTodaysInsightForUser(user: User): DailyInsight? {

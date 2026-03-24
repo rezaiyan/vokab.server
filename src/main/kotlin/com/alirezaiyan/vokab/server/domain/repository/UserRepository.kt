@@ -33,4 +33,11 @@ interface UserRepository : JpaRepository<User, Long> {
             ") > :userScore"
     )
     fun findUserRankByScore(userScore: Long): Long
+
+    @Query("""
+        SELECT DISTINCT u FROM User u
+        JOIN u.pushTokens pt
+        WHERE u.active = true AND pt.active = true
+    """)
+    fun findAllActiveUsersWithPushTokens(): List<User>
 }

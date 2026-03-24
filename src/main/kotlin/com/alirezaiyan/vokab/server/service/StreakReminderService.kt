@@ -39,6 +39,43 @@ class StreakReminderService(
     }
     
     @Transactional
+    fun sendReminderForUser(user: User) {
+        try {
+            val progressStats = userProgressService.calculateProgressStats(user)
+            val message = openRouterService.generateStreakReminderMessage(
+                currentStreak = user.currentStreak,
+                userName = user.name,
+                progressStats = progressStats
+            ).block() ?: "You have a ${user.currentStreak}-day streak! 🔥 Complete your review today to keep it going!"
+
+            val data = mapOf(
+                "type" to "streak_reminder",
+                "currentStreak" to user.currentStreak.toString()
+            )
+            pushNotificationService.sendNotificationToUser(
+                userId = user.id!!,
+                title = "Don't lose your streak!",
+                body = message,
+                data = data,
+                category = NotificationCategory.USER
+            )
+        } catch (e: Exception) {
+            logger.error(e) { "Error sending streak reminder to user ${user.id}" }
+            try {
+                pushNotificationService.sendNotificationToUser(
+                    userId = user.id!!,
+                    title = "Don't lose your streak!",
+                    body = "You have a ${user.currentStreak}-day streak. Complete your review today to keep it going!",
+                    data = mapOf("type" to "streak_reminder", "currentStreak" to user.currentStreak.toString()),
+                    category = NotificationCategory.USER
+                )
+            } catch (fallbackError: Exception) {
+                logger.error(fallbackError) { "Failed to send fallback reminder to user ${user.id}" }
+            }
+        }
+    }
+
+    @Transactional
     fun sendReminderNotifications() {
         logger.info { "Starting streak reminder notification job" }
         
