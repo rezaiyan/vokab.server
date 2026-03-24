@@ -5,6 +5,7 @@ import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository
 import com.alirezaiyan.vokab.server.domain.repository.DailyInsightRepository
+import com.alirezaiyan.vokab.server.domain.repository.NotificationScheduleRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserSettingsRepository
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -23,7 +24,9 @@ class DailyInsightService(
     private val openRouterService: OpenRouterService,
     private val userProgressService: UserProgressService,
     private val pushNotificationService: PushNotificationService,
-    private val featureAccessService: FeatureAccessService
+    private val featureAccessService: FeatureAccessService,
+    private val analyticsService: AnalyticsService,
+    private val notificationScheduleRepository: NotificationScheduleRepository
 ) {
 
     /**
@@ -68,13 +71,13 @@ class DailyInsightService(
         }
 
         return try {
+            val stats = userProgressService.calculateProgressStats(user)
             val insightText = if (hasActivityToday) {
-                val stats = userProgressService.calculateProgressStats(user)
                 openRouterService.generateCelebrationInsight(stats, user.name).block()
                     ?: "Great work today! 🎉 You're building something real."
             } else {
-                val stats = userProgressService.calculateProgressStats(user)
-                openRouterService.generateDailyInsight(stats).block()
+                val ctx = buildInsightContext(user, stats)
+                openRouterService.generateDailyInsight(ctx).block()
                     ?: "Keep grinding! Every word you learn levels you up! 🎮✨"
             }
 
@@ -92,6 +95,38 @@ class DailyInsightService(
             logger.error(e) { "Failed to generate daily insight for user ${user.id}" }
             null
         }
+    }
+
+    private fun buildInsightContext(user: User, stats: com.alirezaiyan.vokab.server.presentation.dto.ProgressStatsDto): OpenRouterService.DailyInsightContext {
+        val optimalStudyHour = runCatching {
+            notificationScheduleRepository.findByUser(user)?.optimalSendHour
+        }.getOrNull()
+
+        val weeklyReport = runCatching { analyticsService.getWeeklyReport(user) }.getOrNull()
+        val accuracyTrend = weeklyReport?.changePercent?.toFloat()
+
+        val topDifficultWord = runCatching {
+            analyticsService.getDifficultWords(user, minReviews = 3, limit = 1).firstOrNull()?.wordText
+        }.getOrNull()
+
+        val primaryLanguage = runCatching {
+            analyticsService.getStatsByLanguagePair(user).firstOrNull()?.targetLanguage
+        }.getOrNull()
+
+        val sessionCompletionRate = runCatching {
+            analyticsService.getStudyInsights(user).sessionCompletionRate?.toFloat()
+        }.getOrNull()
+
+        return OpenRouterService.DailyInsightContext(
+            stats = stats,
+            userName = user.name,
+            optimalStudyHour = optimalStudyHour,
+            accuracyTrend = accuracyTrend,
+            topDifficultWord = topDifficultWord,
+            primaryLanguage = primaryLanguage,
+            sessionCompletionRate = sessionCompletionRate,
+            currentStreak = user.currentStreak
+        )
     }
 
     /**

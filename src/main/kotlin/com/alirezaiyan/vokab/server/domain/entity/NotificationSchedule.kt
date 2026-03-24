@@ -38,6 +38,9 @@ data class NotificationSchedule(
     @Column(name = "suppressed_until")
     var suppressedUntil: LocalDate? = null,
 
+    @Column(name = "last_milestone_snapshot", columnDefinition = "jsonb")
+    var lastMilestoneSnapshot: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
 

@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional
 private val logger = KotlinLogging.logger {}
 
 @Component
-class ScheduledTasks(
+class MaintenanceTasks(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val streakNotificationService: StreakNotificationService
 ) {

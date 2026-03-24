@@ -375,6 +375,88 @@ class OpenRouterService(
             }
     }
     
+    data class DailyInsightContext(
+        val stats: ProgressStatsDto,
+        val userName: String?,
+        val optimalStudyHour: Int?,
+        val accuracyTrend: Float?,
+        val topDifficultWord: String?,
+        val primaryLanguage: String?,
+        val sessionCompletionRate: Float?,
+        val currentStreak: Int
+    )
+
+    fun generateDailyInsight(ctx: DailyInsightContext): Mono<String> {
+        logger.info { "Generating enriched daily insight for ${ctx.userName ?: "user"}" }
+
+        val prompt = buildString {
+            append("You are writing a personal vocabulary learning insight for ${ctx.userName ?: "a learner"}.\n\n")
+            append("Their current stats:\n")
+            append("- Total words: ${ctx.stats.totalWords}, fully mastered: ${ctx.stats.level6Count}\n")
+            append("- Words due for review: ${ctx.stats.dueCards}\n")
+            append("- Current streak: ${ctx.currentStreak} days\n")
+            ctx.primaryLanguage?.let  { append("- Learning: $it\n") }
+            ctx.topDifficultWord?.let { append("- Most challenging word recently: \"$it\"\n") }
+            ctx.accuracyTrend?.let { trend ->
+                val dir = if (trend > 0) "improving (up ${trend.toInt()}%)" else "declining (down ${(-trend).toInt()}%)"
+                append("- Accuracy is $dir vs last week\n")
+            }
+            ctx.sessionCompletionRate?.let { rate ->
+                append("- Session completion: ${(rate * 100).toInt()}%\n")
+            }
+            ctx.optimalStudyHour?.let { hour ->
+                append("- They tend to study best around $hour:00\n")
+            }
+            append("\nWrite exactly 1–2 sentences. Be specific to their data — do NOT write generic encouragement. ")
+            append("Reference one concrete number or the specific word if available. Add 1–2 relevant emojis.\n")
+            append("Return ONLY the message, no quotes or extra formatting.")
+        }
+
+        return callOpenRouter(prompt)
+            .doOnError { error -> logger.error(error) { "Failed to generate enriched daily insight" } }
+    }
+
+    fun generateMilestoneMessage(
+        milestone: MilestoneDetector.MilestoneEvent,
+        stats: ProgressStatsDto,
+        userName: String?
+    ): Mono<String> {
+        logger.info { "Generating milestone message for ${userName ?: "user"}: ${milestone.type}" }
+
+        val prompt = """
+            ${userName ?: "A learner"} just hit a vocabulary milestone: ${milestone.description}.
+            They have ${stats.totalWords} total words, ${stats.level6Count} fully mastered.
+            Write 1 sentence celebrating this specific achievement. Warm but not over-the-top. 1 emoji max.
+            Return ONLY the message, no quotes or extra formatting.
+        """.trimIndent()
+
+        return callOpenRouter(prompt)
+            .doOnError { error -> logger.error(error) { "Failed to generate milestone message" } }
+    }
+
+    private fun callOpenRouter(prompt: String): Mono<String> {
+        val request = OpenRouterRequest(
+            messages = listOf(
+                Message(
+                    role = "user",
+                    content = listOf(Content(type = "text", text = prompt))
+                )
+            )
+        )
+        return webClient.post()
+            .uri("/chat/completions")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono<OpenRouterResponse>()
+            .map { response ->
+                if (response.error != null) {
+                    throw RuntimeException("OpenRouter error: ${response.error.message}")
+                }
+                response.choices?.firstOrNull()?.message?.content?.trim()
+                    ?: throw RuntimeException("Empty response from OpenRouter")
+            }
+    }
+
     fun generateStreakReminderMessage(
         currentStreak: Int,
         userName: String,

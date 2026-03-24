@@ -15,6 +15,10 @@ class StreakReminderScheduler(
     // The fixed 22:00 UTC job has been replaced by ScheduledTasks.dispatchSmartNotifications().
     fun sendStreakReminders() {
         logger.info { "sendStreakReminders delegating to SmartNotificationDispatcher" }
-        smartNotificationDispatcher.dispatchForCurrentHour()
+        try {
+            smartNotificationDispatcher.dispatchForCurrentHour()
+        } catch (e: Exception) {
+            logger.error(e) { "Error during streak reminder dispatch" }
+        }
     }
 }
