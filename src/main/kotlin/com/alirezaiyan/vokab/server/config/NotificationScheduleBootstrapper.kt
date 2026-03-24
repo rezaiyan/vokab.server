@@ -18,8 +18,11 @@ class NotificationScheduleBootstrapper(
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
-        val unscheduled = userRepository.findAllActiveUsersWithPushTokens()
-            .filter { notificationScheduleRepository.findByUser(it) == null }
+        val activeUsers = userRepository.findAllActiveUsersWithPushTokens()
+        if (activeUsers.isEmpty()) return
+
+        val scheduledUserIds = notificationScheduleRepository.findAllScheduledUserIds()
+        val unscheduled = activeUsers.filter { it.id !in scheduledUserIds }
 
         if (unscheduled.isEmpty()) return
         logger.info { "Bootstrapping notification schedules for ${unscheduled.size} users" }

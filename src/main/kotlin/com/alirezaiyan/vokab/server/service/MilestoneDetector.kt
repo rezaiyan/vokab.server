@@ -76,8 +76,13 @@ class MilestoneDetector(
     @Transactional
     fun recordMilestoneSnapshot(user: User, stats: ProgressStatsDto) {
         val schedule = notificationScheduleRepository.findByUser(user) ?: return
-        schedule.lastMilestoneSnapshot =
-            """{"total_words":${stats.totalWords},"mastered_words":${stats.level6Count},"longest_streak":${user.longestStreak}}"""
+        schedule.lastMilestoneSnapshot = objectMapper.writeValueAsString(
+            mapOf(
+                "total_words" to stats.totalWords,
+                "mastered_words" to stats.level6Count,
+                "longest_streak" to user.longestStreak
+            )
+        )
         notificationScheduleRepository.save(schedule)
         logger.debug { "Recorded milestone snapshot for user=${user.id}" }
     }

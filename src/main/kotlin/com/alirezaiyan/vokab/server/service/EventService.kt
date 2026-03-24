@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
@@ -17,30 +18,35 @@ class EventService(
     private val objectMapper: ObjectMapper,
     private val notificationEngagementService: NotificationEngagementService,
 ) {
+    @Transactional
     fun track(userId: Long, request: TrackEventRequest) {
-        val propertiesJson = if (request.properties.isEmpty()) null
-                             else runCatching { objectMapper.writeValueAsString(request.properties) }.getOrNull()
+        try {
+            val propertiesJson = if (request.properties.isEmpty()) null
+                                 else runCatching { objectMapper.writeValueAsString(request.properties) }.getOrNull()
 
-        val event = AppEvent(
-            userId = userId,
-            eventName = request.eventName,
-            properties = propertiesJson,
-            platform = request.platform,
-            appVersion = request.appVersion,
-            clientTimestamp = Instant.ofEpochMilli(request.clientTimestampMs),
-        )
-        appEventRepository.save(event)
+            val event = AppEvent(
+                userId = userId,
+                eventName = request.eventName,
+                properties = propertiesJson,
+                platform = request.platform,
+                appVersion = request.appVersion,
+                clientTimestamp = Instant.ofEpochMilli(request.clientTimestampMs),
+            )
+            appEventRepository.save(event)
 
-        if (request.eventName == "notification_opened") {
-            runCatching {
-                val logId = request.properties["notification_log_id"]?.toLongOrNull()
-                if (logId != null) {
-                    notificationEngagementService.recordOpen(userId, logId)
-                }
-            }.onFailure { logger.warn(it) { "Failed to process notification_opened hook for user $userId" } }
+            if (request.eventName == "notification_opened") {
+                runCatching {
+                    val logId = request.properties["notification_log_id"]?.toLongOrNull()
+                    if (logId != null) {
+                        notificationEngagementService.recordOpen(userId, logId)
+                    }
+                }.onFailure { e -> logger.warn(e) { "Failed to process notification_opened hook for user $userId" } }
+            }
+
+            logger.debug { "Tracked event '${request.eventName}' for user $userId" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to track event '${request.eventName}' for user $userId" }
         }
-
-        logger.debug { "Tracked event '${request.eventName}' for user $userId" }
     }
 
     @Async
@@ -56,6 +62,6 @@ class EventService(
                     clientTimestampMs = Instant.now().toEpochMilli(),
                 )
             )
-        }.onFailure { logger.warn { "Failed to track async event '$eventName' for user $userId: $it" } }
+        }.onFailure { e -> logger.warn(e) { "Failed to track async event '$eventName' for user $userId" } }
     }
 }

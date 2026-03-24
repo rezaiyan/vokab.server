@@ -1,5 +1,6 @@
 package com.alirezaiyan.vokab.server.service
 
+import com.alirezaiyan.vokab.server.domain.entity.NotificationLog
 import com.alirezaiyan.vokab.server.domain.entity.NotificationSchedule
 import com.alirezaiyan.vokab.server.domain.repository.NotificationLogRepository
 import com.alirezaiyan.vokab.server.domain.repository.NotificationScheduleRepository
@@ -50,9 +51,11 @@ class NotificationEngagementService(
     }
 
     /**
-     * Called by SmartNotificationDispatcher before recording a new send.
-     * Checks if the previous notification was ignored and increments counter.
-     * Also applies frequency-based suppression for EVERY_OTHER_DAY / WEEKLY users.
+     * Called by SmartNotificationDispatcher after a successful push send.
+     * Atomically:
+     * 1. Checks if the previous notification was ignored and updates the decay counter.
+     * 2. Saves the notification log entry.
+     * 3. Updates and saves the schedule (lastSentDate, lastSentType, suppression).
      *
      * Suppression schedule (days of silence after consecutive ignores):
      *  0–2  ignores  → no suppression (normal daily sends)
@@ -62,10 +65,17 @@ class NotificationEngagementService(
      *  15+  ignores  → suppressed for 30 days (dormant nurture)
      */
     @Transactional
-    fun recordSendAndCheckDecay(schedule: NotificationSchedule) {
+    fun recordSendAndPersistLog(
+        schedule: NotificationSchedule,
+        notificationType: String,
+        title: String?,
+        body: String?,
+        dataPayload: String?
+    ) {
         val userId = schedule.user.id!!
-        val previousLog = notificationLogRepository.findTopByUserIdOrderBySentAtDesc(userId)
 
+        // Check previous log BEFORE saving the new one
+        val previousLog = notificationLogRepository.findTopByUserIdOrderBySentAtDesc(userId)
         if (previousLog != null && previousLog.openedAt == null) {
             val ignoreCount = schedule.consecutiveIgnores + 1
             schedule.consecutiveIgnores = ignoreCount
@@ -81,6 +91,18 @@ class NotificationEngagementService(
             }
         }
 
+        notificationLogRepository.save(
+            NotificationLog(
+                userId = userId,
+                notificationType = notificationType,
+                title = title,
+                body = body,
+                dataPayload = dataPayload
+            )
+        )
+
+        schedule.lastSentDate = LocalDate.now(ZoneOffset.UTC)
+        schedule.lastSentType = notificationType
         schedule.updatedAt = Instant.now()
         notificationScheduleRepository.save(schedule)
     }

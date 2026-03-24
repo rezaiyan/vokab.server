@@ -9,6 +9,9 @@ interface NotificationScheduleRepository : JpaRepository<NotificationSchedule, L
     fun findByUser(user: User): NotificationSchedule?
     fun findByUserId(userId: Long): NotificationSchedule?
 
+    @Query("SELECT ns.user.id FROM NotificationSchedule ns")
+    fun findAllScheduledUserIds(): Set<Long>
+
     @Query("""
         SELECT ns FROM NotificationSchedule ns
         WHERE ns.optimalSendHour = :hour

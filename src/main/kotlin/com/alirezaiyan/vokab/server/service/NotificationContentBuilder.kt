@@ -71,7 +71,7 @@ class NotificationContentBuilder(
 
     private fun buildComebackAlert(user: User): NotificationPayload {
         val difficultWords = analyticsService.getDifficultWords(user, minReviews = 3, limit = 1)
-        val word = difficultWords.first()
+        val word = difficultWords.firstOrNull() ?: return buildFallbackInsight()
         return NotificationPayload(
             title = "\"${word.wordText}\" wants a rematch 🔄",
             body = "You've missed this one recently. 60 seconds to lock it in.",

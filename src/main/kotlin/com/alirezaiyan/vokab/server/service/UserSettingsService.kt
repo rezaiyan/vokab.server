@@ -19,6 +19,7 @@ class UserSettingsService(
     private val notificationScheduleRepository: NotificationScheduleRepository,
     private val notificationEngagementService: NotificationEngagementService
 ) {
+    @Transactional(readOnly = true)
     fun get(user: User): SettingsDto {
         val s = repo.findByUser(user) ?: repo.save(UserSettings(user = user))
         val schedule = notificationScheduleRepository.findByUser(user)

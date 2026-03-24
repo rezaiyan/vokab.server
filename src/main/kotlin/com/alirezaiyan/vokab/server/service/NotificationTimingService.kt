@@ -105,8 +105,8 @@ class NotificationTimingService(
     /**
      * Nightly job: recompute optimal hour for all active users with push tokens.
      * Skips users computed in the last 7 days (stable enough).
+     * Each user's schedule save runs in its own independent transaction.
      */
-    @Transactional
     fun refreshSchedulesForAllUsers(users: List<User>) {
         val sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS)
         for (user in users) {

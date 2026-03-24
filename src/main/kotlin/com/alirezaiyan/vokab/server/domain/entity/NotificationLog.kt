@@ -5,7 +5,7 @@ import java.time.Instant
 
 @Entity
 @Table(name = "notification_log")
-data class NotificationLog(
+class NotificationLog(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
@@ -29,4 +29,12 @@ data class NotificationLog(
 
     @Column(name = "data_payload", columnDefinition = "jsonb")
     val dataPayload: String? = null              // JSON string
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is NotificationLog) return false
+        return id != 0L && id == other.id
+    }
+
+    override fun hashCode(): Int = if (id != 0L) id.hashCode() else System.identityHashCode(this)
+}

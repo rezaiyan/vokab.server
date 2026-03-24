@@ -149,13 +149,7 @@ class OpenRouterService(
             )
         )
         
-        // Log request details (without full image data)
-        val apiKeyMasked = appProperties.openrouter.apiKey.take(15) + "..." + appProperties.openrouter.apiKey.takeLast(4)
-        logger.info { "🚀 [OpenRouter] Sending request to ${appProperties.openrouter.baseUrl}/chat/completions" }
-        logger.info { "🔑 [OpenRouter] API Key (masked): $apiKeyMasked" }
-        logger.info { "📦 [OpenRouter] Model: ${request.model}" }
-        logger.info { "📝 [OpenRouter] Image size: ~${estimatedSizeBytes / 1024}KB" }
-        logger.info { "🌐 [OpenRouter] Target language: $targetLanguage" }
+        logger.info { "[OpenRouter] Sending image extraction request: model=${request.model}, size=~${estimatedSizeBytes / 1024}KB, language=$targetLanguage" }
         
         return webClient.post()
             .uri("/chat/completions")
@@ -163,50 +157,40 @@ class OpenRouterService(
             .retrieve()
             .onStatus({ status -> status.isError }) { response ->
                 response.bodyToMono<String>().flatMap { errorBody ->
-                    logger.error { "❌ [OpenRouter] HTTP ${response.statusCode()}: $errorBody" }
-                    logger.error { "❌ [OpenRouter] Response headers: ${response.headers().asHttpHeaders()}" }
+                    logger.error { "[OpenRouter] HTTP ${response.statusCode()}: $errorBody" }
                     Mono.error(RuntimeException("OpenRouter API error: ${response.statusCode()} - $errorBody"))
                 }
             }
             .bodyToMono<OpenRouterResponse>()
-            .doOnSubscribe {
-                logger.info { "⏳ [OpenRouter] Request sent, waiting for response..." }
-            }
-            .doOnSuccess { response ->
-                logger.info { "✅ [OpenRouter] Received response" }
-                logger.debug { "📄 [OpenRouter] Response: $response" }
-            }
             .map { response ->
                 if (response.error != null) {
-                    logger.error { "❌ [OpenRouter] API returned error: ${response.error.message}" }
+                    logger.error { "[OpenRouter] API returned error: ${response.error.message}" }
                     throw RuntimeException("OpenRouter error: ${response.error.message}")
                 }
-                
+
                 val extractedText = response.choices?.firstOrNull()?.message?.content?.trim() ?: ""
-                
+
                 if (extractedText.isEmpty()) {
-                    logger.warn { "⚠️ [OpenRouter] Empty response from AI" }
+                    logger.warn { "[OpenRouter] Empty response from AI" }
                     throw RuntimeException("No response from AI. Please try again.")
                 }
-                
-                if (extractedText.contains("ERROR:", ignoreCase = true) || 
+
+                if (extractedText.contains("ERROR:", ignoreCase = true) ||
                     extractedText.contains("No vocabulary found", ignoreCase = true)) {
-                    logger.warn { "⚠️ [OpenRouter] AI could not find vocabulary in image" }
+                    logger.warn { "[OpenRouter] AI could not find vocabulary in image" }
                     throw RuntimeException("No vocabulary found in the image. Please use an image with visible text.")
                 }
-                
+
                 if (!isValidVocabularyFormat(extractedText)) {
-                    logger.warn { "⚠️ [OpenRouter] Invalid vocabulary format: $extractedText" }
+                    logger.warn { "[OpenRouter] Invalid vocabulary format received" }
                     throw RuntimeException("Failed to extract valid vocabulary format. Please try a clearer image.")
                 }
-                
-                logger.info { "✅ [OpenRouter] Successfully extracted vocabulary: ${extractedText.take(100)}..." }
+
+                logger.info { "[OpenRouter] Successfully extracted vocabulary: ${extractedText.take(100)}..." }
                 extractedText
             }
             .doOnError { error ->
-                logger.error(error) { "💥 [OpenRouter] Failed to extract vocabulary from image" }
-                logger.error { "💥 [OpenRouter] Error type: ${error.javaClass.simpleName}" }
-                logger.error { "💥 [OpenRouter] Error message: ${error.message}" }
+                logger.error(error) { "[OpenRouter] Failed to extract vocabulary from image" }
             }
     }
     
@@ -246,71 +230,6 @@ class OpenRouterService(
             }
     }
 
-    fun generateDailyInsight(stats: ProgressStatsDto): Mono<String> {
-        logger.info { "Generating daily insight for ${stats.totalWords} words" }
-        
-        val prompt = buildString {
-            appendLine("You are a supportive vocabulary learning coach with an encouraging, motivational personality.")
-            appendLine("Based on the user's mastery progress, generate ONE brief, uplifting message (max 2 sentences).")
-            appendLine()
-            appendLine("User's Mastery Journey (7-Level System):")
-            appendLine("- Total vocabulary: ${stats.totalWords} words")
-            appendLine("- Due for review today: ${stats.dueCards} cards")
-            appendLine("- Level 0 (First Encounter): ${stats.level0Count} words")
-            appendLine("- Level 1 (Getting Familiar): ${stats.level1Count} words")
-            appendLine("- Level 2 (Starting to Stick): ${stats.level2Count} words")
-            appendLine("- Level 3 (Building Confidence): ${stats.level3Count} words")
-            appendLine("- Level 4 (Nearly Mastered): ${stats.level4Count} words")
-            appendLine("- Level 5 (Well Mastered): ${stats.level5Count} words")
-            appendLine("- Level 6 (Fully Mastered): ${stats.level6Count} words")
-            appendLine()
-            appendLine("Theme: Celebrating the journey from first encounter to full mastery!")
-            appendLine()
-            appendLine("Requirements:")
-            appendLine("1. Use mastery/learning language naturally (discovering, practicing, mastering, building confidence)")
-            appendLine("2. Be warm and encouraging, acknowledging their progress")
-            appendLine("3. Highlight specific milestones when meaningful (e.g., words reaching higher levels)")
-            appendLine("4. Include 1-2 emojis that fit the learning journey")
-            appendLine("5. Keep it under 2 sentences, conversational and motivating")
-            appendLine()
-            appendLine("Return ONLY the motivational message, no quotes or extra formatting.")
-        }
-        
-        val request = OpenRouterRequest(
-            messages = listOf(
-                Message(
-                    role = "user",
-                    content = listOf(
-                        Content(
-                            type = "text",
-                            text = prompt
-                        )
-                    )
-                )
-            )
-        )
-        
-        return webClient.post()
-            .uri("/chat/completions")
-            .bodyValue(request)
-            .retrieve()
-            .bodyToMono<OpenRouterResponse>()
-            .map { response ->
-                if (response.error != null) {
-                    throw RuntimeException("OpenRouter error: ${response.error.message}")
-                }
-                
-                val insight = response.choices?.firstOrNull()?.message?.content?.trim() 
-                    ?: "Keep grinding! Every word you learn levels you up! 🎮✨"
-                
-                logger.info { "Successfully generated daily insight" }
-                insight
-            }
-            .doOnError { error ->
-                logger.error(error) { "Failed to generate daily insight" }
-            }
-    }
-    
     fun generateStreakResetWarning(
         currentStreak: Int,
         progressStats: ProgressStatsDto,
@@ -567,24 +486,22 @@ class OpenRouterService(
             .bodyToMono<OpenRouterResponse>()
             .map { response ->
                 if (response.error != null) {
-                    logger.error { "❌ [OpenRouter] API returned error: ${response.error.message}" }
+                    logger.error { "[OpenRouter] API returned error: ${response.error.message}" }
                     throw RuntimeException("OpenRouter error: ${response.error.message}")
                 }
-                
+
                 val translation = response.choices?.firstOrNull()?.message?.content?.trim() ?: ""
-                
+
                 if (translation.isEmpty()) {
-                    logger.warn { "⚠️ [OpenRouter] Empty translation response" }
+                    logger.warn { "[OpenRouter] Empty translation response" }
                     throw RuntimeException("Translation failed. Please try again.")
                 }
-                
-                logger.info { "✅ [OpenRouter] Successfully translated text: ${translation.take(50)}..." }
+
+                logger.info { "[OpenRouter] Successfully translated text: ${translation.take(50)}..." }
                 translation
             }
             .doOnError { error ->
-                logger.error(error) { "💥 [OpenRouter] Failed to translate text" }
-                logger.error { "💥 [OpenRouter] Error type: ${error.javaClass.simpleName}" }
-                logger.error { "💥 [OpenRouter] Error message: ${error.message}" }
+                logger.error(error) { "[OpenRouter] Failed to translate text" }
             }
     }
     

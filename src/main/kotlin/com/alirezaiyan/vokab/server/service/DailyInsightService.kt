@@ -42,7 +42,6 @@ class DailyInsightService(
      * 4. If the user already reviewed today → send a celebration insight.
      *    Otherwise → send a motivational insight.
      */
-    @Transactional
     fun generateDailyInsightForUser(user: User): DailyInsight? {
         logger.info { "Generating daily insight for user ${user.id}" }
 
@@ -132,7 +131,6 @@ class DailyInsightService(
     /**
      * Send daily insight via push notification.
      */
-    @Transactional
     fun sendDailyInsightPush(insight: DailyInsight): Boolean {
         logger.info { "Sending daily insight push for user ${insight.user.id}" }
 
@@ -191,7 +189,6 @@ class DailyInsightService(
      *
      * Returns the number of push notifications successfully sent.
      */
-    @Transactional
     fun generateInsightsForUsersInWindow(hour: Int, minuteWindowStart: Int): Int {
         val users = getUsersInReminderWindow(hour, minuteWindowStart)
         logger.info {
@@ -216,7 +213,6 @@ class DailyInsightService(
     /**
      * Generate and push a daily insight for a single user. Used by SmartNotificationDispatcher.
      */
-    @Transactional
     fun generateAndSendForUser(user: User) {
         val insight = generateDailyInsightForUser(user) ?: return
         if (!insight.sentViaPush) {
@@ -227,6 +223,7 @@ class DailyInsightService(
     /**
      * Get today's insight for a user (for fallback when push notification is missed).
      */
+    @Transactional(readOnly = true)
     fun getTodaysInsightForUser(user: User): DailyInsight? {
         val today = LocalDate.now().toString()
         return dailyInsightRepository.findByUserAndDate(user, today)
@@ -235,6 +232,7 @@ class DailyInsightService(
     /**
      * Get latest insight for a user.
      */
+    @Transactional(readOnly = true)
     fun getLatestInsightForUser(user: User): DailyInsight? {
         return dailyInsightRepository.findLatestInsightByUser(user)
     }

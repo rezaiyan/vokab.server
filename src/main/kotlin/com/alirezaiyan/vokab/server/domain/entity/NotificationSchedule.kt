@@ -6,7 +6,7 @@ import java.time.LocalDate
 
 @Entity
 @Table(name = "notification_schedule")
-data class NotificationSchedule(
+class NotificationSchedule(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
@@ -47,6 +47,14 @@ data class NotificationSchedule(
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()
 ) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is NotificationSchedule) return false
+        return id != 0L && id == other.id
+    }
+
+    override fun hashCode(): Int = if (id != 0L) id.hashCode() else System.identityHashCode(this)
+
     override fun toString(): String =
         "NotificationSchedule(id=$id, userId=${user.id}, optimalSendHour=$optimalSendHour)"
 }

@@ -44,6 +44,8 @@ class SecurityConfig(
                         "/actuator/health",
                         "/error"
                     ).permitAll()
+                    // Admin endpoints require ADMIN role
+                    .requestMatchers("/admin/**").hasRole("ADMIN")
                     // All other endpoints require authentication (including /auth/logout, /auth/delete-account)
                     .anyRequest().authenticated()
             }

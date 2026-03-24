@@ -3,7 +3,6 @@ package com.alirezaiyan.vokab.server.presentation.controller
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.RateLimitConfig
 import com.alirezaiyan.vokab.server.domain.entity.User
-import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import com.alirezaiyan.vokab.server.service.DailyInsightService
@@ -27,7 +26,6 @@ class AiController(
     private val openRouterService: OpenRouterService,
     private val rateLimitConfig: RateLimitConfig,
     private val featureAccessService: FeatureAccessService,
-    private val userRepository: UserRepository,
     private val appProperties: AppProperties,
     private val userProgressService: UserProgressService,
     private val dailyInsightService: DailyInsightService
@@ -151,10 +149,19 @@ class AiController(
         // Generate new insight if none exists for today
         logger.info { "Generating new daily insight for user ${user.email}" }
         
-        // Calculate actual progress stats from user's vocabulary data
         val progressStats = userProgressService.calculateProgressStats(user)
-        
-        return openRouterService.generateDailyInsight(progressStats)
+        val ctx = OpenRouterService.DailyInsightContext(
+            stats = progressStats,
+            userName = user.name,
+            optimalStudyHour = null,
+            accuracyTrend = null,
+            topDifficultWord = null,
+            primaryLanguage = null,
+            sessionCompletionRate = null,
+            currentStreak = user.currentStreak
+        )
+
+        return openRouterService.generateDailyInsight(ctx)
             .map { insight ->
                 val response = InsightResponse(
                     insight = insight,

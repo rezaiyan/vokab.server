@@ -1,16 +1,12 @@
 package com.alirezaiyan.vokab.server.service
 
-import com.alirezaiyan.vokab.server.domain.entity.NotificationLog
 import com.alirezaiyan.vokab.server.domain.entity.NotificationSchedule
-import com.alirezaiyan.vokab.server.domain.repository.NotificationLogRepository
 import com.alirezaiyan.vokab.server.domain.repository.NotificationScheduleRepository
 import com.alirezaiyan.vokab.server.service.NotificationTypeSelector.NotificationType
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
-import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 
@@ -19,7 +15,6 @@ private val logger = KotlinLogging.logger {}
 @Service
 class SmartNotificationDispatcher(
     private val notificationScheduleRepository: NotificationScheduleRepository,
-    private val notificationLogRepository: NotificationLogRepository,
     private val notificationTypeSelector: NotificationTypeSelector,
     private val notificationContentBuilder: NotificationContentBuilder,
     private val pushNotificationService: PushNotificationService,
@@ -59,23 +54,14 @@ class SmartNotificationDispatcher(
 
         val sent = results.any { it.success }
         if (sent) {
-            // Phase 4: check if previous notification was ignored → update decay state
-            notificationEngagementService.recordSendAndCheckDecay(schedule)
-
-            notificationLogRepository.save(
-                NotificationLog(
-                    userId = userId,
-                    notificationType = type.name,
-                    title = payload.title,
-                    body = payload.body,
-                    dataPayload = objectMapper.writeValueAsString(payload.data)
-                )
+            // Atomically record decay state, persist log, and update schedule
+            notificationEngagementService.recordSendAndPersistLog(
+                schedule = schedule,
+                notificationType = type.name,
+                title = payload.title,
+                body = payload.body,
+                dataPayload = objectMapper.writeValueAsString(payload.data)
             )
-
-            schedule.lastSentDate = LocalDate.now(ZoneOffset.UTC)
-            schedule.lastSentType = type.name
-            schedule.updatedAt = Instant.now()
-            notificationScheduleRepository.save(schedule)
 
             if (type == NotificationType.PROGRESS_MILESTONE) {
                 val stats = userProgressService.calculateProgressStats(user)
