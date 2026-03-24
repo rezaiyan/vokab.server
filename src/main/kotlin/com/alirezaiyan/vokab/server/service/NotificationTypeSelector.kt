@@ -28,6 +28,11 @@ class NotificationTypeSelector(
 
     @Transactional(readOnly = true)
     fun selectType(user: User, schedule: NotificationSchedule): NotificationType {
+        // Re-engagement mode: user was suppressed (3+ ignores), use higher-value content
+        if (schedule.consecutiveIgnores >= 3) {
+            return selectReEngagementType(user)
+        }
+
         val today = LocalDate.now(ZoneOffset.UTC)
         val hasReviewedToday = dailyActivityRepository.existsByUserAndActivityDate(user, today)
 
@@ -65,5 +70,23 @@ class NotificationTypeSelector(
 
         return if (featureAccessService.hasActivePremiumAccess(user)) NotificationType.DAILY_INSIGHT
         else NotificationType.NONE
+    }
+
+    /**
+     * Re-engagement priority for users who have been suppressed (3+ consecutive ignores).
+     * Prefers high-value, actionable, or curiosity-triggering content.
+     */
+    private fun selectReEngagementType(user: User): NotificationType {
+        if (milestoneDetector.hasPendingMilestone(user)) return NotificationType.PROGRESS_MILESTONE
+
+        val stats = userProgressService.calculateProgressStats(user)
+        if (stats.dueCards >= 5) return NotificationType.DUE_CARDS
+
+        val comebackWords = runCatching { analyticsService.getDifficultWords(user, minReviews = 3, limit = 1) }
+            .getOrNull()
+        if (!comebackWords.isNullOrEmpty()) return NotificationType.COMEBACK_ALERT
+
+        return if (featureAccessService.hasActivePremiumAccess(user)) NotificationType.DAILY_INSIGHT
+        else NotificationType.DUE_CARDS
     }
 }

@@ -416,6 +416,21 @@ class OpenRouterService(
             .doOnError { error -> logger.error(error) { "Failed to generate enriched daily insight" } }
     }
 
+    fun generateReEngagementInsight(stats: ProgressStatsDto, daysSinceOpen: Int, userName: String?): Mono<String> {
+        logger.info { "Generating re-engagement insight for ${userName ?: "user"}, daysSinceOpen=$daysSinceOpen" }
+
+        val prompt = """
+            ${userName ?: "A learner"} hasn't opened a notification in $daysSinceOpen days.
+            They have ${stats.totalWords} vocabulary words, ${stats.dueCards} due for review.
+            Write 1 welcoming, non-judgmental sentence inviting them back.
+            Acknowledge the gap positively. 1 emoji. Don't say "we miss you".
+            Return ONLY the message, no quotes or extra formatting.
+        """.trimIndent()
+
+        return callOpenRouter(prompt)
+            .doOnError { error -> logger.error(error) { "Failed to generate re-engagement insight" } }
+    }
+
     fun generateMilestoneMessage(
         milestone: MilestoneDetector.MilestoneEvent,
         stats: ProgressStatsDto,

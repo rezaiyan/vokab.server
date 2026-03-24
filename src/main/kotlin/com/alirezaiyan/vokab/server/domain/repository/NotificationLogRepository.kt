@@ -16,4 +16,19 @@ interface NotificationLogRepository : JpaRepository<NotificationLog, Long> {
     fun findRecentByUserId(userId: Long, since: Instant): List<NotificationLog>
 
     fun countByUserIdAndOpenedAtIsNotNullAndSentAtAfter(userId: Long, since: Instant): Long
+
+    fun countBySentAtAfter(since: Instant): Long
+
+    fun countBySentAtAfterAndOpenedAtIsNotNull(since: Instant): Long
+
+    /**
+     * Returns [notificationType, totalSent, totalOpened] grouped by type for admin stats.
+     */
+    @Query("""
+        SELECT nl.notificationType, COUNT(nl), COUNT(nl.openedAt)
+        FROM NotificationLog nl
+        WHERE nl.sentAt >= :since
+        GROUP BY nl.notificationType
+    """)
+    fun findTypeBreakdownSince(since: Instant): List<Array<Any>>
 }

@@ -15,6 +15,7 @@ private val logger = KotlinLogging.logger {}
 class EventService(
     private val appEventRepository: AppEventRepository,
     private val objectMapper: ObjectMapper,
+    private val notificationEngagementService: NotificationEngagementService,
 ) {
     fun track(userId: Long, request: TrackEventRequest) {
         val propertiesJson = if (request.properties.isEmpty()) null
@@ -29,6 +30,16 @@ class EventService(
             clientTimestamp = Instant.ofEpochMilli(request.clientTimestampMs),
         )
         appEventRepository.save(event)
+
+        if (request.eventName == "notification_opened") {
+            runCatching {
+                val logId = request.properties["notification_log_id"]?.toLongOrNull()
+                if (logId != null) {
+                    notificationEngagementService.recordOpen(userId, logId)
+                }
+            }.onFailure { logger.warn(it) { "Failed to process notification_opened hook for user $userId" } }
+        }
+
         logger.debug { "Tracked event '${request.eventName}' for user $userId" }
     }
 

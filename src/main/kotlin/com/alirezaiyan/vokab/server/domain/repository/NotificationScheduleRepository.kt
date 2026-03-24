@@ -14,6 +14,24 @@ interface NotificationScheduleRepository : JpaRepository<NotificationSchedule, L
         WHERE ns.optimalSendHour = :hour
           AND (ns.suppressedUntil IS NULL OR ns.suppressedUntil < CURRENT_DATE)
           AND (ns.lastSentDate IS NULL OR ns.lastSentDate < CURRENT_DATE)
+          AND EXISTS (
+            SELECT us FROM UserSettings us
+            WHERE us.user = ns.user
+              AND us.notificationsEnabled = true
+              AND us.notificationFrequency <> 'OFF'
+          )
     """)
     fun findUsersToNotifyAtHour(hour: Int): List<NotificationSchedule>
+
+    @Query("SELECT COUNT(ns) FROM NotificationSchedule ns WHERE ns.suppressedUntil >= CURRENT_DATE AND ns.consecutiveIgnores BETWEEN 3 AND 5")
+    fun countSuppressed3Day(): Long
+
+    @Query("SELECT COUNT(ns) FROM NotificationSchedule ns WHERE ns.suppressedUntil >= CURRENT_DATE AND ns.consecutiveIgnores BETWEEN 6 AND 9")
+    fun countSuppressed7Day(): Long
+
+    @Query("SELECT COUNT(ns) FROM NotificationSchedule ns WHERE ns.suppressedUntil >= CURRENT_DATE AND ns.consecutiveIgnores BETWEEN 10 AND 14")
+    fun countSuppressed14Day(): Long
+
+    @Query("SELECT COUNT(ns) FROM NotificationSchedule ns WHERE ns.suppressedUntil >= CURRENT_DATE AND ns.consecutiveIgnores >= 15")
+    fun countSuppressed30Day(): Long
 }

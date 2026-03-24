@@ -25,6 +25,7 @@ class SmartNotificationDispatcher(
     private val pushNotificationService: PushNotificationService,
     private val milestoneDetector: MilestoneDetector,
     private val userProgressService: UserProgressService,
+    private val notificationEngagementService: NotificationEngagementService,
     private val objectMapper: ObjectMapper
 ) {
     fun dispatchForCurrentHour() {
@@ -58,6 +59,9 @@ class SmartNotificationDispatcher(
 
         val sent = results.any { it.success }
         if (sent) {
+            // Phase 4: check if previous notification was ignored → update decay state
+            notificationEngagementService.recordSendAndCheckDecay(schedule)
+
             notificationLogRepository.save(
                 NotificationLog(
                     userId = userId,
