@@ -210,6 +210,42 @@ class OpenRouterService(
             }
     }
     
+    fun generateCelebrationInsight(stats: ProgressStatsDto, userName: String?): Mono<String> {
+        logger.info { "Generating celebration insight for ${userName ?: "user"}" }
+
+        val prompt = buildString {
+            appendLine("The user ${userName ?: "a learner"} just completed their vocabulary review session today.")
+            appendLine("They have ${stats.totalWords} words total, ${stats.level6Count} fully mastered.")
+            appendLine("Write a 1-sentence celebration acknowledging their consistency. Max 2 emojis. Be specific and warm, not generic.")
+            appendLine("Return ONLY the message, no quotes or extra formatting.")
+        }
+
+        val request = OpenRouterRequest(
+            messages = listOf(
+                Message(
+                    role = "user",
+                    content = listOf(Content(type = "text", text = prompt))
+                )
+            )
+        )
+
+        return webClient.post()
+            .uri("/chat/completions")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono<OpenRouterResponse>()
+            .map { response ->
+                if (response.error != null) {
+                    throw RuntimeException("OpenRouter error: ${response.error.message}")
+                }
+                response.choices?.firstOrNull()?.message?.content?.trim()
+                    ?: "Great work today! 🎉 You're building something real."
+            }
+            .doOnError { error ->
+                logger.error(error) { "Failed to generate celebration insight" }
+            }
+    }
+
     fun generateDailyInsight(stats: ProgressStatsDto): Mono<String> {
         logger.info { "Generating daily insight for ${stats.totalWords} words" }
         

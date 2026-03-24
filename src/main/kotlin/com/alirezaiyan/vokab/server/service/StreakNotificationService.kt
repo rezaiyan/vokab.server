@@ -4,6 +4,7 @@ import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository
+import com.alirezaiyan.vokab.server.domain.repository.DailyInsightRepository
 import com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.ProgressStatsDto
@@ -18,6 +19,7 @@ private val logger = KotlinLogging.logger {}
 class StreakNotificationService(
     private val userRepository: UserRepository,
     private val dailyActivityRepository: DailyActivityRepository,
+    private val dailyInsightRepository: DailyInsightRepository,
     private val pushTokenRepository: PushTokenRepository,
     private val streakService: StreakService,
     private val openRouterService: OpenRouterService,
@@ -69,21 +71,24 @@ class StreakNotificationService(
         // Get all active users with current streak > 0
         val allUsers = userRepository.findAll().filter { it.active && it.currentStreak > 0 }
         
+        val todayStr = today.toString()
         return allUsers.filter { user ->
             // Check if user has activity today (UTC date)
-            val hasTodayActivity = dailyActivityRepository.findByUserAndActivityDate(
-                user,
-                today
-            ).isPresent
-            
+            val hasTodayActivity = dailyActivityRepository.existsByUserAndActivityDate(user, today)
+
             // Check if user has active push tokens (Firebase tokens registered)
             val hasPushTokens = pushTokenRepository.findByUserAndActiveTrue(user).isNotEmpty()
-            
+
+            // Frequency cap: skip users who already received a daily insight push today
+            val alreadyReceivedInsightToday =
+                dailyInsightRepository.existsByUserAndDateAndSentViaPushTrue(user, todayStr)
+
             // User needs notification if:
             // 1. They have an active streak at a milestone
-            // 2. They haven't logged in today
+            // 2. They haven't reviewed today
             // 3. They have active push tokens registered
-            !hasTodayActivity && isMilestoneStreak(user.currentStreak) && hasPushTokens
+            // 4. They have not already been notified today via a daily insight push
+            !hasTodayActivity && isMilestoneStreak(user.currentStreak) && hasPushTokens && !alreadyReceivedInsightToday
         }
     }
     
