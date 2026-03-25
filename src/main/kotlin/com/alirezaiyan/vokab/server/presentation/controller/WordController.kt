@@ -7,6 +7,7 @@ import com.alirezaiyan.vokab.server.presentation.dto.BatchDeleteResponse
 import com.alirezaiyan.vokab.server.presentation.dto.BatchUpdateLanguagesRequest
 import com.alirezaiyan.vokab.server.presentation.dto.BatchUpdateLanguagesResponse
 import com.alirezaiyan.vokab.server.presentation.dto.UpdateWordRequest
+import com.alirezaiyan.vokab.server.presentation.dto.BatchAssignTagsRequest
 import com.alirezaiyan.vokab.server.presentation.dto.UpdateWordTagsRequest
 import com.alirezaiyan.vokab.server.presentation.dto.UpsertWordsRequest
 import com.alirezaiyan.vokab.server.presentation.dto.WordDto
@@ -78,6 +79,15 @@ class WordController(
     ): ResponseEntity<ApiResponse<Unit>> {
         wordService.updateWordTags(user, id, request.tagIds)
         return ResponseEntity.ok(ApiResponse(success = true, message = "Tags updated"))
+    }
+
+    @PostMapping("/batch-assign-tags")
+    fun batchAssignTags(
+        @AuthenticationPrincipal user: User,
+        @Valid @RequestBody request: BatchAssignTagsRequest,
+    ): ResponseEntity<ApiResponse<Unit>> {
+        wordService.batchAssignTags(user, request.wordIds, request.tagIds)
+        return ResponseEntity.ok(ApiResponse(success = true, message = "Tags assigned"))
     }
 
     @PostMapping("/batch-update")

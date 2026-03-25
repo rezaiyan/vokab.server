@@ -2,6 +2,7 @@ package com.alirezaiyan.vokab.server.domain.entity
 
 import jakarta.persistence.*
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 /**
  * Tracks daily user activity for streak calculation
@@ -29,7 +30,10 @@ data class DailyActivity(
     val activityDate: LocalDate,
     
     @Column(name = "review_count", nullable = false)
-    var reviewCount: Int = 1
+    var reviewCount: Int = 1,
+
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now()
 )
 
 

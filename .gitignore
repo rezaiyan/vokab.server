@@ -74,6 +74,9 @@ docker-compose.override.yml
 ### macOS ###
 .DS_Store
 
+### Claude Code ###
+.claude/settings.local.json
+
 ### Temporary files ###
 *.tmp
 *.bak

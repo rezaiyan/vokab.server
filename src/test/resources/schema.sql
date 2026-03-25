@@ -104,6 +104,7 @@ CREATE TABLE daily_activities (
     user_id BIGINT NOT NULL,
     activity_date DATE NOT NULL,
     review_count INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_daily_activity UNIQUE (user_id, activity_date),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

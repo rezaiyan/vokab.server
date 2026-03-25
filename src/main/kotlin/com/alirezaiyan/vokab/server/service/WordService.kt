@@ -98,6 +98,18 @@ class WordService(
     }
 
     @Transactional
+    fun batchAssignTags(user: User, wordIds: List<Long>, tagIds: List<Long>): Int {
+        if (wordIds.isEmpty()) return 0
+        val userId = user.id!!
+        val tags = if (tagIds.isEmpty()) emptyList() else tagRepository.findAllByUserAndIdIn(user, tagIds)
+        wordRepository.deleteWordTagsByWordIdsAndUserId(wordIds, userId)
+        tags.forEach { tag ->
+            wordRepository.insertWordTagsByWordIdsAndUserId(wordIds, tag.id!!, userId)
+        }
+        return wordIds.size
+    }
+
+    @Transactional
     fun updateWordTags(user: User, wordId: Long, tagIds: List<Long>) {
         val word = wordRepository.findById(wordId).orElseThrow { NoSuchElementException("Word not found") }
         require(word.user?.id == user.id) { "Forbidden" }

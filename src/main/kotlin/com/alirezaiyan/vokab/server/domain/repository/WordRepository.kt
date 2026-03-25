@@ -69,4 +69,21 @@ interface WordRepository : JpaRepository<Word, Long> {
         targetLanguage: String,
         now: Instant,
     ): Int
+
+    @Modifying
+    @Query(
+        "DELETE FROM word_tags WHERE word_id IN :wordIds " +
+            "AND word_id IN (SELECT id FROM words WHERE user_id = :userId)",
+        nativeQuery = true
+    )
+    fun deleteWordTagsByWordIdsAndUserId(wordIds: List<Long>, userId: Long)
+
+    @Modifying
+    @Query(
+        "INSERT INTO word_tags (word_id, tag_id) " +
+            "SELECT w.id, :tagId FROM words w WHERE w.id IN :wordIds AND w.user_id = :userId " +
+            "ON CONFLICT DO NOTHING",
+        nativeQuery = true
+    )
+    fun insertWordTagsByWordIdsAndUserId(wordIds: List<Long>, tagId: Long, userId: Long)
 }

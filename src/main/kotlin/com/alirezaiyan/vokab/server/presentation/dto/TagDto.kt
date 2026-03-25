@@ -27,3 +27,10 @@ data class UpdateWordTagsRequest(
     @field:Size(max = 50, message = "Cannot assign more than 50 tags at once")
     val tagIds: List<Long>,
 )
+
+data class BatchAssignTagsRequest(
+    @field:Size(min = 1, max = 500, message = "Must specify between 1 and 500 words")
+    val wordIds: List<Long>,
+    @field:Size(max = 50, message = "Cannot assign more than 50 tags at once")
+    val tagIds: List<Long>,
+)
