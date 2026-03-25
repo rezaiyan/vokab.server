@@ -1,0 +1,38 @@
+package com.alirezaiyan.vokab.server
+
+import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository
+import com.alirezaiyan.vokab.server.domain.repository.UserRepository
+import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
+
+/**
+ * Helper that persists a User in its own committed transaction, so that
+ * tests using @Transactional can call AnalyticsSessionPersister.saveSession()
+ * (which uses REQUIRES_NEW) without hitting FK constraint violations from
+ * uncommitted test-transaction data.
+ *
+ * clearUserSessions() also runs in REQUIRES_NEW so its deletions are committed
+ * and visible to subsequent read-only service calls (which set Hibernate flush
+ * mode to MANUAL and would not see uncommitted pending deletions).
+ */
+@Component
+class TestUserHelper(
+    private val userRepository: UserRepository,
+    private val studySessionRepository: StudySessionRepository,
+) {
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun saveAndCommit(user: User): User = userRepository.save(user)
+
+    /** Deletes all study sessions (and cascading review_events) for the given user. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun clearUserSessions(userId: Long) {
+        val user = userRepository.findById(userId).orElse(null) ?: return
+        studySessionRepository.deleteAll(studySessionRepository.findByUser(user))
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun deleteByEmail(email: String) = userRepository.deleteAll(userRepository.findAll().filter { it.email == email })
+}

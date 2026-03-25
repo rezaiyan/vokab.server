@@ -9,8 +9,11 @@ import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import com.alirezaiyan.vokab.server.service.AnalyticsService
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
@@ -19,18 +22,35 @@ import org.springframework.transaction.annotation.Transactional
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AnalyticsIntegrationTest {
 
     @Autowired lateinit var analyticsService: AnalyticsService
     @Autowired lateinit var userRepository: UserRepository
     @Autowired lateinit var studySessionRepository: StudySessionRepository
     @Autowired lateinit var reviewEventRepository: ReviewEventRepository
+    @Autowired lateinit var testUserHelper: TestUserHelper
 
     lateinit var user: User
 
+    @BeforeAll
+    fun setupUser() {
+        // Committed in its own transaction so REQUIRES_NEW inside
+        // AnalyticsSessionPersister.saveSession() can see it via FK lookup.
+        user = testUserHelper.saveAndCommit(User(email = "analytics@test.com", name = "Analytics User"))
+    }
+
+    @AfterAll
+    fun teardownUser() {
+        testUserHelper.deleteByEmail("analytics@test.com")
+    }
+
     @BeforeEach
     fun setup() {
-        user = userRepository.save(User(email = "analytics@test.com", name = "Analytics User"))
+        // Clear any REQUIRES_NEW-committed sessions left over from previous tests.
+        // Runs in its own committed TX so read-only service calls (flush mode MANUAL)
+        // see the clean state.
+        testUserHelper.clearUserSessions(user.id!!)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

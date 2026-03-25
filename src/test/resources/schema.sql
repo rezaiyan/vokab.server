@@ -29,6 +29,8 @@ CREATE TABLE users (
     current_streak INT NOT NULL DEFAULT 0,
     longest_streak INT NOT NULL DEFAULT 0,
     ai_extraction_usage_count INT NOT NULL DEFAULT 0,
+    first_word_added_at TIMESTAMP,
+    first_review_at TIMESTAMP,
     active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -55,6 +57,7 @@ CREATE TABLE user_settings (
     review_reminders BOOLEAN NOT NULL DEFAULT TRUE,
     motivational_messages BOOLEAN NOT NULL DEFAULT TRUE,
     daily_reminder_time VARCHAR(8) NOT NULL DEFAULT '18:00',
+    notification_frequency VARCHAR(32) NOT NULL DEFAULT 'DAILY',
     minimum_due_cards INT NOT NULL DEFAULT 5,
     successes_to_advance INT NOT NULL DEFAULT 1,
     forgot_penalty INT NOT NULL DEFAULT 2,
@@ -154,6 +157,9 @@ CREATE TABLE study_sessions (
     incorrect_count INT NOT NULL DEFAULT 0,
     review_type TEXT NOT NULL DEFAULT 'REVIEW',
     completed_normally BOOLEAN NOT NULL DEFAULT TRUE,
+    source_language TEXT,
+    target_language TEXT,
+    trigger_source TEXT NOT NULL DEFAULT 'unknown',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_session_user_client UNIQUE (user_id, client_session_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -173,7 +179,7 @@ CREATE TABLE review_events (
     new_level INT NOT NULL,
     response_time_ms BIGINT NOT NULL DEFAULT 0,
     reviewed_at BIGINT NOT NULL,
-    FOREIGN KEY (session_id) REFERENCES study_sessions(id),
+    FOREIGN KEY (session_id) REFERENCES study_sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
