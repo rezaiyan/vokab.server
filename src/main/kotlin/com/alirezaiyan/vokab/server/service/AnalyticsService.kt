@@ -1,7 +1,5 @@
 package com.alirezaiyan.vokab.server.service
 
-import com.alirezaiyan.vokab.server.domain.entity.ReviewEvent
-import com.alirezaiyan.vokab.server.domain.entity.StudySession
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.ReviewEventRepository
 import com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository
@@ -26,63 +24,22 @@ class AnalyticsService(
     private val studySessionRepository: StudySessionRepository,
     private val reviewEventRepository: ReviewEventRepository,
     private val userRepository: UserRepository,
+    private val sessionPersister: AnalyticsSessionPersister,
 ) {
 
-    @Transactional
+    // Not @Transactional at the batch level — each session is saved in its own
+    // REQUIRES_NEW transaction via sessionPersister so one bad session in the
+    // client's retry queue cannot roll back the entire batch forever.
     fun syncSessions(user: User, request: SyncAnalyticsRequest): SyncAnalyticsResponse {
         val syncedIds = mutableListOf<String>()
 
         for (sessionReq in request.sessions) {
-            val existing = studySessionRepository.findByUserAndClientSessionId(user, sessionReq.clientSessionId)
-            if (existing.isPresent) {
+            if (sessionPersister.saveSession(user, sessionReq)) {
                 syncedIds.add(sessionReq.clientSessionId)
-                continue
             }
-
-            val session = studySessionRepository.save(
-                StudySession(
-                    user = user,
-                    clientSessionId = sessionReq.clientSessionId,
-                    startedAt = sessionReq.startedAt,
-                    endedAt = sessionReq.endedAt,
-                    durationMs = sessionReq.durationMs,
-                    totalCards = sessionReq.totalCards,
-                    correctCount = sessionReq.correctCount,
-                    incorrectCount = sessionReq.incorrectCount,
-                    reviewType = sessionReq.reviewType,
-                    completedNormally = sessionReq.completedNormally,
-                    sourceLanguage = sessionReq.sourceLanguage,
-                    targetLanguage = sessionReq.targetLanguage,
-                    triggerSource = sessionReq.triggerSource,
-                )
-            )
-
-            val events = sessionReq.events.map { eventReq ->
-                ReviewEvent(
-                    session = session,
-                    user = user,
-                    wordId = eventReq.wordId,
-                    wordText = eventReq.wordText,
-                    wordTranslation = eventReq.wordTranslation,
-                    sourceLanguage = eventReq.sourceLanguage,
-                    targetLanguage = eventReq.targetLanguage,
-                    rating = eventReq.rating,
-                    previousLevel = eventReq.previousLevel,
-                    newLevel = eventReq.newLevel,
-                    responseTimeMs = eventReq.responseTimeMs,
-                    reviewedAt = eventReq.reviewedAt,
-                )
-            }
-            reviewEventRepository.saveAll(events)
-
-            if (user.firstReviewAt == null) {
-                userRepository.save(user.copy(firstReviewAt = Instant.now()))
-            }
-
-            syncedIds.add(sessionReq.clientSessionId)
         }
 
-        logger.info { "Synced ${syncedIds.size} sessions for user ${user.id}" }
+        logger.info { "Synced ${syncedIds.size}/${request.sessions.size} sessions for user ${user.id}" }
         return SyncAnalyticsResponse(syncedSessionIds = syncedIds)
     }
 
