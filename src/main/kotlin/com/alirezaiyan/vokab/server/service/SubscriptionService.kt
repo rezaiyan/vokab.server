@@ -87,7 +87,7 @@ class SubscriptionService(
             mapOf("product_id" to productId, "is_trial" to isTrial.toString())
         )
 
-        logger.info { "Initial purchase processed for user: ${user.email}, product: $productId" }
+        logger.info { "Initial purchase processed for userId=${user.id}, product: $productId" }
     }
     
     private fun handleRenewal(user: User, event: RevenueCatWebhookEvent) {
@@ -109,7 +109,7 @@ class SubscriptionService(
         eventService.trackAsync(user.id!!, "subscription_renewed",
             mapOf("product_id" to (event.product_id ?: "")))
 
-        logger.info { "Subscription renewed for user: ${user.email}" }
+        logger.info { "Subscription renewed for userId=${user.id}" }
     }
     
     private fun handleCancellation(user: User, event: RevenueCatWebhookEvent) {
@@ -140,7 +140,7 @@ class SubscriptionService(
         eventService.trackAsync(user.id!!, "subscription_cancelled",
             mapOf("product_id" to (event.product_id ?: "")))
 
-        logger.info { "Subscription cancelled for user: ${user.email}" }
+        logger.info { "Subscription cancelled for userId=${user.id}" }
     }
     
     private fun handleUncancellation(user: User, event: RevenueCatWebhookEvent) {
@@ -161,7 +161,7 @@ class SubscriptionService(
         
         updateUserSubscriptionStatus(user, SubscriptionStatus.ACTIVE, expiresAt)
         
-        logger.info { "Subscription uncancelled for user: ${user.email}" }
+        logger.info { "Subscription uncancelled for userId=${user.id}" }
     }
     
     private fun handleNonRenewingPurchase(user: User, event: RevenueCatWebhookEvent) {
@@ -182,7 +182,7 @@ class SubscriptionService(
         subscriptionRepository.save(subscription)
         updateUserSubscriptionStatus(user, SubscriptionStatus.ACTIVE, expiresAt)
         
-        logger.info { "Non-renewing purchase processed for user: ${user.email}" }
+        logger.info { "Non-renewing purchase processed for userId=${user.id}" }
     }
     
     private fun handleExpiration(user: User, event: RevenueCatWebhookEvent) {
@@ -201,16 +201,16 @@ class SubscriptionService(
         eventService.trackAsync(user.id!!, "subscription_expired",
             mapOf("product_id" to (event.product_id ?: "")))
 
-        logger.info { "Subscription expired for user: ${user.email}" }
+        logger.info { "Subscription expired for userId=${user.id}" }
     }
     
     private fun handleBillingIssue(user: User, event: RevenueCatWebhookEvent) {
-        logger.warn { "Billing issue for user: ${user.email}" }
+        logger.warn { "Billing issue for userId=${user.id}" }
         // Could send notification to user about billing issue
     }
     
     private fun handleSubscriberAlias(user: User, event: RevenueCatWebhookEvent) {
-        logger.info { "Subscriber alias event for user: ${user.email}" }
+        logger.info { "Subscriber alias event for userId=${user.id}" }
         // Handle subscriber alias if needed
     }
     

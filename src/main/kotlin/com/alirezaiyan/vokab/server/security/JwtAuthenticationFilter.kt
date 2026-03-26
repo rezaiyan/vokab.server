@@ -89,8 +89,7 @@ class JwtAuthenticationFilter(
                         val userEmail = if (isPresent) userOptional.get().email else null
                         val isTestAccount = userEmail in testEmails
                         val isActive = if (isPresent) userOptional.get().active else false
-                        logger.info { "🗄️ JWT Filter [DB_LOOKUP]: User found=$isPresent, active=$isActive, email=$userEmail, testAccount=$isTestAccount for $path" }
-                        logger.info { "📧 JWT Filter [TEST_EMAILS]: Configured test emails=$testEmails, user email=$userEmail" }
+                        logger.info { "🗄️ JWT Filter [DB_LOOKUP]: User found=$isPresent, active=$isActive, testAccount=$isTestAccount for $path" }
 
                         // Auto-grant premium access to test users if they don't have it
                         if (isPresent && isTestAccount) {
@@ -98,7 +97,7 @@ class JwtAuthenticationFilter(
                             val needsPremium = currentUser.subscriptionStatus != com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE
 
                             if (needsPremium) {
-                                logger.info { "🎁 JWT Filter [TEST_USER_PREMIUM]: Auto-granting premium to test user $userEmail" }
+                                logger.info { "🎁 JWT Filter [TEST_USER_PREMIUM]: Auto-granting premium to userId=$userId" }
                                 val farFutureExpiry = java.time.Instant.now().plusSeconds(100L * 365 * 24 * 60 * 60)
                                 currentUser = currentUser.copy(
                                     subscriptionStatus = com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE,
@@ -107,7 +106,7 @@ class JwtAuthenticationFilter(
                                 )
                                 userRepository.save(currentUser)
                                 userOptional = java.util.Optional.of(currentUser)
-                                logger.info { "✅ JWT Filter [PREMIUM_GRANTED]: Test user $userEmail now has ACTIVE subscription until $farFutureExpiry" }
+                                logger.info { "✅ JWT Filter [PREMIUM_GRANTED]: userId=$userId now has ACTIVE subscription until $farFutureExpiry" }
                             }
                         }
 
@@ -123,7 +122,7 @@ class JwtAuthenticationFilter(
                             logger.info { "✅ JWT Filter [AUTH_SUCCESS]: Set authentication for user=$userId, testAccount=$isTestAccount for $path" }
                             logger.info { "🔄 JWT Filter [FILTER_CHAIN]: Proceeding to next filter for $path" }
                         } else {
-                            logger.warn { "❌ JWT Filter [AUTH_FAILED]: User not found or inactive for userId=$userId, email=$userEmail, active=$isActive, testAccount=$isTestAccount - returning 403 for $path" }
+                            logger.warn { "❌ JWT Filter [AUTH_FAILED]: User not found or inactive for userId=$userId, active=$isActive, testAccount=$isTestAccount - returning 403 for $path" }
                             response.status = HttpServletResponse.SC_FORBIDDEN
                             response.writer.write("""{"success":false,"message":"User account has been deleted or deactivated"}""")
                             response.contentType = "application/json"

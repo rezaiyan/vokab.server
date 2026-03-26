@@ -23,6 +23,14 @@ class WordService(
         return wordRepository.findAllByUserWithTags(user).map { it.toDto() }
     }
 
+    @Transactional(readOnly = true)
+    fun getExistingTranslationKeys(user: User, targetLanguage: String): Set<String> {
+        return wordRepository.findAllByUser(user)
+            .filter { it.targetLanguage.equals(targetLanguage, ignoreCase = true) }
+            .mapNotNull { it.translation.trim().takeIf { t -> t.isNotEmpty() }?.lowercase() }
+            .toSet()
+    }
+
     @Transactional
     fun upsert(user: User, words: List<WordDto>) {
         if (words.isEmpty()) return

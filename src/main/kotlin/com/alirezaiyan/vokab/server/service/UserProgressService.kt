@@ -19,7 +19,7 @@ class UserProgressService(
      * Calculate user's progress statistics based on their vocabulary data
      */
     fun calculateProgressStats(user: User): ProgressStatsDto {
-        logger.info { "Calculating progress stats for user ${user.email}" }
+        logger.info { "Calculating progress stats for userId=${user.id}" }
         
         val words = wordRepository.findAllByUser(user)
         val currentTime = System.currentTimeMillis()
@@ -41,7 +41,7 @@ class UserProgressService(
         
         val totalWords = words.size
         
-        logger.info { "Progress stats for ${user.email}: totalWords=$totalWords, dueCards=$dueCards, levels=${levelCounts.joinToString()}" }
+        logger.info { "Progress stats for userId=${user.id}: totalWords=$totalWords, dueCards=$dueCards, levels=${levelCounts.joinToString()}" }
         
         return ProgressStatsDto(
             totalWords = totalWords,

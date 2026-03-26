@@ -96,7 +96,22 @@ tasks.jacocoTestReport {
 		html.required = true
 		csv.required = false
 	}
-	
+
+	classDirectories.setFrom(
+		files(classDirectories.files.map {
+			fileTree(it) {
+				exclude(
+					"**/domain/entity/**",
+					"**/domain/repository/**",
+					"**/presentation/dto/**",
+					"**/config/**",
+					"**/*Application*",
+					"**/scheduler/**",
+				)
+			}
+		})
+	)
+
 	// Print coverage after report is generated
 	doLast {
 		val report = file("$buildDir/reports/jacoco/test/jacocoTestReport.xml")
@@ -104,10 +119,10 @@ tasks.jacocoTestReport {
 		if (report.exists()) {
 			val content = report.readText()
 			
-			// Parse line coverage from XML
+			// Parse line coverage from XML — use last match which is the report-level total
 			val lineRegex = """<counter type="LINE" missed="(\d+)" covered="(\d+)"/>""".toRegex()
-			val match = lineRegex.find(content)
-			
+			val match = lineRegex.findAll(content).lastOrNull()
+
 			if (match != null) {
 				val missed = match.groupValues[1].toInt()
 				val covered = match.groupValues[2].toInt()

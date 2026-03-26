@@ -3,16 +3,15 @@ package com.alirezaiyan.vokab.server.presentation.controller
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.RateLimitConfig
 import com.alirezaiyan.vokab.server.domain.entity.User
-import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import com.alirezaiyan.vokab.server.service.DailyInsightService
 import com.alirezaiyan.vokab.server.service.FeatureAccessService
 import com.alirezaiyan.vokab.server.service.OpenRouterService
 import com.alirezaiyan.vokab.server.service.UserProgressService
+import com.alirezaiyan.vokab.server.service.WordService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Mono
@@ -28,7 +27,8 @@ class AiController(
     private val featureAccessService: FeatureAccessService,
     private val appProperties: AppProperties,
     private val userProgressService: UserProgressService,
-    private val dailyInsightService: DailyInsightService
+    private val dailyInsightService: DailyInsightService,
+    private val wordService: WordService
 ) {
     
     @PostMapping("/extract-vocabulary")
@@ -36,7 +36,7 @@ class AiController(
         @AuthenticationPrincipal user: User,
         @Valid @RequestBody request: ExtractVocabularyRequest
     ): ResponseEntity<ApiResponse<VocabularyExtractionResponse>> {
-        logger.info { "🎯 [AI Controller] User ${user.email} requesting vocabulary extraction" }
+        logger.info { "🎯 [AI Controller] userId=${user.id} requesting vocabulary extraction" }
         logger.info { "👤 [AI Controller] User status: subscriptionStatus=${user.subscriptionStatus}" }
 
         // Check if user has premium access
@@ -44,7 +44,7 @@ class AiController(
         logger.info { "🔐 [AI Controller] Premium access check: hasPremiumAccess=$hasPremiumAccess" }
 
         if (!hasPremiumAccess) {
-            logger.warn { "❌ [AI Controller] User ${user.email} DENIED access - Premium required" }
+            logger.warn { "❌ [AI Controller] userId=${user.id} DENIED access - Premium required" }
             logger.warn { "📤 [Response] Sending HTTP 403 Forbidden to client" }
             return ResponseEntity.status(403)
                 .body(ApiResponse(
@@ -53,12 +53,12 @@ class AiController(
                 ))
         }
 
-        logger.info { "✅ [AI Controller] User ${user.email} has premium access, proceeding with extraction" }
+        logger.info { "✅ [AI Controller] userId=${user.id} has premium access, proceeding with extraction" }
 
         // Check rate limit
         val bucket = rateLimitConfig.getImageProcessingBucket(user.id.toString())
         if (!bucket.tryConsume(1)) {
-            logger.warn { "Rate limit exceeded for user ${user.email} on image processing" }
+            logger.warn { "Rate limit exceeded for userId=${user.id} on image processing" }
             return ResponseEntity.status(429)
                 .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
         }
@@ -88,7 +88,7 @@ class AiController(
             ResponseEntity.ok(ApiResponse(success = true, data = response))
 
         } catch (error: Exception) {
-            logger.error(error) { "❌ [Error] Failed to extract vocabulary for user ${user.email}" }
+            logger.error(error) { "❌ [Error] Failed to extract vocabulary for userId=${user.id}" }
             logger.error { "❌ [Error] Error type: ${error.javaClass.simpleName}" }
             logger.error { "❌ [Error] Error message: ${error.message}" }
             logger.error { "📤 [Response] Sending HTTP 400 Bad Request to client" }
@@ -105,11 +105,11 @@ class AiController(
     fun generateInsight(
         @AuthenticationPrincipal user: User
     ): Mono<ResponseEntity<ApiResponse<InsightResponse>>> {
-        logger.info { "User ${user.email} requesting daily insight (fallback)" }
+        logger.info { "userId=${user.id} requesting daily insight (fallback)" }
 
         // Check if user has premium access
         if (!featureAccessService.hasActivePremiumAccess(user)) {
-            logger.warn { "User ${user.email} attempted to use AI daily insight without premium access" }
+            logger.warn { "userId=${user.id} attempted to use AI daily insight without premium access" }
             return Mono.just(
                 ResponseEntity.status(403)
                     .body(ApiResponse(
@@ -122,7 +122,7 @@ class AiController(
         // Check rate limit
         val bucket = rateLimitConfig.getAiBucket(user.id.toString())
         if (!bucket.tryConsume(1)) {
-            logger.warn { "Rate limit exceeded for user ${user.email} on AI service" }
+            logger.warn { "Rate limit exceeded for userId=${user.id} on AI service" }
             return Mono.just(
                 ResponseEntity.status(429)
                     .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
@@ -132,7 +132,7 @@ class AiController(
         // Try to get today's insight first (if it was already generated)
         val todaysInsight = dailyInsightService.getTodaysInsightForUser(user)
         if (todaysInsight != null) {
-            logger.info { "Returning existing daily insight for user ${user.email}" }
+            logger.info { "Returning existing daily insight for userId=${user.id}" }
             return Mono.just(
                 ResponseEntity.ok(
                     ApiResponse(
@@ -147,7 +147,7 @@ class AiController(
         }
         
         // Generate new insight if none exists for today
-        logger.info { "Generating new daily insight for user ${user.email}" }
+        logger.info { "Generating new daily insight for userId=${user.id}" }
         
         val progressStats = userProgressService.calculateProgressStats(user)
         val ctx = OpenRouterService.DailyInsightContext(
@@ -170,7 +170,7 @@ class AiController(
                 ResponseEntity.ok(ApiResponse(success = true, data = response))
             }
             .onErrorResume { error ->
-                logger.error(error) { "Failed to generate insight for user ${user.email}" }
+                logger.error(error) { "Failed to generate insight for userId=${user.id}" }
                 Mono.just(
                     ResponseEntity.badRequest()
                         .body(ApiResponse(success = false, message = error.message ?: "Failed to generate insight"))
@@ -183,7 +183,7 @@ class AiController(
         @AuthenticationPrincipal user: User,
         @Valid @RequestBody request: TranslateTextRequest
     ): ResponseEntity<ApiResponse<TranslateTextResponse>> {
-        logger.info { "🎯 [AI Controller] User ${user.email} requesting text translation" }
+        logger.info { "🎯 [AI Controller] userId=${user.id} requesting text translation" }
         
         val text = request.text.trim()
         
@@ -208,7 +208,7 @@ class AiController(
         
         val bucket = rateLimitConfig.getAiBucket(user.id.toString())
         if (!bucket.tryConsume(1)) {
-            logger.warn { "Rate limit exceeded for user ${user.email} on text translation" }
+            logger.warn { "Rate limit exceeded for userId=${user.id} on text translation" }
             return ResponseEntity.status(429)
                 .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
         }
@@ -221,7 +221,7 @@ class AiController(
                 targetLanguage = request.targetLanguage
             ).block() ?: throw RuntimeException("Failed to translate text")
             
-            logger.info { "✅ [AI Controller] Translation successful for user ${user.email}" }
+            logger.info { "✅ [AI Controller] Translation successful for userId=${user.id}" }
             
             val response = TranslateTextResponse(
                 originalText = text,
@@ -231,7 +231,7 @@ class AiController(
             ResponseEntity.ok(ApiResponse(success = true, data = response))
             
         } catch (error: Exception) {
-            logger.error(error) { "❌ [Error] Failed to translate text for user ${user.email}" }
+            logger.error(error) { "❌ [Error] Failed to translate text for userId=${user.id}" }
             logger.error { "❌ [Error] Error type: ${error.javaClass.simpleName}" }
             logger.error { "❌ [Error] Error message: ${error.message}" }
             
@@ -243,19 +243,16 @@ class AiController(
         }
     }
     
-    @Autowired
-    lateinit var wordRepository: WordRepository
-
     @PostMapping("/suggest-vocabulary")
     fun suggestVocabulary(
         @AuthenticationPrincipal user: User,
         @Valid @RequestBody request: SuggestVocabularyRequest
     ): ResponseEntity<ApiResponse<SuggestVocabularyResponse>> {
-        logger.info { "User ${user.email} requesting suggested vocabulary: target=${request.targetLanguage}, level=${request.currentLevel}, native=${request.nativeLanguage}" }
+        logger.info { "userId=${user.id} requesting suggested vocabulary: target=${request.targetLanguage}, level=${request.currentLevel}, native=${request.nativeLanguage}" }
 
         val bucket = rateLimitConfig.getAiBucket(user.id.toString())
         if (!bucket.tryConsume(1)) {
-            logger.warn { "Rate limit exceeded for user ${user.email} on suggest-vocabulary" }
+            logger.warn { "Rate limit exceeded for userId=${user.id} on suggest-vocabulary" }
             return ResponseEntity.status(429)
                 .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
         }
@@ -265,23 +262,7 @@ class AiController(
             val nativeLanguage = request.nativeLanguage.trim()
             val currentLevel = request.currentLevel.trim()
 
-            // Existing vocabulary for this user in the same target language.
-            // NOTE: In the current data model, Word.originalWord is typically in the user's
-            // native language, and Word.translation is in the target language.
-            // Our AI suggestions, however, use:
-            //   - originalWord  = target language
-            //   - translation  = native language
-            // So for deduplication we must compare suggestion.originalWord (target)
-            // against existing.translation (target).
-            val existingWords = wordRepository.findAllByUser(user)
-                .filter { it.targetLanguage.equals(targetLanguage, ignoreCase = true) }
-            val existingKeys = existingWords
-                .mapNotNull { existing ->
-                    existing.translation.trim()
-                        .takeIf { it.isNotEmpty() }
-                        ?.lowercase()
-                }
-                .toSet()
+            val existingKeys = wordService.getExistingTranslationKeys(user, targetLanguage)
 
             // Raw AI-generated suggestions (may contain duplicates and overlaps)
             val rawItems = openRouterService.generateVocabularyFromPreferences(
@@ -305,7 +286,7 @@ class AiController(
             }.take(baseCount)
 
             logger.info {
-                "Suggest-vocabulary dedup for user ${user.email}: " +
+                "Suggest-vocabulary dedup for userId=${user.id}: " +
                     "existing=${existingKeys.size}, raw=${rawItems.size}, " +
                     "uniqueNew=${uniqueNewItems.size}, targetCount=$baseCount"
             }
@@ -318,7 +299,7 @@ class AiController(
             )
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (error: Exception) {
-            logger.error(error) { "Failed to suggest vocabulary for user ${user.email}" }
+            logger.error(error) { "Failed to suggest vocabulary for userId=${user.id}" }
             ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = error.message ?: "Failed to generate vocabulary"))
         }

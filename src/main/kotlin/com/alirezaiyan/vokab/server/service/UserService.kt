@@ -43,7 +43,7 @@ class UserService(
         )
 
         val saved = userRepository.save(updatedUser)
-        logger.info { "User updated: ${saved.email}" }
+        logger.info { "User updated: userId=${saved.id}" }
 
         return saved.toDto()
     }

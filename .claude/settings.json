@@ -1,0 +1,54 @@
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "mcp__ide__getDiagnostics",
+      "Bash(./gradlew *)",
+      "Bash(./scripts/*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(git stash*)",
+      "Bash(gh *)",
+      "Bash(ls *)",
+      "Bash(cd *)",
+      "Bash(which *)",
+      "Bash(wc *)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
+      "Bash(open *)",
+      "Bash(adb *)",
+      "Bash(xcrun *)",
+      "Bash(xcodebuild *)",
+      "Bash(pod *)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(git checkout*)",
+      "Bash(git reset*)",
+      "Bash(git rebase*)",
+      "Bash(git merge*)",
+      "Bash(git cherry-pick*)",
+      "Bash(rm *)",
+      "Bash(mv *)",
+      "Bash(curl *)",
+      "Bash(npm *)",
+      "Bash(npx *)"
+    ]
+  },
+  "enabledPlugins": {
+    "everything-claude-code@everything-claude-code": true
+  }
+}

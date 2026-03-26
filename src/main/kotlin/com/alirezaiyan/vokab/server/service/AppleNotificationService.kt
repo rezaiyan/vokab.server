@@ -134,10 +134,9 @@ class AppleNotificationService(
      * User stopped sharing their email or switched to private relay
      */
     private fun handleEmailDisabled(user: com.alirezaiyan.vokab.server.domain.entity.User, event: EmailDisabledEvent?) {
-        logger.info { "Email disabled for user: ${user.email}" }
-        
+        logger.info { "Email disabled for userId=${user.id}" }
+
         if (event != null) {
-            logger.info { "  Previous email: ${event.email}" }
             logger.info { "  Was private relay: ${event.is_private_email}" }
         }
         
@@ -157,19 +156,18 @@ class AppleNotificationService(
      * User started sharing their real email
      */
     private fun handleEmailEnabled(user: com.alirezaiyan.vokab.server.domain.entity.User, event: EmailEnabledEvent?) {
-        logger.info { "Email enabled for user: ${user.email}" }
-        
+        logger.info { "Email enabled for userId=${user.id}" }
+
         if (event != null) {
-            logger.info { "  New email: ${event.email}" }
             logger.info { "  Is private relay: ${event.is_private_email}" }
-            
+
             // Update user with the new email
             val updatedUser = user.copy(
                 email = event.email,
                 updatedAt = Instant.now()
             )
             userRepository.save(updatedUser)
-            logger.info { "✅ Updated user email to: ${event.email}" }
+            logger.info { "✅ Updated user email" }
         }
     }
     
@@ -178,7 +176,7 @@ class AppleNotificationService(
      * User revoked app's access - we should deactivate their account
      */
     private fun handleConsentRevoked(user: com.alirezaiyan.vokab.server.domain.entity.User, event: ConsentRevokedEvent?) {
-        logger.info { "Consent revoked for user: ${user.email}" }
+        logger.info { "Consent revoked for userId=${user.id}" }
         logger.info { "  Reason: ${event?.reason ?: "Not provided"}" }
         
         // CRITICAL FIX: Send push notification to all devices before deactivating account
@@ -216,7 +214,7 @@ class AppleNotificationService(
      * According to Apple's guidelines, we should delete user data
      */
     private fun handleAccountDelete(user: com.alirezaiyan.vokab.server.domain.entity.User, event: AccountDeleteEvent?) {
-        logger.info { "Account deletion requested for user: ${user.email}, reason: ${event?.reason ?: "Not provided"}" }
+        logger.info { "Account deletion requested for userId=${user.id}, reason: ${event?.reason ?: "Not provided"}" }
 
         // Delegate to the shared hard-delete flow (push notification + Firebase + RevenueCat + all local data)
         authService.deleteAccount(user.id!!)

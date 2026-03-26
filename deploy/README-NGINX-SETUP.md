@@ -1,6 +1,6 @@
 # Nginx + HTTPS setup for vokab.alirezaiyan.com
 
-Run these on the VPS (e.g. root@148.230.109.213). Assumes Debian/Ubuntu.
+Run these on the VPS (e.g. root@alirezaiyan.com). Assumes Debian/Ubuntu.
 
 ## 1. Install nginx and Certbot
 

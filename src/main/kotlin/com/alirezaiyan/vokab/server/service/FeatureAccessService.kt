@@ -28,15 +28,15 @@ class FeatureAccessService(
                 // Check if subscription has expired
                 val expiresAt = user.subscriptionExpiresAt
                 if (expiresAt != null && expiresAt.isBefore(Instant.now())) {
-                    logger.info { "Subscription expired for user ${user.email} at $expiresAt" }
+                    logger.info { "Subscription expired for userId=${user.id} at $expiresAt" }
                     false
                 } else {
-                    logger.debug { "User ${user.email} has active premium access (${user.subscriptionStatus})" }
+                    logger.debug { "userId=${user.id} has active premium access (${user.subscriptionStatus})" }
                     true
                 }
             }
             SubscriptionStatus.EXPIRED, SubscriptionStatus.CANCELLED, SubscriptionStatus.FREE -> {
-                logger.debug { "User ${user.email} does not have premium access (${user.subscriptionStatus})" }
+                logger.debug { "userId=${user.id} does not have premium access (${user.subscriptionStatus})" }
                 false
             }
         }

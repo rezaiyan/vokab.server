@@ -64,7 +64,7 @@ class AuthService(
         val email = firebaseToken.email
             ?: throw IllegalArgumentException("Email not found in Firebase token")
 
-        logger.info { "Authenticating user: $email" }
+        logger.info { "Authenticating user" }
 
         val user = findOrCreateUser(firebaseToken)
         val isNewUser = user.id == null
@@ -73,7 +73,7 @@ class AuthService(
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
-        logger.info { "✅ User authenticated: ${savedUser.email}" }
+        logger.info { "✅ User authenticated: userId=${savedUser.id}" }
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "Google", null, null)
         if (isNewUser) {
             eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "google"))
@@ -119,7 +119,7 @@ class AuthService(
         // Generate fallback email if email is not available
         val resolvedEmail = email ?: "apple_${resolvedAppleId.replace(".", "_").replace(" ", "_")}@apple.hidden"
 
-        logger.info { "Authenticating user with Apple: appleId=$resolvedAppleId, email=${if (email != null) email else "hidden (using fallback)"}" }
+        logger.info { "Authenticating user with Apple: appleId=$resolvedAppleId" }
 
         val user = findOrCreateAppleUser(resolvedAppleId, resolvedEmail, fullName, email == null)
         val isNewUser = user.id == null
@@ -128,7 +128,7 @@ class AuthService(
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
-        logger.info { "✅ User authenticated with Apple: ${savedUser.email}" }
+        logger.info { "✅ User authenticated with Apple: userId=${savedUser.id}" }
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "Apple", null, null)
         if (isNewUser) {
             eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "apple"))
@@ -150,7 +150,7 @@ class AuthService(
     @Transactional
     fun authenticateForCi(): AuthResponse {
         val email = appProperties.ciAuth.testEmail
-        logger.info { "CI authentication for test user: $email" }
+        logger.info { "CI authentication for test user" }
 
         val user = userRepository.findByEmail(email)
             .map { existingUser ->
@@ -162,7 +162,7 @@ class AuthService(
                 )
             }
             .orElseGet {
-                logger.info { "Creating new CI test user: $email" }
+                logger.info { "Creating new CI test user" }
                 applyTestUserPremiumAccess(
                     User(
                         email = email,
@@ -176,7 +176,7 @@ class AuthService(
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
-        logger.info { "CI test user authenticated: ${savedUser.email}" }
+        logger.info { "CI test user authenticated: userId=${savedUser.id}" }
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "CI", null, null)
 
         return AuthResponse(
@@ -210,7 +210,7 @@ class AuthService(
             return user
         }
 
-        logger.info { "Granting premium access to test user: ${user.email}" }
+        logger.info { "Granting premium access to test user: userId=${user.id}" }
 
         // Set subscription to ACTIVE with a far future expiry date (100 years from now)
         val farFutureExpiry = Instant.now().plusSeconds(100L * 365 * 24 * 60 * 60)
@@ -243,7 +243,7 @@ class AuthService(
                 // Check if user exists with this email (account linking)
                 userRepository.findByEmail(email)
                     .map { existingUser ->
-                        logger.info { "Linking Google account to existing user: $email" }
+                        logger.info { "Linking Google account to existing userId=${existingUser.id}" }
                         applyTestUserPremiumAccess(
                             existingUser.copy(
                                 googleId = googleId,
@@ -255,7 +255,7 @@ class AuthService(
                     }
                     .orElseGet {
                         // Create new user
-                        logger.info { "Creating new user: $email" }
+                        logger.info { "Creating new user" }
                         applyTestUserPremiumAccess(
                             User(
                                 email = email,
@@ -288,7 +288,7 @@ class AuthService(
                 // User found by Apple ID - update last login time and apply test user premium access
                 // If email changed and was previously hidden, update it
                 if (emailHidden && existingUser.email != email) {
-                    logger.info { "Updating fallback email for Apple user: ${existingUser.email} -> $email" }
+                    logger.info { "Updating fallback email for Apple userId=${existingUser.id}" }
                     applyTestUserPremiumAccess(
                         existingUser.copy(
                             email = email,
@@ -310,7 +310,7 @@ class AuthService(
                 if (!emailHidden) {
                     userRepository.findByEmail(email)
                         .map { existingUser ->
-                            logger.info { "Linking Apple account to existing user: $email" }
+                            logger.info { "Linking Apple account to userId=${existingUser.id}" }
                             applyTestUserPremiumAccess(
                                 existingUser.copy(
                                     appleId = appleId,
@@ -322,7 +322,7 @@ class AuthService(
                         }
                         .orElseGet {
                             // Create new user
-                            logger.info { "Creating new user with Apple: $email" }
+                            logger.info { "Creating new user with Apple" }
                             applyTestUserPremiumAccess(
                                 User(
                                     email = email,
@@ -335,7 +335,7 @@ class AuthService(
                 } else {
                     // Email is hidden, so we can't use email for account linking
                     // Create new user with Apple ID
-                    logger.info { "Creating new user with Apple (email hidden): $email" }
+                    logger.info { "Creating new user with Apple (email hidden)" }
                     applyTestUserPremiumAccess(
                         User(
                             email = email,
@@ -437,7 +437,7 @@ class AuthService(
         )
         refreshTokenRepository.save(updatedOldToken)
 
-        logger.info { "✅ Tokens rotated for user: ${user.email}" }
+        logger.info { "✅ Tokens rotated for userId=${user.id}" }
         auditLogService.logRefresh(user.id!!, user.email, "N/A", null, null)
         
         return AuthResponse(
@@ -529,11 +529,9 @@ class AuthService(
     @Transactional
     fun deleteAccount(userId: Long) {
         logger.info { "Deleting account for user: $userId" }
-        
+
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("User not found") }
-        
-        logger.info { "Deleting account for email: ${user.email}" }
 
         // Delete Firebase Auth account so the user cannot sign back in silently
         if (user.googleId != null) {
@@ -639,7 +637,7 @@ class AuthService(
         auditLogService.logAccountDeletion(userId, user.email, null)
 
         userRepository.delete(user)
-        logger.info { "✅ Account deleted successfully for user: $userId (${user.email})" }
+        logger.info { "✅ Account deleted successfully for userId=$userId" }
     }
     
     /**
@@ -655,7 +653,7 @@ class AuthService(
             
             val decodedToken = FirebaseAuth.getInstance().verifyIdToken(idTokenString)
             
-            logger.debug { "✅ Token verified - UID: ${decodedToken.uid}, Email: ${decodedToken.email}" }
+            logger.debug { "✅ Token verified - UID: ${decodedToken.uid}" }
             decodedToken
             
         } catch (e: Exception) {
@@ -736,7 +734,7 @@ class AuthService(
             claimsMap["exp"] = claims.expiration.time / 1000
             claimsMap["iat"] = claims.issuedAt?.time?.div(1000) ?: 0
             
-            logger.info { "✅ Apple token signature verified - Sub: ${claims.subject}, Email: ${claims["email"]}" }
+            logger.info { "✅ Apple token signature verified - Sub: ${claims.subject}" }
             
             claimsMap
             

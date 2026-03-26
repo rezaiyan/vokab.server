@@ -16,7 +16,7 @@ class AuditLogService(
 
     @Async
     fun logLogin(userId: Long, email: String, provider: String, ipAddress: String?, userAgent: String?) {
-        logger.info { "AUDIT: LOGIN userId=$userId email=$email provider=$provider ip=$ipAddress" }
+        logger.info { "AUDIT: LOGIN userId=$userId provider=$provider ip=$ipAddress" }
         save(
             eventType = AuditEventType.LOGIN,
             userId = userId,
@@ -87,7 +87,7 @@ class AuditLogService(
 
     // Not @Async — account deletion audit must be committed before the user row is deleted
     fun logAccountDeletion(userId: Long, email: String, ipAddress: String?) {
-        logger.warn { "AUDIT: ACCOUNT_DELETION userId=$userId email=$email ip=$ipAddress" }
+        logger.warn { "AUDIT: ACCOUNT_DELETION userId=$userId ip=$ipAddress" }
         save(
             eventType = AuditEventType.ACCOUNT_DELETION,
             userId = userId,

@@ -36,7 +36,7 @@ class StreakService(
             val activity = existingActivity.get()
             activity.reviewCount += count
             dailyActivityRepository.save(activity)
-            logger.debug { "Updated review count for user ${user.email} on $today, count=${activity.reviewCount}" }
+            logger.debug { "Updated review count for userId=${user.id} on $today, count=${activity.reviewCount}" }
 
             // Return user as-is (streak already updated when first activity was recorded today)
             return user
@@ -48,7 +48,7 @@ class StreakService(
                 reviewCount = count
             )
             dailyActivityRepository.save(newActivity)
-            logger.info { "✅ Recorded new activity for user ${user.email} on $today, count=$count" }
+            logger.info { "✅ Recorded new activity for userId=${user.id} on $today, count=$count" }
 
             // Update streak based on last activity
             val updatedUser = updateStreakOnNewActivity(user, today)
@@ -106,7 +106,7 @@ class StreakService(
         )
 
         val saved = userRepository.save(updatedUser)
-        logger.info { "✅ Streak updated for ${user.email}: current=$newCurrentStreak, longest=$newLongestStreak" }
+        logger.info { "✅ Streak updated for userId=${user.id}: current=$newCurrentStreak, longest=$newLongestStreak" }
         
         return saved
     }
@@ -132,7 +132,7 @@ class StreakService(
                 currentStreak = calculatedStreak
             )
             userRepository.save(updatedUser)
-            logger.debug { "Updated streak for ${user.email}: current=$calculatedStreak" }
+            logger.debug { "Updated streak for userId=${user.id}: current=$calculatedStreak" }
         }
 
         return StreakInfo(
