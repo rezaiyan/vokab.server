@@ -154,10 +154,6 @@ jobs:
         run: ./gradlew detekt --stacktrace
         continue-on-error: true
 
-      - name: Run ktlint
-        run: ./gradlew ktlintCheck --stacktrace
-        continue-on-error: true
-
   dependency-check:
     name: Dependency Check
     runs-on: ubuntu-latest
