@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Setup PostgreSQL database for Vokab Server
+# Setup PostgreSQL database for Lexicon Server
 
-echo "🗄️  Setting up PostgreSQL database for Vokab Server"
+echo "🗄️  Setting up PostgreSQL database for Lexicon Server"
 echo ""
 
 # Check if PostgreSQL is installed
@@ -14,9 +14,9 @@ if ! command -v psql &> /dev/null; then
 fi
 
 # Database configuration
-DB_NAME="${DB_NAME:-vokabdb}"
-DB_USER="${DB_USER:-vokab_user}"
-DB_PASSWORD="${DB_PASSWORD:-vokab_password}"
+DB_NAME="${DB_NAME:-lexicondb}"
+DB_USER="${DB_USER:-lexicon_user}"
+DB_PASSWORD="${DB_PASSWORD:-lexicon_password}"
 
 echo "Creating database: $DB_NAME"
 echo "Creating user: $DB_USER"

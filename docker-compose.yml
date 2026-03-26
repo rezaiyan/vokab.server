@@ -4,9 +4,9 @@ services:
     image: postgres:17-alpine
     container_name: lexicon-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-vokabdb}
-      POSTGRES_USER: ${POSTGRES_USER:-vokab_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vokab_password}
+      POSTGRES_DB: ${POSTGRES_DB:-lexicondb}
+      POSTGRES_USER: ${POSTGRES_USER:-lexicon_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lexicon_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # Port 5432 not exposed to host (app reaches postgres via Docker network).
@@ -15,7 +15,7 @@ services:
       - lexicon-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vokab_user -d vokabdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lexicon_user} -d ${POSTGRES_DB:-lexicondb}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,9 +30,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vokabdb}
-      DATABASE_USERNAME: ${POSTGRES_USER:-vokab_user}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-vokab_password}
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-lexicondb}
+      DATABASE_USERNAME: ${POSTGRES_USER:-lexicon_user}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-lexicon_password}
       DATABASE_DRIVER: org.postgresql.Driver
       HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
