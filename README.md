@@ -1,5 +1,7 @@
 # Vokab Server Backend
 
+![Coverage](.github/badges/coverage.svg)
+
 A comprehensive backend service for the Vokab application built with Spring Boot and Kotlin.
 
 ## Features
