@@ -47,16 +47,7 @@ jobs:
 
       - name: Run tests
         run: |
-          ./gradlew test -x integrationTest --stacktrace
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/vokabdb_test
-          SPRING_DATASOURCE_USERNAME: vokab_test
-          SPRING_DATASOURCE_PASSWORD: test_password
-          SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
-
-      - name: Run integration tests
-        run: |
-          ./gradlew integrationTest --stacktrace
+          ./gradlew test --stacktrace
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/vokabdb_test
           SPRING_DATASOURCE_USERNAME: vokab_test
