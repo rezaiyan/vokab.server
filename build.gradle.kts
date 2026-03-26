@@ -122,12 +122,12 @@ tasks.jacocoTestReport {
 				println("Missed:     $missed lines")
 				println("Total:      $total lines")
 				println("Coverage:   $percentage%")
-				println("Threshold:  70%")
+				println("Threshold:  80%")
 				println("============================================")
 				println("")
 				
-				if (percentage < 70) {
-					throw GradleException("Code coverage is below 70% threshold (${percentage}%)")
+				if (percentage < 80) {
+					throw GradleException("Code coverage is below 80% threshold (${percentage}%)")
 				}
 			}
 		}

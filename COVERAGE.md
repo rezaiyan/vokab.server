@@ -1,6 +1,6 @@
 # Code Coverage — Lexicon Server
 
-**Threshold:** 70% line coverage (enforced in CI)
+**Threshold:** 80% line coverage (enforced in CI)
 
 ## Local
 
@@ -22,8 +22,8 @@ open build/reports/jacoco/test/index.html
 
 Coverage is measured and reported on every push and PR:
 
-- ✅ Coverage >= 70% — PR checks pass
-- ⚠️ Coverage < 70% — PR checks fail (must fix before merge)
+- ✅ Coverage >= 80% — PR checks pass
+- ⚠️ Coverage < 80% — PR checks fail (must fix before merge)
 - 📊 Coverage report uploaded to GitHub Actions artifacts
 - 💬 Coverage percentage commented on PR
 
@@ -49,9 +49,9 @@ After running tests, check `build/reports/jacoco/test/index.html`:
 
 | Package | Target | Status |
 |---------|--------|--------|
-| `com.alirezaiyan.vokab.server.controller` | 80%+ | ? |
-| `com.alirezaiyan.vokab.server.service` | 80%+ | ? |
-| `com.alirezaiyan.vokab.server.repository` | 70%+ | ? |
+| `com.alirezaiyan.vokab.server.controller` | 85%+ | ? |
+| `com.alirezaiyan.vokab.server.service` | 85%+ | ? |
+| `com.alirezaiyan.vokab.server.repository` | 80%+ | ? |
 | `com.alirezaiyan.vokab.server.security` | 90%+ | ? |
 
 ---
