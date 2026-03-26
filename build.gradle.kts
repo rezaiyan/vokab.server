@@ -111,11 +111,8 @@ tasks.jacocoTestReport {
 			}
 		}))
 	}
-}
-
-// Coverage verification task
-tasks.register("jacocoTestCoverageVerification") {
-	dependsOn(tasks.jacocoTestReport)
+	
+	// Print coverage after report is generated
 	doLast {
 		val report = file("$buildDir/reports/jacoco/test/jacocoTestReport.xml")
 		
@@ -148,13 +145,11 @@ tasks.register("jacocoTestCoverageVerification") {
 					throw GradleException("Code coverage is below 70% threshold (${percentage}%)")
 				}
 			}
-		} else {
-			println("JaCoCo report not found at ${report.absolutePath}")
 		}
 	}
 }
 
-// Run coverage verification after tests
+// Run report after tests
 tasks.test {
-	finalizedBy("jacocoTestCoverageVerification")
+	finalizedBy(tasks.jacocoTestReport)
 }
