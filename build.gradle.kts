@@ -4,6 +4,7 @@ plugins {
 	kotlin("plugin.jpa") version "1.9.25"
 	id("org.springframework.boot") version "3.5.6"
 	id("io.spring.dependency-management") version "1.1.7"
+	jacoco
 }
 
 group = "com.alirezaiyan"
@@ -84,4 +85,76 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	finalizedBy(tasks.jacocoTestReport)
+}
+
+// JaCoCo configuration
+tasks.jacocoTestReport {
+	dependsOn(tasks.test)
+	reports {
+		xml.required = true
+		html.required = true
+		csv.required = false
+	}
+	
+	// Exclude generated code and framework boilerplate
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.map { dir ->
+			fileTree(dir) {
+				exclude(
+					"**/config/**",
+					"**/entity/**",
+					"**/dto/**",
+					"**/Application.class",
+					"**/ApplicationKt.class"
+				)
+			}
+		}))
+	}
+}
+
+// Coverage verification task
+tasks.register("jacocoTestCoverageVerification") {
+	dependsOn(tasks.jacocoTestReport)
+	doLast {
+		val report = file("$buildDir/reports/jacoco/test/jacocoTestReport.xml")
+		
+		if (report.exists()) {
+			val content = report.readText()
+			
+			// Parse line coverage from XML
+			val lineRegex = """<counter type="LINE" missed="(\d+)" covered="(\d+)"/>""".toRegex()
+			val match = lineRegex.find(content)
+			
+			if (match != null) {
+				val missed = match.groupValues[1].toInt()
+				val covered = match.groupValues[2].toInt()
+				val total = missed + covered
+				val percentage = if (total > 0) (covered * 100) / total else 0
+				
+				println("")
+				println("============================================")
+				println("Code Coverage Report (Line Coverage)")
+				println("============================================")
+				println("Covered:    $covered lines")
+				println("Missed:     $missed lines")
+				println("Total:      $total lines")
+				println("Coverage:   $percentage%")
+				println("Threshold:  70%")
+				println("============================================")
+				println("")
+				
+				if (percentage < 70) {
+					throw GradleException("Code coverage is below 70% threshold (${percentage}%)")
+				}
+			}
+		} else {
+			println("JaCoCo report not found at ${report.absolutePath}")
+		}
+	}
+}
+
+// Run coverage verification after tests
+tasks.test {
+	finalizedBy("jacocoTestCoverageVerification")
 }
