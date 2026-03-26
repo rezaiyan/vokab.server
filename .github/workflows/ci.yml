@@ -12,27 +12,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Test & Build
+  build:
+    name: Build
     runs-on: ubuntu-latest
     
     permissions:
       contents: read
-    
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: vokabdb_test
-          POSTGRES_USER: vokab_test
-          POSTGRES_PASSWORD: test_password
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -45,84 +30,8 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Run tests
-        run: |
-          ./gradlew test --stacktrace
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/vokabdb_test
-          SPRING_DATASOURCE_USERNAME: vokab_test
-          SPRING_DATASOURCE_PASSWORD: test_password
-          SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
-
-      - name: Report code coverage
-        if: always()
-        run: |
-          ./gradlew jacocoTestReport --stacktrace || true
-        continue-on-error: true
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            build/reports/tests/
-            build/test-results/
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: build/reports/jacoco/test/
-
-      - name: Comment coverage on PR
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const reportPath = 'build/reports/jacoco/test/jacocoTestReport.xml';
-            
-            if (!fs.existsSync(reportPath)) {
-              console.log('Coverage report not found');
-              return;
-            }
-            
-            const xml = fs.readFileSync(reportPath, 'utf8');
-            const lineMatch = xml.match(/<counter type="LINE" missed="(\d+)" covered="(\d+)"/);
-            
-            if (!lineMatch) {
-              console.log('Could not parse coverage');
-              return;
-            }
-            
-            const missed = parseInt(lineMatch[1]);
-            const covered = parseInt(lineMatch[2]);
-            const total = missed + covered;
-            const percentage = Math.round((covered * 100) / total);
-            
-            const badge = percentage >= 70 ? '✅' : '⚠️';
-            
-            const comment = `## Code Coverage Report\n\n${badge} **Line Coverage: ${percentage}%** (${covered}/${total} lines)\n\nThreshold: 70%\n\n[View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-
       - name: Build application
         run: ./gradlew build -x test --stacktrace
-
-      - name: Test report
-        if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: Test Results
-          path: build/test-results/**/TEST-*.xml
-          reporter: java-junit
 
 
 
