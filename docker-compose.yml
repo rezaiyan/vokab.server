@@ -2,7 +2,7 @@ services:
   # PostgreSQL Database (for production-like testing)
   postgres:
     image: postgres:17-alpine
-    container_name: vokab-postgres
+    container_name: lexicon-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vokabdb}
       POSTGRES_USER: ${POSTGRES_USER:-vokab_user}
@@ -12,7 +12,7 @@ services:
     # Port 5432 not exposed to host (app reaches postgres via Docker network).
     # Remove conflict if host PostgreSQL or another service uses 5432.
     networks:
-      - vokab-network
+      - lexicon-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vokab_user -d vokabdb"]
@@ -20,12 +20,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # Vokab Server Application
+  # Lexicon Server Application
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vokab-server
+    container_name: lexicon-server
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,7 +65,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"  # Localhost only; use nginx (HTTPS) for external access
     networks:
-      - vokab-network
+      - lexicon-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
@@ -77,7 +77,7 @@ services:
   # Metabase Analytics Dashboard
   metabase:
     image: metabase/metabase:latest
-    container_name: vokab-metabase
+    container_name: lexicon-metabase
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,7 +89,7 @@ services:
     ports:
       - "127.0.0.1:3001:3000"
     networks:
-      - vokab-network
+      - lexicon-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
@@ -105,6 +105,5 @@ volumes:
   metabase_data:  # Persist Metabase settings and dashboards
 
 networks:
-  vokab-network:
+  lexicon-network:
     driver: bridge
-

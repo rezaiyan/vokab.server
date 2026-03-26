@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start production server with PostgreSQL
-echo "🚀 Starting Vokab Server in production mode..."
+echo "🚀 Starting Lexicon Server in production mode..."
 echo ""
 
 # Check if .env file exists
@@ -55,7 +55,7 @@ fi
 
 # Start the server
 echo "🚀 Starting production server..."
-java -jar build/libs/vokab.server-0.0.1-SNAPSHOT.jar
+java -jar build/libs/lexicon.server-0.0.1-SNAPSHOT.jar
 
 echo ""
 echo "✅ Server started successfully!"

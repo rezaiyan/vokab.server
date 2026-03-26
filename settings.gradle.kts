@@ -1,1 +1,1 @@
-rootProject.name = "vokab.server"
+rootProject.name = "lexicon.server"

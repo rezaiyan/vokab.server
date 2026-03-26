@@ -8,7 +8,7 @@ plugins {
 
 group = "com.alirezaiyan"
 version = "0.0.1-SNAPSHOT"
-description = "Vokab Server Application"
+description = "Lexicon Server Application"
 
 java {
 	toolchain {
