@@ -97,21 +97,6 @@ tasks.jacocoTestReport {
 		csv.required = false
 	}
 	
-	// Exclude generated code and framework boilerplate
-	afterEvaluate {
-		classDirectories.setFrom(files(classDirectories.files.map { dir ->
-			fileTree(dir) {
-				exclude(
-					"**/config/**",
-					"**/entity/**",
-					"**/dto/**",
-					"**/Application.class",
-					"**/ApplicationKt.class"
-				)
-			}
-		}))
-	}
-	
 	// Print coverage after report is generated
 	doLast {
 		val report = file("$buildDir/reports/jacoco/test/jacocoTestReport.xml")
