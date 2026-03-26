@@ -35,6 +35,50 @@ jobs:
 
 
 
+  coverage:
+    name: Coverage Badge
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Run tests and generate JaCoCo report
+        run: ./gradlew test jacocoTestReport
+
+      - name: Update Gist badge
+        env:
+          GH_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+        run: |
+          python3 - <<'PYEOF'
+          import xml.etree.ElementTree as ET, json, subprocess, os
+
+          root = ET.parse('build/reports/jacoco/test/jacocoTestReport.xml').getroot()
+          c = next(e for e in root.findall('counter') if e.get('type') == 'LINE')
+          pct = int(int(c.get('covered')) * 100 / (int(c.get('missed')) + int(c.get('covered'))))
+          color = 'brightgreen' if pct >= 80 else ('yellow' if pct >= 70 else 'red')
+
+          badge = json.dumps({"schemaVersion": 1, "label": "coverage", "message": f"{pct}%", "color": color})
+          patch = json.dumps({"files": {"lexicon-coverage.json": {"content": badge}}})
+
+          subprocess.run(
+              ['gh', 'api', '--method', 'PATCH', f'/gists/{os.environ["GIST_ID"]}', '--input', '-'],
+              input=patch, text=True, check=True
+          )
+          print(f"Coverage badge updated: {pct}% ({color})")
+          PYEOF
+
   dependency-check:
     name: Dependency Check
     runs-on: ubuntu-latest

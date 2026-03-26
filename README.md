@@ -1,6 +1,6 @@
 # Vokab Server Backend
 
-![Coverage](.github/badges/coverage.svg)
+![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/rezaiyan/YOUR_GIST_ID/raw/lexicon-coverage.json)
 
 A comprehensive backend service for the Vokab application built with Spring Boot and Kotlin.
 
