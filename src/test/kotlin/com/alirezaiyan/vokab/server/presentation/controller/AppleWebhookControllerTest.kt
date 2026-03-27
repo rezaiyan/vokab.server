@@ -3,20 +3,26 @@ package com.alirezaiyan.vokab.server.presentation.controller
 import com.alirezaiyan.vokab.server.presentation.dto.AppleServerNotification
 import com.alirezaiyan.vokab.server.service.AppleNotificationService
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.mock.MockBean
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
 
-@WebMvcTest(AppleWebhookController::class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(ControllerTestSecurityConfig::class)
 class AppleWebhookControllerTest {
 
     @Autowired
@@ -25,18 +31,21 @@ class AppleWebhookControllerTest {
     @Autowired
     private lateinit var objectMapper: ObjectMapper
 
-    @MockBean
+    @MockitoBean
     private lateinit var appleNotificationService: AppleNotificationService
 
     private val validJwt = "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3Qta2V5In0.eyJzdWIiOiJhcHBsZS11c2VyLWlkIn0.signature"
     private val malformedJwt = "not-a-valid-jwt"
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> anyArg(): T = ArgumentMatchers.any<T>() as T
 
     // ── POST /api/v1/webhooks/apple: successful processing ────────────────────────
 
     @Test
     fun `should return 200 OK with OK response when notification processed successfully`() {
         val notification = AppleServerNotification(payload = validJwt)
-        every { appleNotificationService.processNotification(validJwt) } returns true
+        `when`(appleNotificationService.processNotification(validJwt)).thenReturn(true)
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -47,20 +56,20 @@ class AppleWebhookControllerTest {
             content { string("OK") }
         }
 
-        verify { appleNotificationService.processNotification(validJwt) }
+        verify(appleNotificationService).processNotification(validJwt)
     }
 
     @Test
     fun `should call service with correct payload`() {
         val notification = AppleServerNotification(payload = validJwt)
-        every { appleNotificationService.processNotification(validJwt) } returns true
+        `when`(appleNotificationService.processNotification(validJwt)).thenReturn(true)
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(notification)
         }
 
-        verify(exactly = 1) { appleNotificationService.processNotification(validJwt) }
+        verify(appleNotificationService).processNotification(validJwt)
     }
 
     // ── POST /api/v1/webhooks/apple: service returns false ────────────────────────
@@ -68,7 +77,7 @@ class AppleWebhookControllerTest {
     @Test
     fun `should return 200 FAILED when service returns false`() {
         val notification = AppleServerNotification(payload = malformedJwt)
-        every { appleNotificationService.processNotification(malformedJwt) } returns false
+        `when`(appleNotificationService.processNotification(malformedJwt)).thenReturn(false)
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -85,7 +94,8 @@ class AppleWebhookControllerTest {
     @Test
     fun `should return 200 ERROR when service throws exception`() {
         val notification = AppleServerNotification(payload = "bad-payload")
-        every { appleNotificationService.processNotification("bad-payload") } throws RuntimeException("JWT verification failed")
+        `when`(appleNotificationService.processNotification("bad-payload"))
+            .thenThrow(RuntimeException("JWT verification failed"))
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -100,7 +110,8 @@ class AppleWebhookControllerTest {
     @Test
     fun `should catch and handle NullPointerException gracefully`() {
         val notification = AppleServerNotification(payload = "null-causing-payload")
-        every { appleNotificationService.processNotification("null-causing-payload") } throws NullPointerException("Unexpected null value")
+        `when`(appleNotificationService.processNotification("null-causing-payload"))
+            .thenThrow(NullPointerException("Unexpected null value"))
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -115,7 +126,8 @@ class AppleWebhookControllerTest {
     @Test
     fun `should catch and handle IllegalArgumentException gracefully`() {
         val notification = AppleServerNotification(payload = "invalid-payload")
-        every { appleNotificationService.processNotification("invalid-payload") } throws IllegalArgumentException("Invalid payload format")
+        `when`(appleNotificationService.processNotification("invalid-payload"))
+            .thenThrow(IllegalArgumentException("Invalid payload format"))
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -144,7 +156,7 @@ class AppleWebhookControllerTest {
     fun `health check should not call service`() {
         mockMvc.get("/api/v1/webhooks/apple")
 
-        verify(exactly = 0) { appleNotificationService.processNotification(any()) }
+        verify(appleNotificationService, never()).processNotification(anyArg())
     }
 
     // ── POST /api/v1/webhooks/apple: edge cases ──────────────────────────────────
@@ -152,7 +164,7 @@ class AppleWebhookControllerTest {
     @Test
     fun `should handle empty payload gracefully`() {
         val notification = AppleServerNotification(payload = "")
-        every { appleNotificationService.processNotification("") } returns false
+        `when`(appleNotificationService.processNotification("")).thenReturn(false)
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -168,7 +180,7 @@ class AppleWebhookControllerTest {
     fun `should handle very long payload`() {
         val longPayload = "a".repeat(10000)
         val notification = AppleServerNotification(payload = longPayload)
-        every { appleNotificationService.processNotification(longPayload) } returns false
+        `when`(appleNotificationService.processNotification(longPayload)).thenReturn(false)
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -182,9 +194,8 @@ class AppleWebhookControllerTest {
 
     @Test
     fun `should handle null payload gracefully`() {
-        // Send a request without the payload field
+        // Send a request without the payload field — expects 400 from JSON deserialization
         val jsonBody = "{}"
-        every { appleNotificationService.processNotification(any()) } returns false
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -201,8 +212,8 @@ class AppleWebhookControllerTest {
         val notification1 = AppleServerNotification(payload = "jwt-1")
         val notification2 = AppleServerNotification(payload = "jwt-2")
 
-        every { appleNotificationService.processNotification("jwt-1") } returns true
-        every { appleNotificationService.processNotification("jwt-2") } returns false
+        `when`(appleNotificationService.processNotification("jwt-1")).thenReturn(true)
+        `when`(appleNotificationService.processNotification("jwt-2")).thenReturn(false)
 
         mockMvc.post("/api/v1/webhooks/apple") {
             contentType = MediaType.APPLICATION_JSON
@@ -220,7 +231,7 @@ class AppleWebhookControllerTest {
             content { string("FAILED") }
         }
 
-        verify(exactly = 1) { appleNotificationService.processNotification("jwt-1") }
-        verify(exactly = 1) { appleNotificationService.processNotification("jwt-2") }
+        verify(appleNotificationService).processNotification("jwt-1")
+        verify(appleNotificationService).processNotification("jwt-2")
     }
 }
