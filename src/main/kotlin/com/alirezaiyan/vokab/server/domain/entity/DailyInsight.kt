@@ -4,7 +4,10 @@ import jakarta.persistence.*
 import java.time.Instant
 
 @Entity
-@Table(name = "daily_insights")
+@Table(
+    name = "daily_insights",
+    uniqueConstraints = [UniqueConstraint(columnNames = ["user_id", "date"])]
+)
 data class DailyInsight(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

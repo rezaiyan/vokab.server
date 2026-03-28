@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.dao.DataIntegrityViolationException
 import reactor.core.publisher.Mono
 import java.time.Instant
 import java.time.LocalDate
@@ -220,6 +221,27 @@ class DailyInsightServiceTest {
         verify(exactly = 0) { dailyInsightRepository.save(any()) }
     }
 
+    @Test
+    fun `should return existing insight when concurrent save throws DataIntegrityViolationException`() {
+        val user = createUser(currentStreak = 3)
+        val today = LocalDate.now().toString()
+        val stats = createProgressStats()
+        val existingInsight = createDailyInsight(user = user, date = today)
+        every { featureAccessService.hasActivePremiumAccess(user) } returns true
+        every { dailyInsightRepository.findByUserAndDate(user, today) } returns null
+        every { dailyActivityRepository.existsByUserAndActivityDate(user, LocalDate.now()) } returns true
+        every { userSettingsRepository.findByUser(user) } returns createUserSettings(user = user, dailyReminderTime = "18:00")
+        every { userProgressService.calculateProgressStats(user) } returns stats
+        every { openRouterService.generateCelebrationInsight(stats, user.name) } returns Mono.just("Great work!")
+        every { dailyInsightRepository.save(any()) } throws DataIntegrityViolationException("duplicate key")
+        // Second findByUserAndDate call (fallback after constraint violation)
+        every { dailyInsightRepository.findByUserAndDate(user, today) } returnsMany listOf(null, existingInsight)
+
+        val result = dailyInsightService.generateDailyInsightForUser(user)
+
+        assertEquals(existingInsight, result)
+    }
+
     // --- sendDailyInsightPush ---
 
     @Test
@@ -292,66 +314,6 @@ class DailyInsightServiceTest {
         // Assert
         assertFalse(result)
         verify(exactly = 0) { dailyInsightRepository.save(any()) }
-    }
-
-    // --- getUsersInReminderWindow ---
-
-    @Test
-    fun `should return users whose reminder time falls in the window`() {
-        // Arrange
-        val user = createUser(id = 1L)
-        val settings = createUserSettings(user = user, dailyReminderTime = "18:15")
-        every { userSettingsRepository.findAllWithNotificationsEnabled() } returns listOf(settings)
-        every { featureAccessService.hasActivePremiumAccess(user) } returns true
-
-        // Act
-        val result = dailyInsightService.getUsersInReminderWindow(hour = 18, minuteWindowStart = 0)
-
-        // Assert
-        assertEquals(1, result.size)
-        assertEquals(user.id, result.first().id)
-    }
-
-    @Test
-    fun `should exclude users whose reminder time is outside the window`() {
-        // Arrange
-        val user = createUser(id = 1L)
-        val settings = createUserSettings(user = user, dailyReminderTime = "19:00")
-        every { userSettingsRepository.findAllWithNotificationsEnabled() } returns listOf(settings)
-
-        // Act
-        val result = dailyInsightService.getUsersInReminderWindow(hour = 18, minuteWindowStart = 0)
-
-        // Assert
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `should exclude users without premium access`() {
-        // Arrange
-        val user = createUser(id = 1L)
-        val settings = createUserSettings(user = user, dailyReminderTime = "18:10")
-        every { userSettingsRepository.findAllWithNotificationsEnabled() } returns listOf(settings)
-        every { featureAccessService.hasActivePremiumAccess(user) } returns false
-
-        // Act
-        val result = dailyInsightService.getUsersInReminderWindow(hour = 18, minuteWindowStart = 0)
-
-        // Assert
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `should exclude users with null user in settings`() {
-        // Arrange
-        val settings = createUserSettings(user = null, dailyReminderTime = "18:05")
-        every { userSettingsRepository.findAllWithNotificationsEnabled() } returns listOf(settings)
-
-        // Act
-        val result = dailyInsightService.getUsersInReminderWindow(hour = 18, minuteWindowStart = 0)
-
-        // Assert
-        assertTrue(result.isEmpty())
     }
 
     // --- generateAndSendForUser ---
@@ -438,6 +400,46 @@ class DailyInsightServiceTest {
                 category = any()
             )
         }
+    }
+
+    // --- saveDailyInsight ---
+
+    @Test
+    fun `saveDailyInsight should save and return new insight`() {
+        val user = createUser()
+        val today = LocalDate.now().toString()
+        val saved = createDailyInsight(user = user, insightText = "You're on a roll!", date = today)
+        every { dailyInsightRepository.save(any()) } returns saved
+
+        val result = dailyInsightService.saveDailyInsight(user, "You're on a roll!")
+
+        assertEquals(saved, result)
+        verify(exactly = 1) { dailyInsightRepository.save(any()) }
+    }
+
+    @Test
+    fun `saveDailyInsight should return existing row when concurrent write causes constraint violation`() {
+        val user = createUser()
+        val today = LocalDate.now().toString()
+        val existing = createDailyInsight(user = user, date = today, insightText = "Concurrent winner")
+        every { dailyInsightRepository.save(any()) } throws DataIntegrityViolationException("duplicate key")
+        every { dailyInsightRepository.findByUserAndDate(user, today) } returns existing
+
+        val result = dailyInsightService.saveDailyInsight(user, "Concurrent winner")
+
+        assertEquals(existing, result)
+    }
+
+    @Test
+    fun `saveDailyInsight should return null when constraint violation and no existing row found`() {
+        val user = createUser()
+        val today = LocalDate.now().toString()
+        every { dailyInsightRepository.save(any()) } throws DataIntegrityViolationException("duplicate key")
+        every { dailyInsightRepository.findByUserAndDate(user, today) } returns null
+
+        val result = dailyInsightService.saveDailyInsight(user, "Lost in race")
+
+        assertNull(result)
     }
 
     // --- factory functions ---

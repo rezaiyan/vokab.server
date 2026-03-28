@@ -96,7 +96,8 @@ CREATE TABLE daily_insights (
     date VARCHAR(10) NOT NULL,
     sent_via_push BOOLEAN NOT NULL DEFAULT FALSE,
     push_sent_at TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT uq_daily_insights_user_date UNIQUE (user_id, date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_insights_user_id ON daily_insights(user_id);

@@ -12,31 +12,27 @@ interface WordRushGameRepository : JpaRepository<WordRushGame, Long> {
 
     fun existsByUserAndClientGameId(user: User, clientGameId: String): Boolean
 
-    fun countByUser(user: User): Long
-
-    fun countByUserAndCompletedNormallyTrue(user: User): Long
-
-    fun findFirstByUserOrderByBestStreakDesc(user: User): WordRushGame?
-
-    @Query("SELECT COALESCE(SUM(g.score), 0) FROM WordRushGame g WHERE g.user = :user")
-    fun sumScoreByUser(@Param("user") user: User): Long
-
-    @Query("SELECT COALESCE(SUM(g.durationMs), 0) FROM WordRushGame g WHERE g.user = :user")
-    fun sumDurationMsByUser(@Param("user") user: User): Long
-
-    @Query("SELECT COALESCE(AVG(CAST(g.score AS double)), 0.0) FROM WordRushGame g WHERE g.user = :user")
-    fun avgScoreByUser(@Param("user") user: User): Double
-
     @Query(
-        "SELECT COALESCE(AVG(CAST(g.correctCount AS double) / NULLIF(g.totalQuestions, 0) * 100), 0.0) " +
-            "FROM WordRushGame g WHERE g.user = :user"
+        value = """
+            SELECT
+                COUNT(*)                                                                            AS totalGames,
+                COALESCE(SUM(CASE WHEN g.completed_normally THEN 1 ELSE 0 END), 0)                 AS totalCompleted,
+                COALESCE(MAX(g.best_streak), 0)                                                     AS bestStreakEver,
+                COALESCE(AVG(CAST(g.score AS DOUBLE)), 0.0)                                         AS avgScore,
+                COALESCE(AVG(CAST(g.correct_count AS DOUBLE) / NULLIF(g.total_questions, 0) * 100), 0.0)
+                                                                                                    AS avgAccuracyPercent,
+                COALESCE(SUM(g.duration_ms), 0)                                                     AS totalTimePlayedMs,
+                COALESCE(AVG(CAST(g.avg_response_ms AS DOUBLE)), 0.0)                               AS avgResponseMs
+            FROM word_rush_games g
+            WHERE g.user_id = :userId
+        """,
+        nativeQuery = true
     )
-    fun avgAccuracyPercentByUser(@Param("user") user: User): Double
-
-    @Query("SELECT COALESCE(AVG(CAST(g.avgResponseMs AS double)), 0.0) FROM WordRushGame g WHERE g.user = :user")
-    fun avgResponseMsByUser(@Param("user") user: User): Double
+    fun findInsightsByUserId(@Param("userId") userId: Long): WordRushInsightsProjection
 
     fun findTop20ByUserOrderByPlayedAtDesc(user: User): List<WordRushGame>
+
+    fun countByUser(user: User): Long
 
     fun findByUser(user: User): List<WordRushGame>
 }

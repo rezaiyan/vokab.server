@@ -36,16 +36,10 @@ class AiController(
         @AuthenticationPrincipal user: User,
         @Valid @RequestBody request: ExtractVocabularyRequest
     ): ResponseEntity<ApiResponse<VocabularyExtractionResponse>> {
-        logger.info { "🎯 [AI Controller] userId=${user.id} requesting vocabulary extraction" }
-        logger.info { "👤 [AI Controller] User status: subscriptionStatus=${user.subscriptionStatus}" }
+        logger.info { "userId=${user.id} requesting vocabulary extraction" }
 
-        // Check if user has premium access
-        val hasPremiumAccess = featureAccessService.hasActivePremiumAccess(user)
-        logger.info { "🔐 [AI Controller] Premium access check: hasPremiumAccess=$hasPremiumAccess" }
-
-        if (!hasPremiumAccess) {
-            logger.warn { "❌ [AI Controller] userId=${user.id} DENIED access - Premium required" }
-            logger.warn { "📤 [Response] Sending HTTP 403 Forbidden to client" }
+        if (!featureAccessService.hasActivePremiumAccess(user)) {
+            logger.warn { "userId=${user.id} attempted AI image extraction without premium access" }
             return ResponseEntity.status(403)
                 .body(ApiResponse(
                     success = false,
@@ -53,9 +47,6 @@ class AiController(
                 ))
         }
 
-        logger.info { "✅ [AI Controller] userId=${user.id} has premium access, proceeding with extraction" }
-
-        // Check rate limit
         val bucket = rateLimitConfig.getImageProcessingBucket(user.id.toString())
         if (!bucket.tryConsume(1)) {
             logger.warn { "Rate limit exceeded for userId=${user.id} on image processing" }
@@ -63,10 +54,7 @@ class AiController(
                 .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
         }
 
-        // Process synchronously to preserve SecurityContext throughout the entire request
         return try {
-            logger.info { "🔄 [AI Controller] Executing AI extraction synchronously to preserve SecurityContext" }
-
             val extractedText = openRouterService.extractVocabularyFromImage(
                 imageBase64 = request.imageBase64,
                 targetLanguage = request.targetLanguage,
@@ -75,24 +63,15 @@ class AiController(
             ).block() ?: throw RuntimeException("Failed to extract vocabulary")
 
             val wordCount = extractedText.split(";").size
+            logger.info { "Vocabulary extraction successful for userId=${user.id}: $wordCount words" }
 
-            val response = VocabularyExtractionResponse(
+            ResponseEntity.ok(ApiResponse(success = true, data = VocabularyExtractionResponse(
                 extractedText = extractedText,
                 wordCount = wordCount
-            )
-
-            logger.info { "📤 [Response] Sending HTTP 200 OK to client with $wordCount words" }
-            logger.info { "📤 [Response] Success: true, Data: ${extractedText.take(50)}..." }
-            logger.info { "✅ [Response] Returning synchronous response to client NOW" }
-
-            ResponseEntity.ok(ApiResponse(success = true, data = response))
+            )))
 
         } catch (error: Exception) {
-            logger.error(error) { "❌ [Error] Failed to extract vocabulary for userId=${user.id}" }
-            logger.error { "❌ [Error] Error type: ${error.javaClass.simpleName}" }
-            logger.error { "❌ [Error] Error message: ${error.message}" }
-            logger.error { "📤 [Response] Sending HTTP 400 Bad Request to client" }
-
+            logger.error(error) { "Failed to extract vocabulary for userId=${user.id}" }
             ResponseEntity.badRequest()
                 .body(ApiResponse<VocabularyExtractionResponse>(
                     success = false,
@@ -162,12 +141,14 @@ class AiController(
         )
 
         return openRouterService.generateDailyInsight(ctx)
-            .map { insight ->
-                val response = InsightResponse(
-                    insight = insight,
-                    generatedAt = Instant.now().toString()
-                )
-                ResponseEntity.ok(ApiResponse(success = true, data = response))
+            .map { insightText ->
+                val saved = dailyInsightService.saveDailyInsight(user, insightText)
+                val generatedAt = saved?.generatedAt?.toString() ?: Instant.now().toString()
+                val text = saved?.insightText ?: insightText
+                ResponseEntity.ok(ApiResponse(success = true, data = InsightResponse(
+                    insight = text,
+                    generatedAt = generatedAt
+                )))
             }
             .onErrorResume { error ->
                 logger.error(error) { "Failed to generate insight for userId=${user.id}" }
@@ -183,61 +164,49 @@ class AiController(
         @AuthenticationPrincipal user: User,
         @Valid @RequestBody request: TranslateTextRequest
     ): ResponseEntity<ApiResponse<TranslateTextResponse>> {
-        logger.info { "🎯 [AI Controller] userId=${user.id} requesting text translation" }
-        
+        logger.info { "userId=${user.id} requesting text translation" }
+
         val text = request.text.trim()
-        
+
         if (text.isEmpty() || text.isBlank()) {
-            logger.warn { "❌ [AI Controller] Empty or whitespace-only text provided" }
             return ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = "Text cannot be empty"))
         }
-        
+
         if (text.length > 200) {
-            logger.warn { "❌ [AI Controller] Text too long: ${text.length} characters" }
             return ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = "Text cannot exceed 200 characters"))
         }
-        
+
         val lineCount = text.split("\n").size
         if (lineCount > 2) {
-            logger.warn { "❌ [AI Controller] Text has too many lines: $lineCount" }
             return ResponseEntity.badRequest()
                 .body(ApiResponse(success = false, message = "Text cannot exceed 2 lines"))
         }
-        
+
         val bucket = rateLimitConfig.getAiBucket(user.id.toString())
         if (!bucket.tryConsume(1)) {
             logger.warn { "Rate limit exceeded for userId=${user.id} on text translation" }
             return ResponseEntity.status(429)
                 .body(ApiResponse(success = false, message = "Rate limit exceeded. Please try again later."))
         }
-        
+
         return try {
-            logger.info { "🔄 [AI Controller] Translating text synchronously" }
-            
             val translation = openRouterService.translateText(
                 text = text,
                 targetLanguage = request.targetLanguage
             ).block() ?: throw RuntimeException("Failed to translate text")
-            
-            logger.info { "✅ [AI Controller] Translation successful for userId=${user.id}" }
-            
-            val response = TranslateTextResponse(
+
+            ResponseEntity.ok(ApiResponse(success = true, data = TranslateTextResponse(
                 originalText = text,
                 translation = translation
-            )
-            
-            ResponseEntity.ok(ApiResponse(success = true, data = response))
-            
+            )))
+
         } catch (error: Exception) {
-            logger.error(error) { "❌ [Error] Failed to translate text for userId=${user.id}" }
-            logger.error { "❌ [Error] Error type: ${error.javaClass.simpleName}" }
-            logger.error { "❌ [Error] Error message: ${error.message}" }
-            
+            logger.error(error) { "Failed to translate text for userId=${user.id}" }
             ResponseEntity.badRequest()
                 .body(ApiResponse(
-                    success = false, 
+                    success = false,
                     message = error.message ?: "Failed to translate text"
                 ))
         }

@@ -86,3 +86,13 @@ interface DailyEventStatsProjection {
     val leveledUp: Long
     val leveledDown: Long
 }
+
+interface WordRushInsightsProjection {
+    val totalGames: Long
+    val totalCompleted: Long
+    val bestStreakEver: Int
+    val avgScore: Double
+    val avgAccuracyPercent: Double
+    val totalTimePlayedMs: Long
+    val avgResponseMs: Double
+}
