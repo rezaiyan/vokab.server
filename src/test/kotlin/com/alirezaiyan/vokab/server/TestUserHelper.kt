@@ -3,6 +3,7 @@ package com.alirezaiyan.vokab.server
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
+import com.alirezaiyan.vokab.server.domain.repository.WordRushGameRepository
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional
 class TestUserHelper(
     private val userRepository: UserRepository,
     private val studySessionRepository: StudySessionRepository,
+    private val wordRushGameRepository: WordRushGameRepository,
 ) {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -31,6 +33,13 @@ class TestUserHelper(
     fun clearUserSessions(userId: Long) {
         val user = userRepository.findById(userId).orElse(null) ?: return
         studySessionRepository.deleteAll(studySessionRepository.findByUser(user))
+    }
+
+    /** Deletes all Word Rush games for the given user. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun clearUserWordRushGames(userId: Long) {
+        val user = userRepository.findById(userId).orElse(null) ?: return
+        wordRushGameRepository.deleteAll(wordRushGameRepository.findByUser(user))
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
