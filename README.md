@@ -1,284 +1,263 @@
-# Vokab Server Backend
+# Vokab Server
 
-![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/rezaiyan/YOUR_GIST_ID/raw/lexicon-coverage.json)
-
-A comprehensive backend service for the Vokab application built with Spring Boot and Kotlin.
+A **Spring Boot + Kotlin** backend for a vocabulary learning mobile app. It provides spaced-repetition word management, Google/Apple authentication, streaks, leaderboards, AI vocabulary extraction, push notifications, and subscription management.
 
 ## Features
 
-- **User Management**: Complete user authentication and profile management
-- **Google OAuth2 Authentication**: Secure login/logout with Google
-- **JWT Token-based Authentication**: Access tokens and refresh tokens
-- **Push Notifications**: Firebase Cloud Messaging integration
-- **In-App Purchases**: RevenueCat webhook integration for subscription management
-- **AI Middleware**: OpenRouter AI for vocabulary extraction from images and daily insights
-- **Clean Architecture**: Layered architecture with dependency injection
-- **PostgreSQL Database**: Production-ready relational database (H2 for development)
+- **SM-2 Spaced Repetition** — per-word ease factor, interval, and repetition tracking
+- **Google & Apple Sign-In** — OAuth via Firebase ID tokens
+- **JWT Authentication** — RS256 access tokens + rotating refresh tokens
+- **Streaks & Leaderboard** — daily activity tracking and ranked leaderboard
+- **AI Vocabulary Extraction** — extract words from images via OpenRouter
+- **AI Daily Insights** — personalized motivational messages via push notification
+- **Push Notifications** — FCM (Android), APNs (iOS), Web Push
+- **Subscription Management** — RevenueCat webhook integration
+- **Analytics** — session sync, heatmap, weekly reports, language-pair stats
+- **Rate Limiting** — Bucket4j token buckets on auth and AI endpoints
+- **Flyway Migrations** — versioned schema management
 
 ## Tech Stack
 
-- **Kotlin** 1.9.25
-- **Spring Boot** 3.5.6
-- **Spring Security** with OAuth2
-- **Spring Data JPA**
-- **JWT** (JJWT 0.12.3)
-- **Firebase Admin SDK** 9.2.0
-- **PostgreSQL** / **H2** (development)
-- **WebFlux** for reactive HTTP clients
-
-## Architecture
-
-```
-src/main/kotlin/com/alirezaiyan/vokab/server/
-├── config/               # Configuration classes
-├── domain/
-│   ├── entity/          # JPA entities
-│   └── repository/      # Repository interfaces
-├── exception/           # Exception handlers
-├── presentation/
-│   ├── controller/      # REST controllers
-│   └── dto/            # Data transfer objects
-├── security/            # Security configuration and JWT
-├── service/             # Business logic
-└── task/               # Scheduled tasks
-```
+| Layer | Technology |
+|---|---|
+| Language | Kotlin 1.9.25 |
+| Framework | Spring Boot 3.5.6 |
+| Security | Spring Security · JJWT 0.12.3 |
+| Persistence | Spring Data JPA · Flyway |
+| Database | PostgreSQL (prod) · H2 (dev) |
+| AI | OpenRouter API |
+| Push | Firebase Admin SDK 9.2.0 |
+| Subscriptions | RevenueCat Webhooks |
+| HTTP Client | Spring WebFlux (WebClient) |
 
 ## Getting Started
 
-### Local Development (3 Steps)
-
-```bash
-# 1. Copy environment template
-cp env.example .env
-
-# 2. Edit .env and add your API keys
-nano .env  # Add OPENROUTER_API_KEY and GOOGLE_CLIENT_ID
-
-# 3. Start the server
-./scripts/start-dev.sh
-```
-
-**🎉 That's it!** Server is running on `http://localhost:8080`
-
-Test it: `curl http://localhost:8080/api/v1/health`
-
 ### Prerequisites
 
-- Java 21 or higher
-- Gradle 8.x (included via wrapper)
-- PostgreSQL (for production) or H2 (for development - default)
+- Java 21+
+- Gradle 8.x (wrapper included — no install needed)
+- PostgreSQL (production) or H2 in-memory (development — default)
 
-### Configuration
-
-**Required API Keys:**
-
-1. **OpenRouter AI** - https://openrouter.ai/keys
-2. **Google OAuth** - https://console.cloud.google.com/apis/credentials
-
-**Optional:**
-- Firebase (push notifications)
-- RevenueCat (in-app purchases)
-- **GitHub Token** (for vocabulary collections) - https://github.com/settings/tokens
-  - **Why?** Unauthenticated API calls have a 60/hour rate limit, authenticated calls have 5000/hour
-  - **How?** See `GITHUB_TOKEN_SETUP.md` for step-by-step instructions
-  - **Tip:** Without a token, the collections feature will hit rate limits quickly
-
-### Setting Up .env File
-
-The `.env` file contains all configuration. For local development with H2 database:
+### Quick Start (H2, no database setup)
 
 ```bash
-# Minimal setup for local testing
-DATABASE_URL=jdbc:h2:mem:vokabdb
-DATABASE_USERNAME=sa
-DATABASE_PASSWORD=
-DATABASE_DRIVER=org.h2.Driver
-HIBERNATE_DIALECT=org.hibernate.dialect.H2Dialect
+# 1. Copy the environment template
+cp env.example .env
 
-JWT_SECRET=your-dev-secret-change-in-production
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-OPENROUTER_API_KEY=your-openrouter-api-key
+# 2. Fill in the two required keys
+#    GOOGLE_CLIENT_ID  → https://console.cloud.google.com/apis/credentials
+#    OPENROUTER_API_KEY → https://openrouter.ai/keys
 
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081
-PORT=8080
+# 3. Start the server
+./gradlew bootRun
 ```
 
-**Note:** For production, use PostgreSQL and change all secrets!
+Server starts at `http://localhost:8080`. Verify with:
 
-### Database Setup
-
-#### Development (H2)
-No setup required. H2 runs in-memory by default.
-
-#### Production (PostgreSQL)
-```sql
-CREATE DATABASE vokabdb;
-CREATE USER vokab_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE vokabdb TO vokab_user;
-```
-
-### Running the Application
-
-#### Option 1: Quick Development (H2 Database)
 ```bash
-./scripts/start-dev.sh
+curl http://localhost:8080/api/v1/health
 ```
 
-#### Option 2: Production Mode (PostgreSQL)
-```bash
-# Setup database first
-./scripts/setup-db.sh
+### Docker
 
-# Start server
-./scripts/start-prod.sh
-```
-
-#### Option 3: Docker
 ```bash
 docker-compose up -d
 ```
 
-#### Option 4: Manual
-```bash
-./gradlew bootRun
-```
-
-The server will start on port 8080 (configurable via `PORT` environment variable).
-
-### Testing the Server
+### Production (PostgreSQL)
 
 ```bash
-# Run endpoint tests
-./scripts/test-endpoints.sh
+# 1. Create the database
+./scripts/setup-db.sh
 
-# Test specific endpoint
-curl http://localhost:8080/api/v1/health
-
-# With authentication
-ACCESS_TOKEN=your_jwt ./scripts/test-endpoints.sh
+# 2. Start in production mode
+./scripts/start-prod.sh
 ```
 
-## API Endpoints
+## Configuration
 
-### Authentication
-- `POST /api/v1/auth/google` - Authenticate with Google ID token
-- `POST /api/v1/auth/refresh` - Refresh access token
-- `POST /api/v1/auth/logout` - Logout (revoke refresh token)
-- `POST /api/v1/auth/logout-all` - Logout from all devices
+All configuration is injected via environment variables. Copy `env.example` to `.env` and fill in the values.
 
-### User Management
-- `GET /api/v1/users/me` - Get current user profile
-- `PATCH /api/v1/users/me` - Update user profile
-- `DELETE /api/v1/users/me` - Delete user account
+### Required
 
-### Push Notifications
-- `POST /api/v1/notifications/register-token` - Register FCM push token
-- `DELETE /api/v1/notifications/token/{token}` - Deactivate push token
-- `DELETE /api/v1/notifications/tokens` - Deactivate all user tokens
-- `POST /api/v1/notifications/send` - Send notification to user
-- `GET /api/v1/notifications/tokens` - Get active token count
+| Variable | Description |
+|---|---|
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `OPENROUTER_API_KEY` | OpenRouter AI API key |
 
-### Subscriptions
-- `GET /api/v1/subscriptions` - Get user subscriptions
-- `GET /api/v1/subscriptions/active` - Get active subscription
+### Required in Production
 
-### Webhooks
-- `POST /api/v1/webhooks/revenuecat` - RevenueCat webhook endpoint
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL JDBC URL |
+| `DATABASE_USERNAME` | Database username |
+| `DATABASE_PASSWORD` | Database password |
+| `JWT_SECRET` | HMAC secret (HS256) **or** use RSA keys below |
+| `JWT_PRIVATE_KEY_PATH` | Path to RSA private key PEM (RS256) |
+| `JWT_PUBLIC_KEY_PATH` | Path to RSA public key PEM (RS256) |
 
-### AI Services
-- `POST /api/v1/ai/extract-vocabulary` - Extract vocabulary from image
-- `POST /api/v1/ai/generate-insight` - Generate daily motivational insight
-- `GET /api/v1/ai/health` - Check AI service status
+### Optional / Feature Flags
 
-## Authentication Flow
+| Variable | Default | Description |
+|---|---|---|
+| `FIREBASE_PROJECT_ID` | — | Required for Google Sign-In token verification |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | — | Path to service account JSON (enables push notifications) |
+| `REVENUECAT_WEBHOOK_SECRET` | — | Webhook signature secret |
+| `REVENUECAT_API_KEY` | — | RevenueCat REST API key |
+| `GITHUB_TOKEN` | — | GitHub token for vocabulary collections (raises rate limit to 5000/hr) |
+| `PREMIUM_FEATURES_ENABLED` | `true` | Enable premium feature gate |
+| `AI_IMAGE_EXTRACTION_ENABLED` | `true` | Enable image OCR extraction |
+| `AI_DAILY_INSIGHT_ENABLED` | `true` | Enable AI daily push insights |
+| `PUSH_NOTIFICATIONS_ENABLED` | `true` | Enable push notifications |
+| `PORT` | `8080` | HTTP server port |
 
-1. Client sends Google ID token to `/api/v1/auth/google`
-2. Server verifies token with Google
-3. Server creates/updates user and returns JWT access token and refresh token
-4. Client uses access token in `Authorization: Bearer {token}` header
-5. When access token expires, use refresh token at `/api/v1/auth/refresh`
+## API Reference
 
-## Push Notifications Setup
+Base path: `/api/v1`. All secured endpoints require `Authorization: Bearer <access_token>`.
 
-1. Add Firebase service account JSON file to your server
-2. Set `FIREBASE_SERVICE_ACCOUNT_PATH` environment variable
-3. Clients register push tokens via `/api/v1/notifications/register-token`
-4. Send notifications via `/api/v1/notifications/send` or programmatically
+### Auth
 
-## OpenRouter AI Integration
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/auth/google` | No | Sign in with Google (Firebase ID token) |
+| POST | `/auth/apple` | No | Sign in with Apple (ID token) |
+| POST | `/auth/refresh` | No | Rotate access + refresh tokens |
+| POST | `/auth/logout` | Yes | Revoke current refresh token |
+| DELETE | `/auth/delete-account` | Yes | Delete account and audit |
+| GET | `/auth/jwks` | No | Public RSA key in JWKS format |
 
-The backend acts as a middleware for OpenRouter AI API calls:
+### Users
 
-1. **Vocabulary Extraction**: Upload image (as base64) to extract vocabulary with translations
-2. **Daily Insights**: Generate motivational messages based on learning progress
-3. **Rate Limiting**: 
-   - Image processing: 5 requests/minute per user
-   - Daily insights: 10 requests/minute per user
-4. **Benefits**:
-   - API key stays secure on server
-   - Centralized logging and monitoring
-   - Rate limiting prevents abuse
-   - Can add caching layer
+| Method | Path | Description |
+|---|---|---|
+| GET | `/users/me` | Current user profile |
+| PATCH | `/users/me` | Update name or display alias |
+| POST | `/users/me/avatar` | Upload profile picture (multipart) |
+| DELETE | `/users/me/avatar` | Remove profile picture |
+| GET | `/users/me/profile-stats` | Activity stats and personal records |
+| GET | `/users/feature-flags` | Feature flag state for the client |
 
-## RevenueCat Integration
+### Words
 
-1. Configure webhook in RevenueCat dashboard to point to `/api/v1/webhooks/revenuecat`
-2. Set `REVENUECAT_WEBHOOK_SECRET` for webhook verification
-3. Server automatically updates user subscription status based on webhook events
+| Method | Path | Description |
+|---|---|---|
+| GET | `/words` | List all words for the user |
+| POST | `/words` | Upsert words (batch) |
+| PATCH | `/words/{id}` | Update a single word |
+| DELETE | `/words/{id}` | Delete a single word |
+| POST | `/words/batch-delete` | Delete multiple words by IDs |
+| POST | `/words/batch-update` | Update language pair on multiple words |
 
-Supported events:
-- INITIAL_PURCHASE
-- RENEWAL
-- CANCELLATION
-- UNCANCELLATION
-- EXPIRATION
-- NON_RENEWING_PURCHASE
-- BILLING_ISSUE
+### Analytics
 
-## Security
+| Method | Path | Description |
+|---|---|---|
+| POST | `/analytics/sync` | Sync study sessions and review events |
+| GET | `/analytics/insights` | Difficult words and study patterns |
+| GET | `/analytics/daily-stats` | Per-day stats (`from`/`to` query params) |
+| GET | `/analytics/weekly-report` | Weekly summary (204 if no recent activity) |
+| GET | `/analytics/heatmap` | Activity heatmap data |
+| GET | `/analytics/leaderboard` | Leaderboard with the caller's rank |
+| GET | `/analytics/mastered-words` | Words that have reached mastery level |
+| GET | `/analytics/language-pairs` | Stats grouped by language pair |
 
-- All endpoints except `/api/v1/auth/**` and `/api/v1/webhooks/**` require authentication
-- JWT tokens are validated on every request
-- Refresh tokens are stored in database and can be revoked
-- CORS is configured for specified origins
-- Passwords/secrets should be stored in environment variables, never in code
+### AI
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/ai/extract-vocabulary` | Yes | Extract vocabulary from an image (base64) |
+| POST | `/ai/generate-insight` | Yes | Generate a personalized daily insight |
+| GET | `/ai/health` | No | AI service status |
+
+### Notifications
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/notifications/register-token` | Register a push token |
+| DELETE | `/notifications/token/{token}` | Deactivate a specific push token |
+| DELETE | `/notifications/tokens` | Deactivate all push tokens for the user |
+
+### Other
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/health` | No | Server health check |
+| POST | `/events` | Yes | Track a client analytics event |
+| POST | `/webhooks/revenuecat` | Signature | RevenueCat subscription webhook |
+
+## Project Structure
+
+```
+src/main/kotlin/com/alirezaiyan/vokab/server/
+├── config/          # Spring config beans (JWT, Firebase, CORS, rate limiting)
+├── domain/
+│   ├── entity/      # JPA entities (13 total)
+│   └── repository/  # Spring Data JPA repositories
+├── presentation/
+│   ├── controller/  # REST controllers
+│   └── dto/         # Request/response DTOs
+├── service/         # Business logic
+├── security/        # JWT filter, SecurityConfig, token providers
+├── scheduler/       # Scheduled jobs (streak reminders, insight generation)
+└── exception/       # Global exception handling
+
+src/main/resources/
+├── application.yml
+└── db/migration/    # Flyway V1–V14
+```
 
 ## Development
 
-### Running Tests
+### Run tests
+
 ```bash
 ./gradlew test
 ```
 
-### Building
+### Build
+
 ```bash
 ./gradlew build
 ```
 
-### Creating Docker Image (optional)
+### Coverage report
+
 ```bash
-./gradlew bootBuildImage
+./gradlew test jacocoTestReport
+open build/reports/jacoco/test/index.html
 ```
 
-## Scheduled Tasks
+### Smoke-test endpoints
 
-- **Token Cleanup**: Runs daily at 2 AM to remove expired refresh tokens
-
-## Monitoring
-
-- Health check: `GET /api/v1/health`
-- H2 Console (dev only): http://localhost:8080/h2-console
+```bash
+./scripts/test-endpoints.sh
+# With auth:
+ACCESS_TOKEN=your_jwt ./scripts/test-endpoints.sh
+```
 
 ## Deployment
 
-The application can be deployed on any platform that supports Docker:
-- **AWS ECS/Fargate**: Deploy Docker container
-- **Google Cloud Run**: Deploy Docker container
-- **DigitalOcean App Platform**: Use Dockerfile
-- **Railway**: Connect Git repository
-- **Heroku**: Use included Dockerfile
+The application ships as a Docker image and can be deployed anywhere containers run:
+
+- **AWS ECS / Fargate**
+- **Google Cloud Run**
+- **DigitalOcean App Platform**
+- **Railway**
+- **Any VPS with Docker**
+
+Key production checklist:
+- Use PostgreSQL (not H2)
+- Persist JWT RSA keys (`./keys/` volume) — losing them invalidates all user sessions
+- Set `H2_CONSOLE_ENABLED=false`
+- Put all secrets in environment variables, never in code
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/my-feature`)
+3. Run the test suite before opening a PR (`./gradlew test`)
+4. Submit a pull request
 
 ## License
 
-Proprietary - All rights reserved
-
+MIT License — see [LICENSE](LICENSE).
