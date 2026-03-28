@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
-import java.time.Instant
 
 @Repository
 interface DailyInsightRepository : JpaRepository<DailyInsight, Long> {
@@ -18,12 +17,8 @@ interface DailyInsightRepository : JpaRepository<DailyInsight, Long> {
     @Query("SELECT d FROM DailyInsight d WHERE d.user = :user AND d.date = :date AND d.sentViaPush = true")
     fun findSentInsightByUserAndDate(user: User, date: String): DailyInsight?
     
-    @Query("SELECT d FROM DailyInsight d WHERE d.user = :user ORDER BY d.generatedAt DESC")
-    fun findLatestInsightByUser(user: User): DailyInsight?
-    
-    @Query("SELECT d FROM DailyInsight d WHERE d.generatedAt >= :since ORDER BY d.generatedAt DESC")
-    fun findInsightsGeneratedSince(since: Instant): List<DailyInsight>
-    
+    fun findFirstByUserOrderByGeneratedAtDesc(user: User): DailyInsight?
+
     @Query("SELECT COUNT(d) FROM DailyInsight d WHERE d.user = :user AND d.date = :date")
     fun countInsightsByUserAndDate(user: User, date: String): Long
     

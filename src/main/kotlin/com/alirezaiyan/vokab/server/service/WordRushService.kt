@@ -1,7 +1,6 @@
 package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.domain.entity.User
-import com.alirezaiyan.vokab.server.domain.entity.WordRushGame
 import com.alirezaiyan.vokab.server.domain.repository.WordRushGameRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -13,35 +12,16 @@ private val logger = KotlinLogging.logger {}
 @Service
 class WordRushService(
     private val wordRushGameRepository: WordRushGameRepository,
+    private val wordRushGamePersister: WordRushGamePersister,
 ) {
 
-    @Transactional
     fun syncGames(user: User, request: SyncWordRushRequest): SyncWordRushResponse {
         val syncedIds = mutableListOf<String>()
 
         for (gameReq in request.games) {
-            if (wordRushGameRepository.existsByUserAndClientGameId(user, gameReq.clientGameId)) {
+            if (wordRushGamePersister.saveGame(user, gameReq)) {
                 syncedIds.add(gameReq.clientGameId)
-                continue
             }
-
-            wordRushGameRepository.save(
-                WordRushGame(
-                    user = user,
-                    clientGameId = gameReq.clientGameId,
-                    score = gameReq.score,
-                    totalQuestions = gameReq.totalQuestions,
-                    correctCount = gameReq.correctCount,
-                    bestStreak = gameReq.bestStreak,
-                    durationMs = gameReq.durationMs,
-                    avgResponseMs = gameReq.avgResponseMs,
-                    grade = gameReq.grade,
-                    livesRemaining = gameReq.livesRemaining,
-                    completedNormally = gameReq.completedNormally,
-                    playedAt = gameReq.playedAt,
-                )
-            )
-            syncedIds.add(gameReq.clientGameId)
         }
 
         logger.info { "Synced ${syncedIds.size}/${request.games.size} Word Rush games for user ${user.id}" }
@@ -50,38 +30,20 @@ class WordRushService(
 
     @Transactional(readOnly = true)
     fun getInsights(user: User): WordRushInsightsResponse {
-        val totalGames = wordRushGameRepository.countByUser(user)
-        val totalCompleted = wordRushGameRepository.countByUserAndCompletedNormallyTrue(user)
-        val completionRatePercent = if (totalGames > 0) {
-            totalCompleted.toDouble() / totalGames * 100
-        } else {
-            0.0
-        }
-
-        val bestStreakGame = wordRushGameRepository.findFirstByUserOrderByBestStreakDesc(user)
-        val bestStreakEver = bestStreakGame?.bestStreak ?: 0
-
-        val avgScore = wordRushGameRepository.avgScoreByUser(user)
-        val avgAccuracyPercent = wordRushGameRepository.avgAccuracyPercentByUser(user)
-        val totalTimePlayedMs = wordRushGameRepository.sumDurationMsByUser(user)
-        val avgResponseMs = wordRushGameRepository.avgResponseMsByUser(user)
-
-        val avgDurationMs = if (totalGames > 0) {
-            totalTimePlayedMs.toDouble() / totalGames
-        } else {
-            0.0
-        }
+        val p = wordRushGameRepository.findInsightsByUserId(user.id!!)
+        val completionRatePercent = if (p.totalGames > 0) p.totalCompleted.toDouble() / p.totalGames * 100 else 0.0
+        val avgDurationMs = if (p.totalGames > 0) p.totalTimePlayedMs.toDouble() / p.totalGames else 0.0
 
         return WordRushInsightsResponse(
-            totalGames = totalGames,
-            totalCompleted = totalCompleted,
+            totalGames = p.totalGames,
+            totalCompleted = p.totalCompleted,
             completionRatePercent = completionRatePercent,
-            bestStreakEver = bestStreakEver,
-            avgScore = avgScore,
-            avgAccuracyPercent = avgAccuracyPercent,
-            totalTimePlayedMs = totalTimePlayedMs,
+            bestStreakEver = p.bestStreakEver,
+            avgScore = p.avgScore,
+            avgAccuracyPercent = p.avgAccuracyPercent,
+            totalTimePlayedMs = p.totalTimePlayedMs,
             avgDurationMs = avgDurationMs,
-            avgResponseMs = avgResponseMs,
+            avgResponseMs = p.avgResponseMs,
         )
     }
 

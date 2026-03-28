@@ -3,6 +3,7 @@ package com.alirezaiyan.vokab.server
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.WordRushGameRepository
 import com.alirezaiyan.vokab.server.presentation.dto.*
+import com.alirezaiyan.vokab.server.service.WordRushGamePersister
 import com.alirezaiyan.vokab.server.service.WordRushService
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.AfterAll
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional
 class WordRushIntegrationTest {
 
     @Autowired lateinit var wordRushService: WordRushService
+    @Autowired lateinit var wordRushGamePersister: WordRushGamePersister
     @Autowired lateinit var wordRushGameRepository: WordRushGameRepository
     @Autowired lateinit var testUserHelper: TestUserHelper
 
@@ -283,6 +285,30 @@ class WordRushIntegrationTest {
         } finally {
             testUserHelper.deleteByEmail("other-rush@test.com")
         }
+    }
+
+    // -- Batch transaction isolation ------------------------------------------
+
+    @Test
+    fun `each game in a batch is saved in its own committed transaction`() {
+        // Pre-save "dup-game" in its own REQUIRES_NEW transaction (committed to DB)
+        wordRushGamePersister.saveGame(user, createGameRequest("dup-game", score = 10))
+
+        // Batch contains: new game, already-committed duplicate, another new game
+        val request = SyncWordRushRequest(
+            games = listOf(
+                createGameRequest("before-dup", score = 100),
+                createGameRequest("dup-game", score = 999),  // idempotent — already exists
+                createGameRequest("after-dup", score = 200),
+            )
+        )
+
+        val response = wordRushService.syncGames(user, request)
+
+        // All 3 games reported as synced: "dup-game" via idempotency, others as new saves
+        assertEquals(3, response.syncedGameIds.size)
+        assertTrue(wordRushGameRepository.existsByUserAndClientGameId(user, "before-dup"))
+        assertTrue(wordRushGameRepository.existsByUserAndClientGameId(user, "after-dup"))
     }
 
     // -- factory functions ----------------------------------------------------

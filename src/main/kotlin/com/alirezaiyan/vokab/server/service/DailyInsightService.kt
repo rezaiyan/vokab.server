@@ -9,6 +9,7 @@ import com.alirezaiyan.vokab.server.domain.repository.NotificationScheduleReposi
 import com.alirezaiyan.vokab.server.domain.repository.UserSettingsRepository
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -87,7 +88,13 @@ class DailyInsightService(
                 date = today,
                 sentViaPush = false
             )
-            val saved = dailyInsightRepository.save(insight)
+            val saved = try {
+                dailyInsightRepository.save(insight)
+            } catch (e: DataIntegrityViolationException) {
+                // A concurrent request already saved an insight for today — return it
+                logger.debug { "Concurrent insight write for user ${user.id} on $today, returning existing row" }
+                dailyInsightRepository.findByUserAndDate(user, today) ?: return null
+            }
             logger.info { "Generated ${if (hasActivityToday) "celebration" else "motivational"} insight for user ${user.id}" }
             saved
         } catch (e: Exception) {
@@ -165,58 +172,33 @@ class DailyInsightService(
     }
 
     /**
-     * Resolve users whose dailyReminderTime falls in the 30-minute window
-     * [minuteWindowStart, minuteWindowStart+30) for the given hour.
-     */
-    @Transactional(readOnly = true)
-    fun getUsersInReminderWindow(hour: Int, minuteWindowStart: Int): List<User> {
-        val windowEnd = (minuteWindowStart + 30) % 60
-        return userSettingsRepository.findAllWithNotificationsEnabled()
-            .filter { settings ->
-                val parts = settings.dailyReminderTime.split(":")
-                val h = parts.getOrNull(0)?.toIntOrNull() ?: return@filter false
-                val m = parts.getOrNull(1)?.toIntOrNull() ?: return@filter false
-                // windowEnd == 0 means the window wraps to the next hour (e.g., xx:30–xx:59 → next :00)
-                h == hour && m >= minuteWindowStart && (windowEnd == 0 || m < windowEnd)
-            }
-            .mapNotNull { it.user }
-            .filter { featureAccessService.hasActivePremiumAccess(it) }
-    }
-
-    /**
-     * Generate and push insights for all users whose reminder window opens in
-     * the current 30-minute slot. Called by the scheduler every 30 minutes.
-     *
-     * Returns the number of push notifications successfully sent.
-     */
-    fun generateInsightsForUsersInWindow(hour: Int, minuteWindowStart: Int): Int {
-        val users = getUsersInReminderWindow(hour, minuteWindowStart)
-        logger.info {
-            val windowLabel = "$hour:${minuteWindowStart.toString().padStart(2, '0')}"
-            "Processing ${users.size} users in reminder window $windowLabel UTC"
-        }
-
-        var sentCount = 0
-        for (user in users) {
-            runCatching {
-                val insight = generateDailyInsightForUser(user) ?: return@runCatching
-                if (!insight.sentViaPush && sendDailyInsightPush(insight)) {
-                    sentCount++
-                }
-            }.onFailure { logger.error(it) { "Failed to process insight for user ${user.id}" } }
-        }
-
-        logger.info { "Window job complete — $sentCount push(es) sent" }
-        return sentCount
-    }
-
-    /**
      * Generate and push a daily insight for a single user. Used by SmartNotificationDispatcher.
      */
     fun generateAndSendForUser(user: User) {
         val insight = generateDailyInsightForUser(user) ?: return
         if (!insight.sentViaPush) {
             sendDailyInsightPush(insight)
+        }
+    }
+
+    /**
+     * Persist an insight text as today's DailyInsight. Handles concurrent writes by returning
+     * the existing row if a unique-constraint violation occurs (race condition safe).
+     */
+    fun saveDailyInsight(user: User, insightText: String): DailyInsight? {
+        val today = LocalDate.now().toString()
+        val insight = DailyInsight(
+            user = user,
+            insightText = insightText,
+            generatedAt = Instant.now(),
+            date = today,
+            sentViaPush = false
+        )
+        return try {
+            dailyInsightRepository.save(insight)
+        } catch (e: DataIntegrityViolationException) {
+            logger.debug { "Concurrent insight write for user ${user.id} on $today, returning existing row" }
+            dailyInsightRepository.findByUserAndDate(user, today)
         }
     }
 
@@ -234,6 +216,6 @@ class DailyInsightService(
      */
     @Transactional(readOnly = true)
     fun getLatestInsightForUser(user: User): DailyInsight? {
-        return dailyInsightRepository.findLatestInsightByUser(user)
+        return dailyInsightRepository.findFirstByUserOrderByGeneratedAtDesc(user)
     }
 }

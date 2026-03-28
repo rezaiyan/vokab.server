@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.alirezaiyan"
-version = "0.0.1-SNAPSHOT"
+version = project.property("projectVersion") as String
 description = "Lexicon Server Application"
 
 java {

@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build JAR
+        run: ./gradlew bootJar -x test --stacktrace
+
+      - name: Rename JAR
+        run: |
+          mv build/libs/*.jar build/libs/lexicon-server-${{ steps.version.outputs.VERSION }}.jar
+
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          # Pull the section between the first two version headers
+          python3 - <<'PYEOF'
+          import re, os
+
+          text = open("CHANGELOG.md").read()
+          # Match from first [X.Y.Z] header to the next one (or end of file)
+          match = re.search(
+              r"## \[\d+\.\d+\.\d+\][^\n]*\n(.*?)(?=\n## \[|\Z)",
+              text,
+              re.DOTALL,
+          )
+          notes = match.group(1).strip() if match else "See CHANGELOG.md for details."
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("NOTES<<EOF\n")
+              f.write(notes + "\n")
+              f.write("EOF\n")
+          PYEOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.VERSION }}
+          body: ${{ steps.changelog.outputs.NOTES }}
+          files: build/libs/lexicon-server-${{ steps.version.outputs.VERSION }}.jar
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
