@@ -24,16 +24,16 @@ interface WordRushGameRepository : JpaRepository<WordRushGame, Long> {
     @Query("SELECT COALESCE(SUM(g.durationMs), 0) FROM WordRushGame g WHERE g.user = :user")
     fun sumDurationMsByUser(@Param("user") user: User): Long
 
-    @Query("SELECT COALESCE(AVG(g.score), 0) FROM WordRushGame g WHERE g.user = :user")
+    @Query("SELECT COALESCE(AVG(CAST(g.score AS double)), 0.0) FROM WordRushGame g WHERE g.user = :user")
     fun avgScoreByUser(@Param("user") user: User): Double
 
     @Query(
-        "SELECT COALESCE(AVG(CAST(g.correctCount AS double) / NULLIF(g.totalQuestions, 0) * 100), 0) " +
+        "SELECT COALESCE(AVG(CAST(g.correctCount AS double) / NULLIF(g.totalQuestions, 0) * 100), 0.0) " +
             "FROM WordRushGame g WHERE g.user = :user"
     )
     fun avgAccuracyPercentByUser(@Param("user") user: User): Double
 
-    @Query("SELECT COALESCE(AVG(g.avgResponseMs), 0) FROM WordRushGame g WHERE g.user = :user")
+    @Query("SELECT COALESCE(AVG(CAST(g.avgResponseMs AS double)), 0.0) FROM WordRushGame g WHERE g.user = :user")
     fun avgResponseMsByUser(@Param("user") user: User): Double
 
     fun findTop20ByUserOrderByPlayedAtDesc(user: User): List<WordRushGame>
