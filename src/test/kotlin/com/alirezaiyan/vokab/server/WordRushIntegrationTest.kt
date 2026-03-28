@@ -180,6 +180,83 @@ class WordRushIntegrationTest {
         assertTrue(history.isEmpty())
     }
 
+    @Test
+    fun `insights with single game - all aggregate fields computed correctly`() {
+        wordRushService.syncGames(
+            user,
+            SyncWordRushRequest(
+                games = listOf(createGameRequest("solo", score = 80, correctCount = 8, totalQuestions = 10, bestStreak = 4, durationMs = 20000, avgResponseMs = 1000))
+            )
+        )
+
+        val insights = wordRushService.getInsights(user)
+
+        assertEquals(1L, insights.totalGames)
+        assertEquals(1L, insights.totalCompleted)
+        assertEquals(100.0, insights.completionRatePercent, 0.01)
+        assertEquals(4, insights.bestStreakEver)
+        assertEquals(80.0, insights.avgScore, 0.01)
+        assertEquals(80.0, insights.avgAccuracyPercent, 0.01)    // 8/10 * 100
+        assertEquals(20000L, insights.totalTimePlayedMs)
+        assertEquals(20000.0, insights.avgDurationMs, 0.01)
+        assertEquals(1000.0, insights.avgResponseMs, 0.01)
+    }
+
+    @Test
+    fun `insights with all games incomplete - completion rate is 0`() {
+        wordRushService.syncGames(
+            user,
+            SyncWordRushRequest(
+                games = listOf(
+                    createGameRequest("inc-1", score = 30, completedNormally = false),
+                    createGameRequest("inc-2", score = 40, completedNormally = false),
+                )
+            )
+        )
+
+        val insights = wordRushService.getInsights(user)
+
+        assertEquals(2L, insights.totalGames)
+        assertEquals(0L, insights.totalCompleted)
+        assertEquals(0.0, insights.completionRatePercent, 0.01)
+    }
+
+    @Test
+    fun `insights accuracy excludes games with zero total questions via NULLIF`() {
+        // game with 0 totalQuestions would cause divide-by-zero without NULLIF guard
+        wordRushService.syncGames(
+            user,
+            SyncWordRushRequest(
+                games = listOf(
+                    createGameRequest("zero-q", score = 50, correctCount = 0, totalQuestions = 0),
+                    createGameRequest("normal", score = 100, correctCount = 10, totalQuestions = 10),
+                )
+            )
+        )
+
+        val insights = wordRushService.getInsights(user)
+
+        assertEquals(2L, insights.totalGames)
+        // accuracy for zero-totalQuestions game is excluded from AVG (NULLIF → null → ignored)
+        assertEquals(100.0, insights.avgAccuracyPercent, 0.01)
+    }
+
+    @Test
+    fun `insights best streak is the maximum across all games`() {
+        wordRushService.syncGames(
+            user,
+            SyncWordRushRequest(
+                games = listOf(
+                    createGameRequest("s1", bestStreak = 3),
+                    createGameRequest("s2", bestStreak = 15),
+                    createGameRequest("s3", bestStreak = 7),
+                )
+            )
+        )
+
+        assertEquals(15, wordRushService.getInsights(user).bestStreakEver)
+    }
+
     // -- Data Isolation -------------------------------------------------------
 
     @Test
