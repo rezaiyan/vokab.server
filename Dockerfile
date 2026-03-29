@@ -10,6 +10,8 @@ ENV GRADLE_USER_HOME=/app/.gradle
 
 # Copy Gradle files
 COPY build.gradle.kts settings.gradle.kts gradle.properties ./
+# Strip Mac-local JDK path — not valid inside the container
+RUN sed -i '/org.gradle.java.home/d' gradle.properties
 COPY gradle gradle
 
 # Download dependencies (cached layer) — ignore failure due to missing sources
