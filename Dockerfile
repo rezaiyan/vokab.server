@@ -9,7 +9,7 @@ WORKDIR /app
 ENV GRADLE_USER_HOME=/app/.gradle
 
 # Copy Gradle files
-COPY build.gradle.kts settings.gradle.kts ./
+COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 COPY gradle gradle
 
 # Download dependencies (cached layer) — ignore failure due to missing sources
