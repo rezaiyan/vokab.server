@@ -5,6 +5,7 @@ import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -26,7 +27,7 @@ class LeaderboardServiceTest {
         userRepository = mockk()
         wordRepository = mockk()
         aliasGenerator = AliasGenerator()
-        leaderboardService = LeaderboardService(userRepository, wordRepository, aliasGenerator)
+        leaderboardService = LeaderboardService(userRepository, wordRepository, aliasGenerator, "")
     }
 
     @Test
@@ -35,7 +36,7 @@ class LeaderboardServiceTest {
         val user2 = createUser(id = 2L, currentStreak = 5, longestStreak = 30)
         val user3 = createUser(id = 3L, currentStreak = 0, longestStreak = 0)
 
-        every { userRepository.findTopUsersByScore(any()) } returns listOf(user1, user2, user3)
+        every { userRepository.findTopUsersByScore(any(), any()) } returns listOf(user1, user2, user3)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L, 2L, 3L)) } returns listOf(
             arrayOf(1L as Any, 50L as Any),
             arrayOf(2L as Any, 10L as Any)
@@ -55,7 +56,7 @@ class LeaderboardServiceTest {
         val user1 = createUser(id = 1L, currentStreak = 10, longestStreak = 20)
         val user2 = createUser(id = 2L, currentStreak = 5, longestStreak = 30)
 
-        every { userRepository.findTopUsersByScore(any()) } returns listOf(user1, user2)
+        every { userRepository.findTopUsersByScore(any(), any()) } returns listOf(user1, user2)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L, 2L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(user2)
@@ -69,13 +70,13 @@ class LeaderboardServiceTest {
         val topUser = createUser(id = 1L, currentStreak = 50, longestStreak = 100)
         val requestingUser = createUser(id = 99L, currentStreak = 1, longestStreak = 2)
 
-        every { userRepository.findTopUsersByScore(any()) } returns listOf(topUser)
+        every { userRepository.findTopUsersByScore(any(), any()) } returns listOf(topUser)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns listOf(
             arrayOf(1L as Any, 80L as Any)
         )
         every { wordRepository.countMasteredWordsByUserId(99L) } returns 5L
         // score = 5*10 + 1*3 + 2*2 = 57
-        every { userRepository.findUserRankByScore(57L) } returns 42L
+        every { userRepository.findUserRankByScore(57L, any()) } returns 42L
 
         val result = leaderboardService.getLeaderboard(requestingUser)
 
@@ -89,7 +90,7 @@ class LeaderboardServiceTest {
     fun `getLeaderboard uses display alias when available`() {
         val userWithAlias = createUser(id = 1L, currentStreak = 5, longestStreak = 10, displayAlias = "CoolLearner42")
 
-        every { userRepository.findTopUsersByScore(any()) } returns listOf(userWithAlias)
+        every { userRepository.findTopUsersByScore(any(), any()) } returns listOf(userWithAlias)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(userWithAlias)
@@ -101,7 +102,7 @@ class LeaderboardServiceTest {
     fun `getLeaderboard generates alias when display alias is null`() {
         val userWithoutAlias = createUser(id = 1L, currentStreak = 5, longestStreak = 10, displayAlias = null)
 
-        every { userRepository.findTopUsersByScore(any()) } returns listOf(userWithoutAlias)
+        every { userRepository.findTopUsersByScore(any(), any()) } returns listOf(userWithoutAlias)
         every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
 
         val result = leaderboardService.getLeaderboard(userWithoutAlias)
@@ -113,16 +114,30 @@ class LeaderboardServiceTest {
     fun `getLeaderboard handles empty leaderboard`() {
         val requestingUser = createUser(id = 1L, currentStreak = 0, longestStreak = 0)
 
-        every { userRepository.findTopUsersByScore(any()) } returns emptyList()
+        every { userRepository.findTopUsersByScore(any(), any()) } returns emptyList()
         every { wordRepository.countMasteredWordsByUserId(1L) } returns 0L
         // score = 0*10 + 0*3 + 0*2 = 0
-        every { userRepository.findUserRankByScore(0L) } returns 1L
+        every { userRepository.findUserRankByScore(0L, any()) } returns 1L
 
         val result = leaderboardService.getLeaderboard(requestingUser)
 
         assertTrue(result.entries.isEmpty())
         assertNotNull(result.userEntry)
         assertEquals(1, result.userEntry!!.rank)
+    }
+
+    @Test
+    fun `getLeaderboard excludes CI test user from leaderboard`() {
+        val ciEmail = "ci-maestro@test.vokab.dev"
+        val serviceWithCiEmail = LeaderboardService(userRepository, wordRepository, aliasGenerator, ciEmail)
+        val regularUser = createUser(id = 1L, currentStreak = 5, longestStreak = 10)
+
+        every { userRepository.findTopUsersByScore(any(), listOf(ciEmail)) } returns listOf(regularUser)
+        every { wordRepository.countMasteredWordsByUserIds(listOf(1L)) } returns emptyList()
+
+        serviceWithCiEmail.getLeaderboard(regularUser)
+
+        verify { userRepository.findTopUsersByScore(any(), listOf(ciEmail)) }
     }
 
     @Test

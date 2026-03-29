@@ -6,6 +6,7 @@ import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.presentation.dto.LeaderboardEntryDto
 import com.alirezaiyan.vokab.server.presentation.dto.LeaderboardResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -16,12 +17,14 @@ private val logger = KotlinLogging.logger {}
 class LeaderboardService(
     private val userRepository: UserRepository,
     private val wordRepository: WordRepository,
-    private val aliasGenerator: AliasGenerator
+    private val aliasGenerator: AliasGenerator,
+    @Value("\${app.ci-auth.test-email:}") private val ciTestEmail: String,
 ) {
+    private val excludedEmails = listOf(ciTestEmail)
 
     @Transactional(readOnly = true)
     fun getLeaderboard(requestingUser: User, limit: Int = 20): LeaderboardResponse {
-        val topUsers = userRepository.findTopUsersByScore(PageRequest.of(0, limit))
+        val topUsers = userRepository.findTopUsersByScore(PageRequest.of(0, limit), excludedEmails)
         val userIds = topUsers.mapNotNull { it.id }
 
         val masteredCounts = if (userIds.isNotEmpty()) {
@@ -45,7 +48,7 @@ class LeaderboardService(
         val userEntry = if (!userInTop) {
             val userMastered = wordRepository.countMasteredWordsByUserId(requestingUser.id!!)
             val userScore = computeScore(userMastered, requestingUser.currentStreak, requestingUser.longestStreak)
-            val userRank = userRepository.findUserRankByScore(userScore).toInt()
+            val userRank = userRepository.findUserRankByScore(userScore, excludedEmails).toInt()
             toEntryDto(
                 user = requestingUser,
                 rank = userRank,
