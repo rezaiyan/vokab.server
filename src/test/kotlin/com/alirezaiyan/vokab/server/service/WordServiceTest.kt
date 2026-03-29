@@ -209,37 +209,23 @@ class WordServiceTest {
     // ── delete ────────────────────────────────────────────────────────────────
 
     @Test
-    fun `delete should throw NoSuchElementException when word not found`() {
-        val user = createUser()
-        every { wordRepository.findById(99L) } returns Optional.empty()
-
-        assertThrows<NoSuchElementException> {
-            wordService.delete(user, 99L)
-        }
-    }
-
-    @Test
-    fun `delete should throw IllegalArgumentException when word belongs to different user`() {
+    fun `delete should throw IllegalArgumentException when word not found or belongs to different user`() {
         val user = createUser(id = 1L)
-        val otherUser = createUser(id = 2L)
-        val word = createWord(id = 10L, user = otherUser)
-        every { wordRepository.findById(10L) } returns Optional.of(word)
+        every { wordRepository.deleteByIdAndUserId(99L, 1L) } returns 0
 
         assertThrows<IllegalArgumentException> {
-            wordService.delete(user, 10L)
+            wordService.delete(user, 99L)
         }
     }
 
     @Test
     fun `delete should delete word when valid`() {
         val user = createUser(id = 1L)
-        val word = createWord(id = 10L, user = user)
-        every { wordRepository.findById(10L) } returns Optional.of(word)
-        justRun { wordRepository.delete(word) }
+        every { wordRepository.deleteByIdAndUserId(10L, 1L) } returns 1
 
         wordService.delete(user, 10L)
 
-        verify(exactly = 1) { wordRepository.delete(word) }
+        verify(exactly = 1) { wordRepository.deleteByIdAndUserId(10L, 1L) }
     }
 
     // ── batchDelete ───────────────────────────────────────────────────────────
@@ -348,22 +334,18 @@ class WordServiceTest {
     }
 
     @Test
-    fun `batchAssignTags should delete existing and insert new tags`() {
+    fun `batchAssignTags should delete existing and insert new tags in one bulk call`() {
         val user = createUser(id = 1L)
         val wordIds = listOf(10L, 11L)
-        val tag1 = createTag(id = 5L, user = user)
-        val tag2 = createTag(id = 6L, user = user)
-        every { tagRepository.findAllByUserAndIdIn(user, listOf(5L, 6L)) } returns listOf(tag1, tag2)
+        val tagIds = listOf(5L, 6L)
         justRun { wordRepository.deleteWordTagsByWordIdsAndUserId(wordIds, 1L) }
-        justRun { wordRepository.insertWordTagsByWordIdsAndUserId(wordIds, 5L, 1L) }
-        justRun { wordRepository.insertWordTagsByWordIdsAndUserId(wordIds, 6L, 1L) }
+        justRun { wordRepository.insertWordTagsBulkByWordIdsAndUserId(wordIds, tagIds, 1L) }
 
-        val result = wordService.batchAssignTags(user, wordIds, listOf(5L, 6L))
+        val result = wordService.batchAssignTags(user, wordIds, tagIds)
 
         assertEquals(2, result)
         verify(exactly = 1) { wordRepository.deleteWordTagsByWordIdsAndUserId(wordIds, 1L) }
-        verify(exactly = 1) { wordRepository.insertWordTagsByWordIdsAndUserId(wordIds, 5L, 1L) }
-        verify(exactly = 1) { wordRepository.insertWordTagsByWordIdsAndUserId(wordIds, 6L, 1L) }
+        verify(exactly = 1) { wordRepository.insertWordTagsBulkByWordIdsAndUserId(wordIds, tagIds, 1L) }
     }
 
     @Test
@@ -376,7 +358,7 @@ class WordServiceTest {
 
         assertEquals(2, result)
         verify(exactly = 1) { wordRepository.deleteWordTagsByWordIdsAndUserId(wordIds, 1L) }
-        verify(exactly = 0) { wordRepository.insertWordTagsByWordIdsAndUserId(any(), any(), any()) }
+        verify(exactly = 0) { wordRepository.insertWordTagsBulkByWordIdsAndUserId(any(), any(), any()) }
         verify(exactly = 0) { tagRepository.findAllByUserAndIdIn(any(), any()) }
     }
 

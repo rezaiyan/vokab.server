@@ -16,6 +16,7 @@ import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/words")
@@ -23,8 +24,12 @@ class WordController(
     private val wordService: WordService,
 ) {
     @GetMapping
-    fun list(@AuthenticationPrincipal user: User): ResponseEntity<ApiResponse<List<WordDto>>> {
-        val words = wordService.list(user)
+    fun list(
+        @AuthenticationPrincipal user: User,
+        @RequestParam(required = false) updatedAfter: Long?,
+    ): ResponseEntity<ApiResponse<List<WordDto>>> {
+        val since = updatedAfter?.let { Instant.ofEpochMilli(it) }
+        val words = wordService.list(user, since)
         return ResponseEntity.ok(ApiResponse(success = true, data = words))
     }
 

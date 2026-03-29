@@ -7,11 +7,43 @@ import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import java.time.Instant
 
+interface ProgressRow {
+    fun getLevel(): Int
+    fun getWordCount(): Long
+    fun getDueCount(): Long
+}
+
 interface WordRepository : JpaRepository<Word, Long> {
     fun findAllByUser(user: User): List<Word>
 
+    fun findAllByUserAndIdIn(user: User, ids: List<Long>): List<Word>
+
     @Query("SELECT DISTINCT w FROM Word w LEFT JOIN FETCH w.tags WHERE w.user = :user")
     fun findAllByUserWithTags(user: User): List<Word>
+
+    @Query("""
+        SELECT DISTINCT w FROM Word w
+        LEFT JOIN FETCH w.tags
+        WHERE w.user = :user AND w.updatedAt > :since
+    """)
+    fun findAllByUserAndUpdatedAtAfterWithTags(user: User, since: Instant): List<Word>
+
+    @Query("""
+        SELECT w.level AS level,
+               COUNT(w) AS wordCount,
+               SUM(CASE WHEN w.nextReviewDate <= :nowMs THEN 1L ELSE 0L END) AS dueCount
+        FROM Word w
+        WHERE w.user.id = :userId
+        GROUP BY w.level
+    """)
+    fun findProgressRowsByUserId(userId: Long, nowMs: Long): List<ProgressRow>
+
+    @Query("""
+        SELECT w.translation FROM Word w
+        WHERE w.user = :user AND LOWER(w.targetLanguage) = LOWER(:targetLanguage)
+        AND TRIM(w.translation) <> ''
+    """)
+    fun findTranslationsByUserAndTargetLanguage(user: User, targetLanguage: String): List<String>
 
     @Query(
         "SELECT w.user.id, COUNT(w) FROM Word w " +
@@ -28,6 +60,10 @@ interface WordRepository : JpaRepository<Word, Long> {
             "GROUP BY w.sourceLanguage, w.targetLanguage"
     )
     fun findLanguagePairsWithCount(user: User): List<Array<Any>>
+
+    @Modifying
+    @Query("DELETE FROM Word w WHERE w.id = :id AND w.user.id = :userId")
+    fun deleteByIdAndUserId(id: Long, userId: Long): Int
 
     @Modifying
     @Query("DELETE FROM Word w WHERE w.id IN :ids AND w.user.id = :userId")
@@ -80,10 +116,16 @@ interface WordRepository : JpaRepository<Word, Long> {
 
     @Modifying
     @Query(
-        "INSERT INTO word_tags (word_id, tag_id) " +
-            "SELECT w.id, :tagId FROM words w WHERE w.id IN :wordIds AND w.user_id = :userId " +
-            "ON CONFLICT DO NOTHING",
+        """
+        INSERT INTO word_tags (word_id, tag_id)
+        SELECT w.id, t.tag_id
+        FROM words w
+        JOIN unnest(CAST(:tagIds AS BIGINT[])) AS t(tag_id) ON TRUE
+        WHERE w.id IN :wordIds
+          AND w.user_id = :userId
+        ON CONFLICT DO NOTHING
+        """,
         nativeQuery = true
     )
-    fun insertWordTagsByWordIdsAndUserId(wordIds: List<Long>, tagId: Long, userId: Long)
+    fun insertWordTagsBulkByWordIdsAndUserId(wordIds: List<Long>, tagIds: List<Long>, userId: Long)
 }

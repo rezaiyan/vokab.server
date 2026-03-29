@@ -19,15 +19,23 @@ class WordService(
     private val userRepository: UserRepository,
 ) {
     @Transactional(readOnly = true)
-    fun list(user: User): List<WordDto> {
-        return wordRepository.findAllByUserWithTags(user).map { it.toDto() }
+    fun list(user: User): List<WordDto> =
+        wordRepository.findAllByUserWithTags(user).map { it.toDto() }
+
+    @Transactional(readOnly = true)
+    fun list(user: User, updatedAfter: Instant?): List<WordDto> {
+        val words = if (updatedAfter == null) {
+            wordRepository.findAllByUserWithTags(user)
+        } else {
+            wordRepository.findAllByUserAndUpdatedAtAfterWithTags(user, updatedAfter)
+        }
+        return words.map { it.toDto() }
     }
 
     @Transactional(readOnly = true)
     fun getExistingTranslationKeys(user: User, targetLanguage: String): Set<String> {
-        return wordRepository.findAllByUser(user)
-            .filter { it.targetLanguage.equals(targetLanguage, ignoreCase = true) }
-            .mapNotNull { it.translation.trim().takeIf { t -> t.isNotEmpty() }?.lowercase() }
+        return wordRepository.findTranslationsByUserAndTargetLanguage(user, targetLanguage)
+            .map { it.trim().lowercase() }
             .toSet()
     }
 
@@ -69,9 +77,8 @@ class WordService(
 
     @Transactional
     fun delete(user: User, id: Long) {
-        val entity = wordRepository.findById(id).orElseThrow()
-        require(entity.user?.id == user.id) { "Forbidden" }
-        wordRepository.delete(entity)
+        val deleted = wordRepository.deleteByIdAndUserId(id, user.id!!)
+        require(deleted == 1) { "Word not found" }
     }
 
     @Transactional
@@ -109,10 +116,9 @@ class WordService(
     fun batchAssignTags(user: User, wordIds: List<Long>, tagIds: List<Long>): Int {
         if (wordIds.isEmpty()) return 0
         val userId = user.id!!
-        val tags = if (tagIds.isEmpty()) emptyList() else tagRepository.findAllByUserAndIdIn(user, tagIds)
         wordRepository.deleteWordTagsByWordIdsAndUserId(wordIds, userId)
-        tags.forEach { tag ->
-            wordRepository.insertWordTagsByWordIdsAndUserId(wordIds, tag.id!!, userId)
+        if (tagIds.isNotEmpty()) {
+            wordRepository.insertWordTagsBulkByWordIdsAndUserId(wordIds, tagIds, userId)
         }
         return wordIds.size
     }
@@ -141,4 +147,5 @@ private fun Word.toDto(): WordDto = WordDto(
     lastReviewDate = lastReviewDate,
     nextReviewDate = nextReviewDate,
     tagIds = tags.mapNotNull { it.id },
+    updatedAt = updatedAt.toEpochMilli(),
 )

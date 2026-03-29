@@ -16,15 +16,22 @@ class WordUpsertPreparer(
     fun prepareUpsertEntities(user: User, words: List<WordDto>): Collection<Word> {
         if (words.isEmpty()) return emptyList()
 
-        val existingByKey = loadExistingByKey(user)
+        val existingByKey = loadExistingByKey(user, words)
         val tagById = loadTagsById(user, words)
         return buildEntitiesToSave(user, words, existingByKey, tagById).values
     }
 
-    private fun loadExistingByKey(user: User): Map<WordKey, Word> =
-        wordRepository
-            .findAllByUser(user)
-            .associateBy { WordKey(it.originalWord, it.translation) }
+    private fun loadExistingByKey(user: User, words: List<WordDto>): Map<WordKey, Word> {
+        val knownIds = words.mapNotNull { it.id }
+        val existing = if (knownIds.size == words.size) {
+            // All words have IDs: fetch only those rows
+            wordRepository.findAllByUserAndIdIn(user, knownIds)
+        } else {
+            // Some words are new (no ID): must full-scan to detect duplicates by content
+            wordRepository.findAllByUser(user)
+        }
+        return existing.associateBy { WordKey(it.originalWord, it.translation) }
+    }
 
     /** Batch-loads all tags referenced by any DTO in the request (single query). */
     private fun loadTagsById(user: User, words: List<WordDto>): Map<Long, Tag> {

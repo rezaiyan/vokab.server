@@ -2,6 +2,7 @@ package com.alirezaiyan.vokab.server.presentation.dto
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.Size
 
 data class WordDto(
     val id: Long?,
@@ -17,10 +18,12 @@ data class WordDto(
     val lastReviewDate: Long,
     val nextReviewDate: Long,
     val tagIds: List<Long> = emptyList(),
+    val updatedAt: Long? = null,
 )
 
 data class UpsertWordsRequest(
     @field:NotEmpty(message = "Words list must not be empty")
+    @field:Size(max = 1000, message = "Cannot upsert more than 1000 words at once")
     val words: List<WordDto>,
 )
 
@@ -45,6 +48,7 @@ data class UpdateWordRequest(
 
 data class BatchDeleteRequest(
     @field:NotEmpty(message = "IDs list must not be empty")
+    @field:Size(max = 1000, message = "Cannot delete more than 1000 words at once")
     val ids: List<Long>,
 )
 
@@ -54,6 +58,7 @@ data class BatchDeleteResponse(
 
 data class BatchUpdateLanguagesRequest(
     @field:NotEmpty(message = "IDs list must not be empty")
+    @field:Size(max = 1000, message = "Cannot update more than 1000 words at once")
     val ids: List<Long>,
     val sourceLanguage: String? = null,
     val targetLanguage: String? = null,

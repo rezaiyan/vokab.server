@@ -65,7 +65,7 @@ class WordControllerTest {
     @Test
     fun `GET words should return 200 with word list`() {
         val words = listOf(createWordDto(id = 1L, originalWord = "apple", translation = "Apfel"))
-        `when`(wordService.list(mockUser)).thenReturn(words)
+        `when`(wordService.list(mockUser, null)).thenReturn(words)
 
         mockMvc.perform(
             get("/api/v1/words")
@@ -81,7 +81,7 @@ class WordControllerTest {
 
     @Test
     fun `GET words should return 200 with empty list`() {
-        `when`(wordService.list(mockUser)).thenReturn(emptyList())
+        `when`(wordService.list(mockUser, null)).thenReturn(emptyList())
 
         mockMvc.perform(
             get("/api/v1/words")
