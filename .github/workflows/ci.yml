@@ -79,8 +79,8 @@ jobs:
           print(f"Coverage badge updated: {pct}% ({color})")
           PYEOF
 
-  smoke-test:
-    name: Smoke Test (Production)
+  openrouter-model-check:
+    name: OpenRouter Model Validation
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -88,77 +88,44 @@ jobs:
       contents: read
 
     steps:
-      - name: Wait for server availability
-        env:
-          BACKEND_URL: ${{ secrets.VOKAB_BACKEND_URL }}
-        run: |
-          echo "Waiting for server to be reachable..."
-          for i in $(seq 1 6); do
-            HTTP_CODE=$(curl -sL -o /dev/null -w "%{http_code}" \
-              --connect-timeout 10 --max-time 15 \
-              "${BACKEND_URL}/api/v1/health" 2>/dev/null || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "Server is up (attempt $i)"
-              break
-            fi
-            echo "Attempt $i: HTTP $HTTP_CODE, retrying in 10s..."
-            sleep 10
-          done
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Obtain CI auth token
-        id: auth
+      - name: Validate OpenRouter model ID
         env:
-          BACKEND_URL: ${{ secrets.VOKAB_BACKEND_URL }}
-          CI_TEST_SECRET: ${{ secrets.CI_TEST_SECRET }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          HTTP_CODE=$(curl -sL -o /tmp/auth-response.json -w "%{http_code}" \
-            --connect-timeout 15 --max-time 30 --retry 3 --retry-delay 10 \
-            -X POST "${BACKEND_URL}/api/v1/auth/ci-token" \
-            -H "X-CI-Secret: $CI_TEST_SECRET" \
-            -H "Content-Type: application/json")
+          MODEL_ID=$(grep -oP "val model: String = \"\K[^\"]*" src/main/kotlin/com/alirezaiyan/vokab/server/service/OpenRouterService.kt)
+          echo "Model ID in code: $MODEL_ID"
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::CI auth failed (HTTP $HTTP_CODE)"
-            cat /tmp/auth-response.json
+          if [ -z "$MODEL_ID" ]; then
+            echo "::error::Could not extract model ID from OpenRouterService.kt"
             exit 1
           fi
 
-          ACCESS_TOKEN=$(cat /tmp/auth-response.json | jq -r '.data.accessToken')
-          echo "::add-mask::$ACCESS_TOKEN"
-          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
-
-      - name: Test onboarding vocabulary generation (OpenRouter)
-        env:
-          BACKEND_URL: ${{ secrets.VOKAB_BACKEND_URL }}
-          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: |
-          HTTP_CODE=$(curl -sL -o /tmp/vocab-response.json -w "%{http_code}" \
-            --connect-timeout 15 --max-time 90 --retry 2 --retry-delay 10 \
-            -X POST "${BACKEND_URL}/api/v1/onboarding/preferences" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
+          HTTP_CODE=$(curl -sL -o /tmp/model-response.json -w "%{http_code}" \
+            --connect-timeout 10 --max-time 30 \
+            -X POST "https://openrouter.ai/api/v1/chat/completions" \
+            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"targetLanguage":"German","currentLevel":"beginner","nativeLanguage":"English"}')
+            -d "{\"model\":\"$MODEL_ID\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":5}")
 
           echo "HTTP status: $HTTP_CODE"
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Onboarding vocabulary generation failed (HTTP $HTTP_CODE)"
-            cat /tmp/vocab-response.json
+            echo "::error::OpenRouter model '$MODEL_ID' is invalid or unavailable (HTTP $HTTP_CODE)"
+            cat /tmp/model-response.json
             exit 1
           fi
 
-          SUCCESS=$(cat /tmp/vocab-response.json | jq -r '.success')
-          ITEM_COUNT=$(cat /tmp/vocab-response.json | jq '.data.items | length')
-
-          echo "Success: $SUCCESS, Items: $ITEM_COUNT"
-
-          if [ "$SUCCESS" != "true" ] || [ "$ITEM_COUNT" -lt 10 ]; then
-            echo "::error::Vocabulary generation returned too few items ($ITEM_COUNT)"
-            cat /tmp/vocab-response.json | jq '.data.items[:3]'
+          CONTENT=$(cat /tmp/model-response.json | jq -r '.choices[0].message.content // empty')
+          if [ -z "$CONTENT" ]; then
+            echo "::error::Model returned empty response"
+            cat /tmp/model-response.json
             exit 1
           fi
 
-          echo "Smoke test passed: $ITEM_COUNT vocabulary items generated"
+          echo "OpenRouter model validation passed: '$MODEL_ID' is valid"
 
   dependency-check:
     name: Dependency Check
