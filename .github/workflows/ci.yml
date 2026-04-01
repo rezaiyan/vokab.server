@@ -79,6 +79,70 @@ jobs:
           print(f"Coverage badge updated: {pct}% ({color})")
           PYEOF
 
+  smoke-test:
+    name: Smoke Test (Production)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Obtain CI auth token
+        id: auth
+        env:
+          BACKEND_URL: ${{ secrets.VOKAB_BACKEND_URL }}
+          CI_TEST_SECRET: ${{ secrets.CI_TEST_SECRET }}
+        run: |
+          HTTP_CODE=$(curl -sL -o /tmp/auth-response.json -w "%{http_code}" \
+            --connect-timeout 15 --max-time 30 --retry 3 --retry-delay 5 \
+            -X POST "${BACKEND_URL}/api/v1/auth/ci-token" \
+            -H "X-CI-Secret: $CI_TEST_SECRET" \
+            -H "Content-Type: application/json")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::CI auth failed (HTTP $HTTP_CODE)"
+            cat /tmp/auth-response.json
+            exit 1
+          fi
+
+          ACCESS_TOKEN=$(cat /tmp/auth-response.json | jq -r '.data.accessToken')
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Test onboarding vocabulary generation (OpenRouter)
+        env:
+          BACKEND_URL: ${{ secrets.VOKAB_BACKEND_URL }}
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          HTTP_CODE=$(curl -sL -o /tmp/vocab-response.json -w "%{http_code}" \
+            --connect-timeout 15 --max-time 60 --retry 2 --retry-delay 5 \
+            -X POST "${BACKEND_URL}/api/v1/onboarding/preferences" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"targetLanguage":"German","currentLevel":"beginner","nativeLanguage":"English"}')
+
+          echo "HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Onboarding vocabulary generation failed (HTTP $HTTP_CODE)"
+            cat /tmp/vocab-response.json
+            exit 1
+          fi
+
+          SUCCESS=$(cat /tmp/vocab-response.json | jq -r '.success')
+          ITEM_COUNT=$(cat /tmp/vocab-response.json | jq '.data | length')
+
+          echo "Success: $SUCCESS, Items: $ITEM_COUNT"
+
+          if [ "$SUCCESS" != "true" ] || [ "$ITEM_COUNT" -lt 10 ]; then
+            echo "::error::Vocabulary generation returned too few items ($ITEM_COUNT)"
+            cat /tmp/vocab-response.json | jq '.data[:3]'
+            exit 1
+          fi
+
+          echo "Smoke test passed: $ITEM_COUNT vocabulary items generated"
+
   dependency-check:
     name: Dependency Check
     runs-on: ubuntu-latest
