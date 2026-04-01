@@ -736,13 +736,14 @@ class OpenRouterServiceTest {
             )
         )
         assertTrue(
-            !request.model.contains("claude-3.5") && !request.model.contains("claude-3-5"),
+            !request.model.contains("claude-3.5-sonnet"),
             "Default model should not use deprecated claude-3.5-sonnet, was: ${request.model}"
         )
         assertTrue(
             request.model.startsWith("anthropic/"),
             "Default model should use anthropic/ prefix, was: ${request.model}"
         )
+        assertEquals("anthropic/claude-haiku-4.5", request.model)
     }
 
     // ── factory functions ─────────────────────────────────────────────────────

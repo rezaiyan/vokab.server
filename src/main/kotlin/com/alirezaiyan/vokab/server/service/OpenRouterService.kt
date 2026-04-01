@@ -29,7 +29,7 @@ class OpenRouterService(
     }
     
     data class OpenRouterRequest(
-        val model: String = "anthropic/claude-haiku-4-5-20251001",
+        val model: String = "anthropic/claude-haiku-4.5",
         val messages: List<Message>
     )
     
