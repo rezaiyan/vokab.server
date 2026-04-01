@@ -148,13 +148,13 @@ jobs:
           fi
 
           SUCCESS=$(cat /tmp/vocab-response.json | jq -r '.success')
-          ITEM_COUNT=$(cat /tmp/vocab-response.json | jq '.data | length')
+          ITEM_COUNT=$(cat /tmp/vocab-response.json | jq '.data.items | length')
 
           echo "Success: $SUCCESS, Items: $ITEM_COUNT"
 
           if [ "$SUCCESS" != "true" ] || [ "$ITEM_COUNT" -lt 10 ]; then
             echo "::error::Vocabulary generation returned too few items ($ITEM_COUNT)"
-            cat /tmp/vocab-response.json | jq '.data[:3]'
+            cat /tmp/vocab-response.json | jq '.data.items[:3]'
             exit 1
           fi
 
