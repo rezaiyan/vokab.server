@@ -88,6 +88,23 @@ jobs:
       contents: read
 
     steps:
+      - name: Wait for server availability
+        env:
+          BACKEND_URL: ${{ secrets.VOKAB_BACKEND_URL }}
+        run: |
+          echo "Waiting for server to be reachable..."
+          for i in $(seq 1 6); do
+            HTTP_CODE=$(curl -sL -o /dev/null -w "%{http_code}" \
+              --connect-timeout 10 --max-time 15 \
+              "${BACKEND_URL}/api/v1/health" 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Server is up (attempt $i)"
+              break
+            fi
+            echo "Attempt $i: HTTP $HTTP_CODE, retrying in 10s..."
+            sleep 10
+          done
+
       - name: Obtain CI auth token
         id: auth
         env:
@@ -95,7 +112,7 @@ jobs:
           CI_TEST_SECRET: ${{ secrets.CI_TEST_SECRET }}
         run: |
           HTTP_CODE=$(curl -sL -o /tmp/auth-response.json -w "%{http_code}" \
-            --connect-timeout 15 --max-time 30 --retry 3 --retry-delay 5 \
+            --connect-timeout 15 --max-time 30 --retry 3 --retry-delay 10 \
             -X POST "${BACKEND_URL}/api/v1/auth/ci-token" \
             -H "X-CI-Secret: $CI_TEST_SECRET" \
             -H "Content-Type: application/json")
@@ -116,7 +133,7 @@ jobs:
           ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: |
           HTTP_CODE=$(curl -sL -o /tmp/vocab-response.json -w "%{http_code}" \
-            --connect-timeout 15 --max-time 60 --retry 2 --retry-delay 5 \
+            --connect-timeout 15 --max-time 90 --retry 2 --retry-delay 10 \
             -X POST "${BACKEND_URL}/api/v1/onboarding/preferences" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
