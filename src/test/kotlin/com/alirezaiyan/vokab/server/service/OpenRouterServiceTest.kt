@@ -723,6 +723,28 @@ class OpenRouterServiceTest {
         assertEquals(message, result)
     }
 
+    // ── model configuration ────────────────────────────────────────────────────
+
+    @Test
+    fun `default model should not use deprecated claude-3_5-sonnet`() {
+        val request = OpenRouterService.OpenRouterRequest(
+            messages = listOf(
+                OpenRouterService.Message(
+                    role = "user",
+                    content = listOf(OpenRouterService.Content(type = "text", text = "test"))
+                )
+            )
+        )
+        assertTrue(
+            !request.model.contains("claude-3.5") && !request.model.contains("claude-3-5"),
+            "Default model should not use deprecated claude-3.5-sonnet, was: ${request.model}"
+        )
+        assertTrue(
+            request.model.startsWith("anthropic/"),
+            "Default model should use anthropic/ prefix, was: ${request.model}"
+        )
+    }
+
     // ── factory functions ─────────────────────────────────────────────────────
 
     private fun createAppProperties(
