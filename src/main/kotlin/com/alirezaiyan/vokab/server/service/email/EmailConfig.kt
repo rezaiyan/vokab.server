@@ -1,0 +1,14 @@
+package com.alirezaiyan.vokab.server.service.email
+
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.context.annotation.Configuration
+
+@Configuration
+@ConfigurationProperties(prefix = "app.email")
+data class EmailConfig(
+    var provider: String = "log",
+    var apiKey: String = "",
+    var fromAddress: String = "Lexicon <noreply@lexicon.app>",
+    var replyTo: String = "",
+    var enabled: Boolean = false
+)
