@@ -59,6 +59,10 @@ services:
       EMAIL_API_KEY: ${EMAIL_API_KEY:-}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-Lexicon <noreply@lexicon.app>}
       EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-465}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
       AVATAR_UPLOAD_DIR: ${AVATAR_UPLOAD_DIR:-/var/www/uploads/avatars}
       AVATAR_BASE_URL: ${AVATAR_BASE_URL:-}
       PORT: 8080

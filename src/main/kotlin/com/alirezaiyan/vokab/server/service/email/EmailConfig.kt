@@ -10,5 +10,9 @@ data class EmailConfig(
     var apiKey: String = "",
     var fromAddress: String = "Lexicon <noreply@lexicon.app>",
     var replyTo: String = "",
-    var enabled: Boolean = false
+    var enabled: Boolean = false,
+    var smtpHost: String = "",
+    var smtpPort: Int = 465,
+    var smtpUser: String = "",
+    var smtpPassword: String = ""
 )
