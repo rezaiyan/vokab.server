@@ -54,6 +54,11 @@ services:
       CI_TEST_SECRET: ${CI_TEST_SECRET:-}
       CI_TEST_EMAIL: ${CI_TEST_EMAIL:-ci-maestro@test.vokab.dev}
       VOCABULARY_SUGGESTION_COUNT: ${VOCABULARY_SUGGESTION_COUNT:-50}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-log}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-Lexicon <noreply@lexicon.app>}
+      EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
       AVATAR_UPLOAD_DIR: ${AVATAR_UPLOAD_DIR:-/var/www/uploads/avatars}
       AVATAR_BASE_URL: ${AVATAR_BASE_URL:-}
       PORT: 8080

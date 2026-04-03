@@ -105,6 +105,13 @@ app:
     exclude-patterns: ${REQUEST_LOGGING_EXCLUDE_PATTERNS:/actuator/health,/h2-console/**}
     log-level: ${REQUEST_LOGGING_LEVEL:INFO}
 
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    provider: ${EMAIL_PROVIDER:log}
+    api-key: ${EMAIL_API_KEY:}
+    from-address: ${EMAIL_FROM_ADDRESS:Lexicon <noreply@lexicon.app>}
+    reply-to: ${EMAIL_REPLY_TO:}
+
   ci-auth:
     enabled: ${CI_TEST_AUTH_ENABLED:false}
     secret: ${CI_TEST_SECRET:}
