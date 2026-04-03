@@ -19,7 +19,7 @@ class EmailController(
     ): ResponseEntity<ApiResponse<List<EmailPreferenceDto>>> {
         val prefs = emailSubscriptionService.getPreferences(user.id!!)
             .map { EmailPreferenceDto(category = it.category, subscribed = it.subscribed) }
-        return ResponseEntity.ok(ApiResponse.success(prefs))
+        return ResponseEntity.ok(ApiResponse(success = true, data = prefs))
     }
 
     @PostMapping("/subscribe")
@@ -29,7 +29,7 @@ class EmailController(
     ): ResponseEntity<ApiResponse<EmailPreferenceDto>> {
         val sub = emailSubscriptionService.subscribe(user.id!!, request.category)
         return ResponseEntity.ok(
-            ApiResponse.success(EmailPreferenceDto(category = sub.category, subscribed = sub.subscribed))
+            ApiResponse(success = true, data = EmailPreferenceDto(category = sub.category, subscribed = sub.subscribed))
         )
     }
 
@@ -40,7 +40,7 @@ class EmailController(
     ): ResponseEntity<ApiResponse<EmailPreferenceDto>> {
         val sub = emailSubscriptionService.unsubscribe(user.id!!, request.category)
         return ResponseEntity.ok(
-            ApiResponse.success(EmailPreferenceDto(category = sub.category, subscribed = sub.subscribed))
+            ApiResponse(success = true, data = EmailPreferenceDto(category = sub.category, subscribed = sub.subscribed))
         )
     }
 }
