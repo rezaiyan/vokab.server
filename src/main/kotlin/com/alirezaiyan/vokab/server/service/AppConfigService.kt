@@ -71,6 +71,24 @@ class AppConfigService(
         return updated
     }
 
+    @Transactional
+    fun addListItem(namespace: String, key: String, item: String, changedBy: String?): AppConfig {
+        val config = appConfigRepository.findByNamespaceAndKey(namespace, key)
+            ?: throw NoSuchElementException("Config not found: $namespace/$key")
+        val existing = config.value?.split(",").orEmpty().map { it.trim() }.filter { it.isNotEmpty() }
+        require(item !in existing) { "Item already exists: $item" }
+        return set(namespace, key, (existing + item).joinToString(","), changedBy)
+    }
+
+    @Transactional
+    fun removeListItem(namespace: String, key: String, item: String, changedBy: String?): AppConfig {
+        val config = appConfigRepository.findByNamespaceAndKey(namespace, key)
+            ?: throw NoSuchElementException("Config not found: $namespace/$key")
+        val existing = config.value?.split(",").orEmpty().map { it.trim() }.filter { it.isNotEmpty() }
+        require(item in existing) { "Item not found: $item" }
+        return set(namespace, key, existing.filter { it != item }.joinToString(","), changedBy)
+    }
+
     // ── Convenience accessors ─────────────────────────────────────────────────
 
     fun getTestEmails(): Set<String> =

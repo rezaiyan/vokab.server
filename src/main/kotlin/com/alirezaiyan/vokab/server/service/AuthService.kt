@@ -146,16 +146,21 @@ class AuthService(
     /**
      * Authenticates a dedicated CI test user without Firebase/Apple token verification.
      * The CI endpoint is gated by a shared secret header, so no OAuth flow is needed.
-     * Finds or creates the CI test user, grants premium access, and returns JWT tokens.
+     * Finds or creates the CI test user and returns JWT tokens.
+     *
+     * @param premium When true (default), grants ACTIVE subscription. When false, sets
+     *   subscription to FREE so non-premium gating can be tested.
      */
     @Transactional
-    fun authenticateForCi(): AuthResponse {
+    fun authenticateForCi(premium: Boolean = true): AuthResponse {
         val email = appProperties.ciAuth.testEmail
-        logger.info { "CI authentication for test user" }
+        logger.info { "CI authentication for test user (premium=$premium)" }
+
+        val applyAccess: (User) -> User = if (premium) ::applyTestUserPremiumAccess else ::stripPremiumAccess
 
         val user = userRepository.findByEmail(email)
             .map { existingUser ->
-                applyTestUserPremiumAccess(
+                applyAccess(
                     existingUser.copy(
                         lastLoginAt = Instant.now(),
                         updatedAt = Instant.now()
@@ -164,7 +169,7 @@ class AuthService(
             }
             .orElseGet {
                 logger.info { "Creating new CI test user" }
-                applyTestUserPremiumAccess(
+                applyAccess(
                     User(
                         email = email,
                         name = "CI Test User",
@@ -212,6 +217,19 @@ class AuthService(
         return user.copy(
             subscriptionStatus = com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE,
             subscriptionExpiresAt = farFutureExpiry
+        )
+    }
+
+    /**
+     * Explicitly removes premium access for non-premium CI tests.
+     * Sets subscription to FREE regardless of any prior state, so the
+     * feature-access endpoint returns hasPremiumAccess=false.
+     */
+    private fun stripPremiumAccess(user: User): User {
+        logger.info { "Stripping premium access for non-premium CI test: userId=${user.id}" }
+        return user.copy(
+            subscriptionStatus = com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.FREE,
+            subscriptionExpiresAt = null
         )
     }
 

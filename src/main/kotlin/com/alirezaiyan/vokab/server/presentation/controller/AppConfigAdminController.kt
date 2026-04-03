@@ -3,6 +3,7 @@ package com.alirezaiyan.vokab.server.presentation.controller
 import com.alirezaiyan.vokab.server.presentation.dto.ApiResponse
 import com.alirezaiyan.vokab.server.presentation.dto.AppConfigDto
 import com.alirezaiyan.vokab.server.presentation.dto.AppConfigHistoryDto
+import com.alirezaiyan.vokab.server.presentation.dto.AppConfigListItemRequest
 import com.alirezaiyan.vokab.server.presentation.dto.AppConfigUpdateRequest
 import com.alirezaiyan.vokab.server.presentation.dto.toDto
 import com.alirezaiyan.vokab.server.service.AppConfigService
@@ -37,6 +38,28 @@ class AppConfigAdminController(
         @RequestHeader(value = "X-Changed-By", required = false) changedBy: String?
     ): ResponseEntity<ApiResponse<AppConfigDto>> {
         val updated = appConfigService.set(namespace, key, request.value, changedBy ?: "api")
+        return ResponseEntity.ok(ApiResponse(success = true, data = updated.toDto()))
+    }
+
+    @PostMapping("/{namespace}/{key}/items")
+    fun addItem(
+        @PathVariable namespace: String,
+        @PathVariable key: String,
+        @Valid @RequestBody request: AppConfigListItemRequest,
+        @RequestHeader(value = "X-Changed-By", required = false) changedBy: String?
+    ): ResponseEntity<ApiResponse<AppConfigDto>> {
+        val updated = appConfigService.addListItem(namespace, key, request.item, changedBy ?: "api")
+        return ResponseEntity.ok(ApiResponse(success = true, data = updated.toDto()))
+    }
+
+    @DeleteMapping("/{namespace}/{key}/items/{item}")
+    fun removeItem(
+        @PathVariable namespace: String,
+        @PathVariable key: String,
+        @PathVariable item: String,
+        @RequestHeader(value = "X-Changed-By", required = false) changedBy: String?
+    ): ResponseEntity<ApiResponse<AppConfigDto>> {
+        val updated = appConfigService.removeListItem(namespace, key, item, changedBy ?: "api")
         return ResponseEntity.ok(ApiResponse(success = true, data = updated.toDto()))
     }
 

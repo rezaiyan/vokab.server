@@ -57,7 +57,8 @@ class AuthController(
     
     @PostMapping("/ci-token")
     fun authenticateForCi(
-        @RequestHeader("X-CI-Secret", required = false) ciSecret: String?
+        @RequestHeader("X-CI-Secret", required = false) ciSecret: String?,
+        @RequestParam("premium", defaultValue = "true") premium: Boolean,
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         if (!appProperties.ciAuth.enabled) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -70,7 +71,7 @@ class AuthController(
         }
 
         return try {
-            val response = authService.authenticateForCi()
+            val response = authService.authenticateForCi(premium = premium)
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "CI authentication failed" }

@@ -26,6 +26,10 @@ data class AppConfigUpdateRequest(
     @field:NotNull val value: String
 )
 
+data class AppConfigListItemRequest(
+    @field:NotNull val item: String
+)
+
 fun AppConfig.toDto() = AppConfigDto(
     namespace = namespace,
     key = key,
