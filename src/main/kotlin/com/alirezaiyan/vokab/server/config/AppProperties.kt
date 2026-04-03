@@ -54,7 +54,8 @@ data class FeatureFlagsConfig(
 )
 
 data class SecurityConfig(
-    var testEmails: String = ""  // Comma-separated list of test emails that bypass active check
+    var testEmails: String = "",  // Comma-separated list of test emails that bypass active check
+    var adminApiKey: String = ""  // Static key for X-Admin-Key header (CLI access to /admin/**)
 )
 
 data class LoggingConfig(

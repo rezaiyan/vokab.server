@@ -2,11 +2,13 @@ package com.alirezaiyan.vokab.server.security
 
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
+import com.alirezaiyan.vokab.server.service.AppConfigService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.stereotype.Component
@@ -18,7 +20,8 @@ private val logger = KotlinLogging.logger {}
 class JwtAuthenticationFilter(
     private val jwtTokenProvider: RS256JwtTokenProvider,
     private val userRepository: UserRepository,
-    private val appProperties: AppProperties
+    private val appProperties: AppProperties,
+    private val appConfigService: AppConfigService
 ) : OncePerRequestFilter() {
     
     // Paths that should skip JWT authentication
@@ -43,18 +46,6 @@ class JwtAuthenticationFilter(
         return excludedPaths.any { path.startsWith(it) }
     }
     
-    /**
-     * Get test emails from configuration
-     * Returns a set of emails that should bypass the active check
-     */
-    private fun getTestEmails(): Set<String> {
-        return appProperties.security.testEmails
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .toSet()
-    }
-    
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -62,7 +53,19 @@ class JwtAuthenticationFilter(
     ) {
         val path = request.requestURI
         logger.info { "🔐 JWT Filter [START]: Processing ${request.method} $path" }
-        
+
+        // Admin key — grants ROLE_ADMIN for /admin/** without requiring a user JWT
+        val adminKey = request.getHeader("X-Admin-Key")
+        val configuredKey = appProperties.security.adminApiKey
+        if (!adminKey.isNullOrBlank() && configuredKey.isNotBlank() && adminKey == configuredKey) {
+            val auth = UsernamePasswordAuthenticationToken(
+                "ali-cli", null, listOf(SimpleGrantedAuthority("ROLE_ADMIN"))
+            )
+            SecurityContextHolder.getContext().authentication = auth
+            filterChain.doFilter(request, response)
+            return
+        }
+
         try {
             val jwt = getJwtFromRequest(request)
             
@@ -83,7 +86,7 @@ class JwtAuthenticationFilter(
                     logger.info { "👤 JWT Filter [USER_ID]: Extracted user ID=$userId for $path" }
                     
                     if (userId != null) {
-                        val testEmails = getTestEmails()
+                        val testEmails = appConfigService.getTestEmails()
                         var userOptional = userRepository.findById(userId)
                         val isPresent = userOptional.isPresent
                         val userEmail = if (isPresent) userOptional.get().email else null

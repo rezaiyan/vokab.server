@@ -42,6 +42,7 @@ class AuthService(
     private val studySessionRepository: com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository,
     private val pushNotificationService: PushNotificationService,
     private val appProperties: com.alirezaiyan.vokab.server.config.AppProperties,
+    private val appConfigService: AppConfigService,
     private val auditLogService: AuditLogService,
     private val eventService: EventService,
     webClientBuilder: WebClient.Builder
@@ -190,15 +191,8 @@ class AuthService(
     /**
      * Check if an email is in the test emails list
      */
-    private fun isTestUser(email: String): Boolean {
-        val testEmails = appProperties.security.testEmails
-        if (testEmails.isBlank()) {
-            return false
-        }
-
-        val testEmailList = testEmails.split(",").map { it.trim() }
-        return testEmailList.contains(email)
-    }
+    private fun isTestUser(email: String): Boolean =
+        email in appConfigService.getTestEmails()
 
     /**
      * Apply premium access to test users
