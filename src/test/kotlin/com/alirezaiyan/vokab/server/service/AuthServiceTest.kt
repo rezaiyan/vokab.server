@@ -28,6 +28,7 @@ import com.alirezaiyan.vokab.server.domain.repository.UserSettingsRepository
 import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
+import com.alirezaiyan.vokab.server.service.AppConfigService
 import io.mockk.every
 import io.mockk.just
 import io.mockk.justRun
@@ -64,6 +65,7 @@ class AuthServiceTest {
     private lateinit var auditLogService: AuditLogService
     private lateinit var eventService: EventService
     private lateinit var webClientBuilder: WebClient.Builder
+    private lateinit var appConfigService: AppConfigService
 
     private lateinit var authService: AuthService
 
@@ -85,6 +87,8 @@ class AuthServiceTest {
         pushNotificationService = mockk()
         auditLogService = mockk(relaxed = true)
         eventService = mockk(relaxed = true)
+        appConfigService = mockk()
+        every { appConfigService.getTestEmails() } returns emptySet()
 
         appProperties = AppProperties(
             jwt = JwtConfig(refreshExpirationMs = 7_776_000_000L, refreshTokenGracePeriodMs = 30_000L),
@@ -114,7 +118,8 @@ class AuthServiceTest {
             appProperties = appProperties,
             auditLogService = auditLogService,
             eventService = eventService,
-            webClientBuilder = webClientBuilder
+            webClientBuilder = webClientBuilder,
+            appConfigService = appConfigService
         )
     }
 
@@ -181,6 +186,7 @@ class AuthServiceTest {
         val propertiesWithTestEmail = appProperties.copy(
             security = SecurityConfig(testEmails = testEmail)
         )
+        every { appConfigService.getTestEmails() } returns setOf(testEmail)
         val service = buildServiceWith(propertiesWithTestEmail)
 
         val existingUser = createUser(id = 20L, email = testEmail)
@@ -637,6 +643,7 @@ class AuthServiceTest {
             ciAuth = CiAuthConfig(enabled = true, secret = "", testEmail = testEmail),
             security = SecurityConfig(testEmails = testEmail)
         )
+        every { appConfigService.getTestEmails() } returns setOf(testEmail)
         val service = buildServiceWith(propertiesWithTestEmail)
 
         val existingUser = createUser(id = 50L, email = testEmail,
@@ -669,6 +676,7 @@ class AuthServiceTest {
         val propertiesWithMultipleTestEmails = appProperties.copy(
             security = SecurityConfig(testEmails = "other@test.com, $targetEmail, another@test.com")
         )
+        every { appConfigService.getTestEmails() } returns setOf("other@test.com", targetEmail, "another@test.com")
         val service = buildServiceWith(propertiesWithMultipleTestEmails)
 
         val existingUser = createUser(id = 51L, email = targetEmail,
@@ -772,7 +780,8 @@ class AuthServiceTest {
             appProperties = properties,
             auditLogService = auditLogService,
             eventService = eventService,
-            webClientBuilder = builder
+            webClientBuilder = builder,
+            appConfigService = appConfigService
         )
     }
 

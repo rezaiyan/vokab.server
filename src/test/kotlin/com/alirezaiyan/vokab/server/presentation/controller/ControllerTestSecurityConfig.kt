@@ -3,6 +3,7 @@ package com.alirezaiyan.vokab.server.presentation.controller
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.security.JwtAuthenticationFilter
 import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
+import com.alirezaiyan.vokab.server.service.AppConfigService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -37,7 +38,8 @@ class ControllerTestSecurityConfig {
         val userRepository = Mockito.mock(
             com.alirezaiyan.vokab.server.domain.repository.UserRepository::class.java
         )
-        return object : JwtAuthenticationFilter(tokenProvider, userRepository, AppProperties()) {
+        val appConfigService = Mockito.mock(AppConfigService::class.java)
+        return object : JwtAuthenticationFilter(tokenProvider, userRepository, AppProperties(), appConfigService) {
             override fun shouldNotFilter(request: HttpServletRequest): Boolean = true
 
             override fun doFilterInternal(

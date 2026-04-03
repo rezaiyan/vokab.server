@@ -87,31 +87,12 @@ class JwtAuthenticationFilter(
                     
                     if (userId != null) {
                         val testEmails = appConfigService.getTestEmails()
-                        var userOptional = userRepository.findById(userId)
+                        val userOptional = userRepository.findById(userId)
                         val isPresent = userOptional.isPresent
                         val userEmail = if (isPresent) userOptional.get().email else null
                         val isTestAccount = userEmail in testEmails
                         val isActive = if (isPresent) userOptional.get().active else false
                         logger.info { "🗄️ JWT Filter [DB_LOOKUP]: User found=$isPresent, active=$isActive, testAccount=$isTestAccount for $path" }
-
-                        // Auto-grant premium access to test users if they don't have it
-                        if (isPresent && isTestAccount) {
-                            var currentUser = userOptional.get()
-                            val needsPremium = currentUser.subscriptionStatus != com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE
-
-                            if (needsPremium) {
-                                logger.info { "🎁 JWT Filter [TEST_USER_PREMIUM]: Auto-granting premium to userId=$userId" }
-                                val farFutureExpiry = java.time.Instant.now().plusSeconds(100L * 365 * 24 * 60 * 60)
-                                currentUser = currentUser.copy(
-                                    subscriptionStatus = com.alirezaiyan.vokab.server.domain.entity.SubscriptionStatus.ACTIVE,
-                                    subscriptionExpiresAt = farFutureExpiry,
-                                    updatedAt = java.time.Instant.now()
-                                )
-                                userRepository.save(currentUser)
-                                userOptional = java.util.Optional.of(currentUser)
-                                logger.info { "✅ JWT Filter [PREMIUM_GRANTED]: userId=$userId now has ACTIVE subscription until $farFutureExpiry" }
-                            }
-                        }
 
                         if (isPresent && (isActive || isTestAccount)) {
                             val authentication = UsernamePasswordAuthenticationToken(
