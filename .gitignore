@@ -76,6 +76,7 @@ docker-compose.override.yml
 
 ### Claude Code ###
 .claude/settings.local.json
+.codegraph/
 
 ### Temporary files ###
 *.tmp
