@@ -5,6 +5,8 @@ import com.alirezaiyan.vokab.server.config.CiAuthConfig
 import com.alirezaiyan.vokab.server.config.JwtConfig
 import com.alirezaiyan.vokab.server.config.RevenueCatConfig
 import com.alirezaiyan.vokab.server.config.SecurityConfig
+import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
+import com.alirezaiyan.vokab.server.service.event.DomainEventPublisher
 import com.alirezaiyan.vokab.server.domain.entity.DailyActivity
 import com.alirezaiyan.vokab.server.domain.entity.DailyInsight
 import com.alirezaiyan.vokab.server.domain.entity.PushToken
@@ -66,6 +68,7 @@ class AuthServiceTest {
     private lateinit var eventService: EventService
     private lateinit var webClientBuilder: WebClient.Builder
     private lateinit var appConfigService: AppConfigService
+    private lateinit var domainEventPublisher: DomainEventPublisher
 
     private lateinit var authService: AuthService
 
@@ -88,6 +91,7 @@ class AuthServiceTest {
         auditLogService = mockk(relaxed = true)
         eventService = mockk(relaxed = true)
         appConfigService = mockk()
+        domainEventPublisher = mockk(relaxed = true)
         every { appConfigService.getTestEmails() } returns emptySet()
 
         appProperties = AppProperties(
@@ -118,6 +122,7 @@ class AuthServiceTest {
             appProperties = appProperties,
             auditLogService = auditLogService,
             eventService = eventService,
+            domainEventPublisher = domainEventPublisher,
             webClientBuilder = webClientBuilder,
             appConfigService = appConfigService
         )
@@ -780,6 +785,7 @@ class AuthServiceTest {
             appProperties = properties,
             auditLogService = auditLogService,
             eventService = eventService,
+            domainEventPublisher = domainEventPublisher,
             webClientBuilder = builder,
             appConfigService = appConfigService
         )

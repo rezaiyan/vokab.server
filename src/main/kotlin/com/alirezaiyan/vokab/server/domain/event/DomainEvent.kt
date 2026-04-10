@@ -1,0 +1,19 @@
+package com.alirezaiyan.vokab.server.domain.event
+
+import java.time.Instant
+
+/**
+ * Marker interface for all domain events.
+ * Domain events are plain data — no framework dependency.
+ */
+sealed interface DomainEvent {
+    val occurredAt: Instant
+}
+
+data class UserSignedUpEvent(
+    val userId: Long,
+    val name: String,
+    val email: String,
+    val provider: String,
+    override val occurredAt: Instant = Instant.now()
+) : DomainEvent

@@ -3,6 +3,8 @@ package com.alirezaiyan.vokab.server.service
 import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.RefreshToken
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
+import com.alirezaiyan.vokab.server.service.event.DomainEventPublisher
 import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.AuthResponse
@@ -45,6 +47,7 @@ class AuthService(
     private val appConfigService: AppConfigService,
     private val auditLogService: AuditLogService,
     private val eventService: EventService,
+    private val domainEventPublisher: DomainEventPublisher,
     webClientBuilder: WebClient.Builder
 ) {
     private val webClient = webClientBuilder.build()
@@ -78,8 +81,16 @@ class AuthService(
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "Google", null, null)
         if (isNewUser) {
             eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "google"))
+            domainEventPublisher.publish(
+                UserSignedUpEvent(
+                    userId = savedUser.id!!,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "google"
+                )
+            )
         }
-        
+
         return AuthResponse(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,
@@ -87,7 +98,7 @@ class AuthService(
             user = tokenPair.user
         )
     }
-    
+
     /**
      * Authenticates a user using an Apple ID token from Sign in with Apple.
      * Creates a new user if one doesn't exist, or updates existing user's last login time.
@@ -133,8 +144,16 @@ class AuthService(
         auditLogService.logLogin(savedUser.id!!, savedUser.email, "Apple", null, null)
         if (isNewUser) {
             eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "apple"))
+            domainEventPublisher.publish(
+                UserSignedUpEvent(
+                    userId = savedUser.id!!,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "apple"
+                )
+            )
         }
-        
+
         return AuthResponse(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,

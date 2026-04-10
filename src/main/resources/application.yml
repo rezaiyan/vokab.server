@@ -121,6 +121,13 @@ app:
     secret: ${CI_TEST_SECRET:}
     test-email: ${CI_TEST_EMAIL:ci-maestro@test.vokab.dev}
 
+  notifications:
+    admin:
+      enabled: ${ADMIN_NOTIFICATIONS_ENABLED:true}
+      telegram:
+        bot-token: ${TELEGRAM_ADMIN_BOT_TOKEN:}
+        chat-id: ${TELEGRAM_ADMIN_CHAT_ID:}
+
   github-vocabulary:
     repo-url: ${GITHUB_REPO_URL:https://api.github.com/repos/rezaiyan/Vokab-collection}
     # GitHub personal access token for higher rate limits (5000/hour instead of 60/hour)
