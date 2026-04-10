@@ -17,3 +17,11 @@ data class UserSignedUpEvent(
     val provider: String,
     override val occurredAt: Instant = Instant.now()
 ) : DomainEvent
+
+data class UserSignedInEvent(
+    val userId: Long,
+    val name: String,
+    val email: String,
+    val provider: String,
+    override val occurredAt: Instant = Instant.now()
+) : DomainEvent

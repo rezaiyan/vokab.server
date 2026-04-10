@@ -3,6 +3,7 @@ package com.alirezaiyan.vokab.server.service
 import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.RefreshToken
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.event.UserSignedInEvent
 import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
 import com.alirezaiyan.vokab.server.service.event.DomainEventPublisher
 import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
@@ -89,6 +90,15 @@ class AuthService(
                     provider = "google"
                 )
             )
+        } else {
+            domainEventPublisher.publish(
+                UserSignedInEvent(
+                    userId = savedUser.id!!,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "google"
+                )
+            )
         }
 
         return AuthResponse(
@@ -152,6 +162,15 @@ class AuthService(
                     provider = "apple"
                 )
             )
+        } else {
+            domainEventPublisher.publish(
+                UserSignedInEvent(
+                    userId = savedUser.id!!,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "apple"
+                )
+            )
         }
 
         return AuthResponse(
@@ -161,7 +180,7 @@ class AuthService(
             user = tokenPair.user
         )
     }
-    
+
     /**
      * Authenticates a dedicated CI test user without Firebase/Apple token verification.
      * The CI endpoint is gated by a shared secret header, so no OAuth flow is needed.

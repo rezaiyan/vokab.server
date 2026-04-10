@@ -1,6 +1,7 @@
 package com.alirezaiyan.vokab.server.service.notification
 
 import com.alirezaiyan.vokab.server.config.AppProperties
+import com.alirezaiyan.vokab.server.domain.event.UserSignedInEvent
 import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.event.EventListener
@@ -27,6 +28,21 @@ class AdminNotificationListener(
             )
         } catch (e: Exception) {
             logger.warn(e) { "Failed to send admin notification for signup userId=${event.userId}" }
+        }
+    }
+
+    @Async
+    @EventListener
+    fun onUserSignedIn(event: UserSignedInEvent) {
+        if (!appProperties.notifications.admin.enabled) return
+
+        try {
+            notificationChannel.send(
+                title = "Login",
+                body = "${event.name} signed in via ${event.provider}"
+            )
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to send admin notification for login userId=${event.userId}" }
         }
     }
 }
