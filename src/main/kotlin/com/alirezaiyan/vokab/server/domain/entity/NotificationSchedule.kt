@@ -1,6 +1,8 @@
 package com.alirezaiyan.vokab.server.domain.entity
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.Instant
 import java.time.LocalDate
 
@@ -38,6 +40,7 @@ class NotificationSchedule(
     @Column(name = "suppressed_until")
     var suppressedUntil: LocalDate? = null,
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "last_milestone_snapshot", columnDefinition = "jsonb")
     var lastMilestoneSnapshot: String? = null,
 
