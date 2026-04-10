@@ -15,7 +15,8 @@ data class AppProperties(
     var security: SecurityConfig = SecurityConfig(),
     var logging: LoggingConfig = LoggingConfig(),
     var vocabulary: VocabularyConfig = VocabularyConfig(),
-    var ciAuth: CiAuthConfig = CiAuthConfig()
+    var ciAuth: CiAuthConfig = CiAuthConfig(),
+    var notifications: NotificationsConfig = NotificationsConfig()
 )
 
 data class JwtConfig(
@@ -82,4 +83,18 @@ data class CiAuthConfig(
     var enabled: Boolean = false,
     var secret: String = "",
     var testEmail: String = "ci-maestro@test.vokab.dev"
+)
+
+data class NotificationsConfig(
+    var admin: AdminConfig = AdminConfig()
+) {
+    data class AdminConfig(
+        var enabled: Boolean = true,
+        var telegram: TelegramConfig = TelegramConfig()
+    )
+}
+
+data class TelegramConfig(
+    var botToken: String = "",
+    var chatId: String = ""
 )
