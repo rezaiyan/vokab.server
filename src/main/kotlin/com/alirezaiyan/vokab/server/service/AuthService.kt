@@ -83,7 +83,7 @@ class AuthService(
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
-        logger.info { "✅ User authenticated: userId=${savedUser.id}" }
+        logger.info { "✅ User authenticated: userId=${userId}" }
         auditLogService.logLogin(userId, savedUser.email, "Google", ipAddress, null)
         if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
         if (isNewUser) {
