@@ -13,6 +13,8 @@ import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 class ReviewReminderDispatcherTest {
 
@@ -52,6 +54,7 @@ class ReviewReminderDispatcherTest {
                 data = payload.data
             )
         } returns listOf(NotificationResponse(success = true))
+        every { notificationScheduleRepository.save(any()) } returns schedule
 
         // Act
         dispatcher.dispatchForCurrentHour()
@@ -64,6 +67,31 @@ class ReviewReminderDispatcherTest {
                 body = payload.body,
                 data = payload.data
             )
+        }
+    }
+
+    @Test
+    fun `should update lastSentDate after successful send`() {
+        // Arrange
+        val user = createUser(id = 1L)
+        val schedule = createSchedule(user)
+        val payload = createPayload()
+
+        every { notificationScheduleRepository.findUsersForReviewReminders(any()) } returns listOf(schedule)
+        every { notificationContentBuilder.build(user, NotificationType.REVIEW_REMINDER) } returns payload
+        every {
+            pushNotificationService.sendNotificationToUser(
+                userId = 1L, title = any(), body = any(), data = any()
+            )
+        } returns listOf(NotificationResponse(success = true))
+        every { notificationScheduleRepository.save(any()) } returns schedule
+
+        // Act
+        dispatcher.dispatchForCurrentHour()
+
+        // Assert
+        verify {
+            notificationScheduleRepository.save(match { it.lastSentDate == LocalDate.now(ZoneOffset.UTC) })
         }
     }
 
@@ -102,6 +130,7 @@ class ReviewReminderDispatcherTest {
                 data = any()
             )
         } returns listOf(NotificationResponse(success = true))
+        every { notificationScheduleRepository.save(any()) } returns schedule2
 
         // Act
         dispatcher.dispatchForCurrentHour()
@@ -125,6 +154,7 @@ class ReviewReminderDispatcherTest {
         val payload = createPayload()
 
         every { notificationScheduleRepository.findUsersForReviewReminders(any()) } returns schedules
+        every { notificationScheduleRepository.save(any()) } returnsArgument 0
         schedules.forEachIndexed { i, _ ->
             every { notificationContentBuilder.build(users[i], NotificationType.REVIEW_REMINDER) } returns payload
             every {

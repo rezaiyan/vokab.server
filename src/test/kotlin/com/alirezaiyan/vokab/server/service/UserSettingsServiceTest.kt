@@ -108,7 +108,7 @@ class UserSettingsServiceTest {
         // Assert
         assertNotNull(result.engagementStats)
         assertEquals(50, result.engagementStats!!.openRatePercent)
-        assertEquals(2, result.engagementStats.consecutiveIgnores)
+        assertEquals(2, result.engagementStats!!.consecutiveIgnores)
     }
 
     @Test

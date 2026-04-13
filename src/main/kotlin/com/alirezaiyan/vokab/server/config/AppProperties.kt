@@ -16,6 +16,7 @@ data class AppProperties(
     var logging: LoggingConfig = LoggingConfig(),
     var vocabulary: VocabularyConfig = VocabularyConfig(),
     var ciAuth: CiAuthConfig = CiAuthConfig(),
+    var notifications: NotificationsConfig = NotificationsConfig(),
     var geolocation: GeoLocationConfig = GeoLocationConfig()
 )
 
@@ -83,6 +84,20 @@ data class CiAuthConfig(
     var enabled: Boolean = false,
     var secret: String = "",
     var testEmail: String = "ci-maestro@test.vokab.dev"
+)
+
+data class NotificationsConfig(
+    var admin: AdminConfig = AdminConfig()
+) {
+    data class AdminConfig(
+        var enabled: Boolean = true,
+        var telegram: TelegramConfig = TelegramConfig()
+    )
+}
+
+data class TelegramConfig(
+    var botToken: String = "",
+    var chatId: String = ""
 )
 
 data class GeoLocationConfig(

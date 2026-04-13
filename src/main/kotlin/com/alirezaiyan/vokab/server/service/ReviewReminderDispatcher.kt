@@ -6,6 +6,7 @@ import com.alirezaiyan.vokab.server.service.NotificationTypeSelector.Notificatio
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 
@@ -39,6 +40,8 @@ class ReviewReminderDispatcher(
         )
         val sent = results.any { it.success }
         if (sent) {
+            schedule.lastSentDate = LocalDate.now(ZoneOffset.UTC)
+            notificationScheduleRepository.save(schedule)
             logger.info { "Sent REVIEW_REMINDER to user=${user.id}" }
         } else {
             logger.warn { "Push delivery failed for user=${user.id}, type=REVIEW_REMINDER" }

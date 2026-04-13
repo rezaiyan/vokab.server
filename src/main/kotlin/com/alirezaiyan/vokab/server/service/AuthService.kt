@@ -4,6 +4,9 @@ import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
 import com.alirezaiyan.vokab.server.domain.entity.Platform
 import com.alirezaiyan.vokab.server.domain.entity.RefreshToken
 import com.alirezaiyan.vokab.server.domain.entity.User
+import com.alirezaiyan.vokab.server.domain.event.UserSignedInEvent
+import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
+import com.alirezaiyan.vokab.server.service.event.DomainEventPublisher
 import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserPlatformRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
@@ -47,6 +50,7 @@ class AuthService(
     private val appConfigService: AppConfigService,
     private val auditLogService: AuditLogService,
     private val eventService: EventService,
+    private val domainEventPublisher: DomainEventPublisher,
     private val geoLocationService: GeoLocationService,
     webClientBuilder: WebClient.Builder
 ) {
@@ -73,18 +77,36 @@ class AuthService(
         val user = findOrCreateUser(firebaseToken)
         val isNewUser = user.id == null
         val savedUser = userRepository.save(user)
-        recordPlatform(savedUser.id!!, platform, appVersion)
+        val userId = requireNotNull(savedUser.id) { "User ID must not be null after save for user ${savedUser.email}" }
+        recordPlatform(userId, platform, appVersion)
 
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
         logger.info { "✅ User authenticated: userId=${savedUser.id}" }
-        auditLogService.logLogin(savedUser.id, savedUser.email, "Google", ipAddress, null)
+        auditLogService.logLogin(userId, savedUser.email, "Google", ipAddress, null)
         if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
         if (isNewUser) {
             eventService.trackAsync(savedUser.id, "signup_completed", mapOf("provider" to "google"))
+            domainEventPublisher.publish(
+                UserSignedUpEvent(
+                    userId = savedUser.id,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "google"
+                )
+            )
+        } else {
+            domainEventPublisher.publish(
+                UserSignedInEvent(
+                    userId = savedUser.id,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "google"
+                )
+            )
         }
-        
+
         return AuthResponse(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,
@@ -92,7 +114,7 @@ class AuthService(
             user = tokenPair.user
         )
     }
-    
+
     /**
      * Authenticates a user using an Apple ID token from Sign in with Apple.
      * Creates a new user if one doesn't exist, or updates existing user's last login time.
@@ -133,7 +155,8 @@ class AuthService(
         val user = findOrCreateAppleUser(resolvedAppleId, resolvedEmail, fullName, email == null)
         val isNewUser = user.id == null
         val savedUser = userRepository.save(user)
-        recordPlatform(savedUser.id!!, platform, appVersion)
+        val userId = requireNotNull(savedUser.id) { "User ID must not be null after save for user ${savedUser.email}" }
+        recordPlatform(userId, platform, appVersion)
 
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
@@ -142,9 +165,26 @@ class AuthService(
         auditLogService.logLogin(savedUser.id, savedUser.email, "Apple", ipAddress, null)
         if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
         if (isNewUser) {
-            eventService.trackAsync(savedUser.id, "signup_completed", mapOf("provider" to "apple"))
+            eventService.trackAsync(userId, "signup_completed", mapOf("provider" to "apple"))
+            domainEventPublisher.publish(
+                UserSignedUpEvent(
+                    userId = savedUser.id,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "apple"
+                )
+            )
+        } else {
+            domainEventPublisher.publish(
+                UserSignedInEvent(
+                    userId = userId,
+                    name = savedUser.name,
+                    email = savedUser.email,
+                    provider = "apple"
+                )
+            )
         }
-        
+
         return AuthResponse(
             accessToken = tokenPair.accessToken,
             refreshToken = tokenPair.refreshToken,
@@ -152,7 +192,7 @@ class AuthService(
             user = tokenPair.user
         )
     }
-    
+
     /**
      * Authenticates a dedicated CI test user without Firebase/Apple token verification.
      * The CI endpoint is gated by a shared secret header, so no OAuth flow is needed.
@@ -189,7 +229,8 @@ class AuthService(
             }
 
         val savedUser = userRepository.save(user)
-        recordPlatform(savedUser.id!!, platform, appVersion)
+        val userId = requireNotNull(savedUser.id) { "User ID must not be null after save for user ${savedUser.email}" }
+        recordPlatform(userId, platform, appVersion)
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 

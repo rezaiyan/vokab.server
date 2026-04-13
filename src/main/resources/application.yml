@@ -121,6 +121,13 @@ app:
     secret: ${CI_TEST_SECRET:}
     test-email: ${CI_TEST_EMAIL:ci-maestro@test.vokab.dev}
 
+  notifications:
+    admin:
+      enabled: ${ADMIN_NOTIFICATIONS_ENABLED:true}
+      telegram:
+        bot-token: ${TELEGRAM_ADMIN_BOT_TOKEN:}
+        chat-id: ${TELEGRAM_ADMIN_CHAT_ID:}
+
   geolocation:
     database-path: ${GEOLITE2_COUNTRY_DB_PATH:}
 
