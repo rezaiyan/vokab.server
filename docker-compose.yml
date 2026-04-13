@@ -67,6 +67,9 @@ services:
       EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
       AVATAR_UPLOAD_DIR: ${AVATAR_UPLOAD_DIR:-/var/www/uploads/avatars}
       AVATAR_BASE_URL: ${AVATAR_BASE_URL:-}
+      TELEGRAM_ADMIN_BOT_TOKEN: ${TELEGRAM_ADMIN_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      ADMIN_NOTIFICATIONS_ENABLED: ${ADMIN_NOTIFICATIONS_ENABLED:-true}
       PORT: 8080
     volumes:
       # Persist JWT keys across container restarts

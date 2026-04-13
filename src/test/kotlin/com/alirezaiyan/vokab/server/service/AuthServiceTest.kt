@@ -4,6 +4,8 @@ import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.CiAuthConfig
 import com.alirezaiyan.vokab.server.config.JwtConfig
 import com.alirezaiyan.vokab.server.config.SecurityConfig
+import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
+import com.alirezaiyan.vokab.server.service.event.DomainEventPublisher
 import com.alirezaiyan.vokab.server.domain.entity.DailyActivity
 import com.alirezaiyan.vokab.server.domain.entity.DailyInsight
 import com.alirezaiyan.vokab.server.domain.entity.PushToken
@@ -67,6 +69,7 @@ class AuthServiceTest {
     private lateinit var eventService: EventService
     private lateinit var webClientBuilder: WebClient.Builder
     private lateinit var appConfigService: AppConfigService
+    private lateinit var domainEventPublisher: DomainEventPublisher
     private lateinit var geoLocationService: GeoLocationService
 
     private lateinit var authService: AuthService
@@ -91,6 +94,7 @@ class AuthServiceTest {
         auditLogService = mockk(relaxed = true)
         eventService = mockk(relaxed = true)
         appConfigService = mockk()
+        domainEventPublisher = mockk(relaxed = true)
         every { appConfigService.getTestEmails() } returns emptySet()
         geoLocationService = mockk(relaxed = true)
 
@@ -123,6 +127,7 @@ class AuthServiceTest {
             appProperties = appProperties,
             auditLogService = auditLogService,
             eventService = eventService,
+            domainEventPublisher = domainEventPublisher,
             geoLocationService = geoLocationService,
             webClientBuilder = webClientBuilder,
             appConfigService = appConfigService
@@ -851,6 +856,7 @@ class AuthServiceTest {
             appProperties = properties,
             auditLogService = auditLogService,
             eventService = eventService,
+            domainEventPublisher = domainEventPublisher,
             geoLocationService = geoLocationService,
             webClientBuilder = builder,
             appConfigService = appConfigService
