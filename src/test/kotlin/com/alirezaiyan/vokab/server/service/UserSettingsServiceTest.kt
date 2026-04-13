@@ -106,9 +106,9 @@ class UserSettingsServiceTest {
         val result = userSettingsService.get(user)
 
         // Assert
-        assertNotNull(result.engagementStats)
-        assertEquals(50, result.engagementStats!!.openRatePercent)
-        assertEquals(2, result.engagementStats.consecutiveIgnores)
+        val stats = requireNotNull(result.engagementStats)
+        assertEquals(50, stats.openRatePercent)
+        assertEquals(2, stats.consecutiveIgnores)
     }
 
     @Test
