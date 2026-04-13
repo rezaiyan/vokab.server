@@ -35,6 +35,7 @@ class UserSettingsService(
         current.languageCode = dto.languageCode
         current.themeMode = dto.themeMode
         current.notificationsEnabled = dto.notificationsEnabled
+        current.reviewRemindersEnabled = dto.reviewRemindersEnabled
         current.dailyReminderTime = dto.dailyReminderTime
         current.notificationFrequency = dto.notificationFrequency
         return repo.save(current).toDto(null, null)
@@ -48,6 +49,7 @@ private fun UserSettings.toDto(
     languageCode = languageCode,
     themeMode = themeMode,
     notificationsEnabled = notificationsEnabled,
+    reviewRemindersEnabled = reviewRemindersEnabled,
     dailyReminderTime = dailyReminderTime,
     notificationFrequency = notificationFrequency,
     optimalSendHour = schedule?.optimalSendHour,

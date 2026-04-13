@@ -23,11 +23,15 @@ class AuthController(
     
     @PostMapping("/google")
     fun authenticateWithGoogle(
-        @Valid @RequestBody request: GoogleAuthRequest
+        @Valid @RequestBody request: GoogleAuthRequest,
+        @RequestHeader("X-Platform", required = false) platform: String?,
+        @RequestHeader("X-App-Version", required = false) appVersion: String?,
+        httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
-            val response = authService.authenticateWithGoogle(request.idToken)
-            
+            val ipAddress = getClientIpAddress(httpRequest)
+            val response = authService.authenticateWithGoogle(request.idToken, platform, appVersion, ipAddress)
+
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Google authentication failed" }
@@ -35,18 +39,25 @@ class AuthController(
                 .body(ApiResponse(success = false, message = "Authentication failed: ${e.message}"))
         }
     }
-    
+
     @PostMapping("/apple")
     fun authenticateWithApple(
-        @Valid @RequestBody request: AppleAuthRequest
+        @Valid @RequestBody request: AppleAuthRequest,
+        @RequestHeader("X-Platform", required = false) platform: String?,
+        @RequestHeader("X-App-Version", required = false) appVersion: String?,
+        httpRequest: HttpServletRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         return try {
+            val ipAddress = getClientIpAddress(httpRequest)
             val response = authService.authenticateWithApple(
                 request.idToken,
                 request.fullName,
-                request.appleUserId
+                request.appleUserId,
+                platform,
+                appVersion,
+                ipAddress
             )
-            
+
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "Apple authentication failed" }
@@ -58,6 +69,8 @@ class AuthController(
     @PostMapping("/ci-token")
     fun authenticateForCi(
         @RequestHeader("X-CI-Secret", required = false) ciSecret: String?,
+        @RequestHeader("X-Platform", required = false) platform: String?,
+        @RequestHeader("X-App-Version", required = false) appVersion: String?,
         @RequestParam("premium", defaultValue = "true") premium: Boolean,
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         if (!appProperties.ciAuth.enabled) {
@@ -71,7 +84,7 @@ class AuthController(
         }
 
         return try {
-            val response = authService.authenticateForCi(premium = premium)
+            val response = authService.authenticateForCi(premium = premium, platform = platform, appVersion = appVersion)
             ResponseEntity.ok(ApiResponse(success = true, data = response))
         } catch (e: Exception) {
             logger.error(e) { "CI authentication failed" }

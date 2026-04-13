@@ -24,6 +24,9 @@ class UserSettings(
     var notificationsEnabled: Boolean = true,
 
     @Column(nullable = false)
+    var reviewRemindersEnabled: Boolean = true,
+
+    @Column(nullable = false)
     var dailyReminderTime: String = "18:00",
 
     @Column(nullable = false)

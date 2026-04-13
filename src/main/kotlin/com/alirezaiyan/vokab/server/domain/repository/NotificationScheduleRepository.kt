@@ -4,6 +4,7 @@ import com.alirezaiyan.vokab.server.domain.entity.NotificationSchedule
 import com.alirezaiyan.vokab.server.domain.entity.User
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
 interface NotificationScheduleRepository : JpaRepository<NotificationSchedule, Long> {
     fun findByUser(user: User): NotificationSchedule?
@@ -37,4 +38,17 @@ interface NotificationScheduleRepository : JpaRepository<NotificationSchedule, L
 
     @Query("SELECT COUNT(ns) FROM NotificationSchedule ns WHERE ns.suppressedUntil >= CURRENT_DATE AND ns.consecutiveIgnores >= 15")
     fun countSuppressed30Day(): Long
+
+    @Query("""
+        SELECT ns FROM NotificationSchedule ns
+        WHERE ns.optimalSendHour = :hour
+          AND (ns.lastSentDate IS NULL OR ns.lastSentDate < CURRENT_DATE)
+          AND EXISTS (
+            SELECT us FROM UserSettings us
+            WHERE us.user = ns.user
+              AND us.notificationsEnabled = true
+              AND us.reviewRemindersEnabled = true
+          )
+    """)
+    fun findUsersForReviewReminders(@Param("hour") hour: Int): List<NotificationSchedule>
 }

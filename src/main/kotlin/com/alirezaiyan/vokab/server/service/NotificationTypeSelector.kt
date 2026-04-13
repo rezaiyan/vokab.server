@@ -23,7 +23,7 @@ class NotificationTypeSelector(
 ) {
     enum class NotificationType {
         STREAK_RISK, PROGRESS_MILESTONE, WEEKLY_PREVIEW,
-        DUE_CARDS, COMEBACK_ALERT, DAILY_INSIGHT, NONE
+        DUE_CARDS, COMEBACK_ALERT, DAILY_INSIGHT, REVIEW_REMINDER, NONE
     }
 
     @Transactional(readOnly = true)

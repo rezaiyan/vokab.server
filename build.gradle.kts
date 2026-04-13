@@ -67,6 +67,9 @@ dependencies {
 	// Argon2 for refresh token hashing
 	implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
 	
+	// GeoIP
+	implementation("com.maxmind.geoip2:geoip2:4.2.0")
+
 	// Logging
 	implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")
 	

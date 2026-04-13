@@ -1,0 +1,47 @@
+package com.alirezaiyan.vokab.server.service
+
+import com.alirezaiyan.vokab.server.domain.entity.NotificationSchedule
+import com.alirezaiyan.vokab.server.domain.repository.NotificationScheduleRepository
+import com.alirezaiyan.vokab.server.service.NotificationTypeSelector.NotificationType
+import com.alirezaiyan.vokab.server.service.push.PushNotificationService
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.stereotype.Service
+import java.time.LocalTime
+import java.time.ZoneOffset
+
+private val logger = KotlinLogging.logger {}
+
+@Service
+class ReviewReminderDispatcher(
+    private val notificationScheduleRepository: NotificationScheduleRepository,
+    private val notificationContentBuilder: NotificationContentBuilder,
+    private val pushNotificationService: PushNotificationService
+) {
+    fun dispatchForCurrentHour() {
+        val hour = LocalTime.now(ZoneOffset.UTC).hour
+        val schedules = notificationScheduleRepository.findUsersForReviewReminders(hour)
+        logger.info { "Review reminder dispatch: hour=$hour, candidates=${schedules.size}" }
+        for (schedule in schedules) {
+            runCatching { dispatchForUser(schedule) }
+                .onFailure { logger.error(it) { "Review reminder dispatch failed for user=${schedule.user.id}" } }
+        }
+    }
+
+    private fun dispatchForUser(schedule: NotificationSchedule) {
+        val user = schedule.user
+        val userId = user.id ?: error("User id is null for schedule=${schedule.id}")
+        val payload = notificationContentBuilder.build(user, NotificationType.REVIEW_REMINDER)
+        val results = pushNotificationService.sendNotificationToUser(
+            userId = userId,
+            title = payload.title,
+            body = payload.body,
+            data = payload.data
+        )
+        val sent = results.any { it.success }
+        if (sent) {
+            logger.info { "Sent REVIEW_REMINDER to user=${user.id}" }
+        } else {
+            logger.warn { "Push delivery failed for user=${user.id}, type=REVIEW_REMINDER" }
+        }
+    }
+}

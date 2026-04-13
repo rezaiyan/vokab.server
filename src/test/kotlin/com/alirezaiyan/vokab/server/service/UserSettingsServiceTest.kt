@@ -108,7 +108,7 @@ class UserSettingsServiceTest {
         // Assert
         assertNotNull(result.engagementStats)
         assertEquals(50, result.engagementStats!!.openRatePercent)
-        assertEquals(2, result.engagementStats!!.consecutiveIgnores)
+        assertEquals(2, result.engagementStats.consecutiveIgnores)
     }
 
     @Test
@@ -182,6 +182,39 @@ class UserSettingsServiceTest {
         assertEquals("WEEKLY", result.notificationFrequency)
     }
 
+    @Test
+    fun `update should persist reviewRemindersEnabled`() {
+        // Arrange
+        val user = createUser()
+        val existing = createUserSettings(user = user)
+        val dto = createSettingsDto(reviewRemindersEnabled = false)
+        every { repo.findByUser(user) } returns existing
+        every { repo.save(existing) } returns existing
+
+        // Act
+        val result = userSettingsService.update(user, dto)
+
+        // Assert
+        assertEquals(false, result.reviewRemindersEnabled)
+        verify(exactly = 1) { repo.save(existing) }
+    }
+
+    @Test
+    fun `get should return reviewRemindersEnabled in response`() {
+        // Arrange
+        val user = createUser()
+        val settings = createUserSettings(user = user, reviewRemindersEnabled = false)
+        every { repo.findByUser(user) } returns settings
+        every { notificationScheduleRepository.findByUser(user) } returns null
+        every { notificationEngagementService.getEngagementStats(user.id!!) } returns createEngagementStats()
+
+        // Act
+        val result = userSettingsService.get(user)
+
+        // Assert
+        assertEquals(false, result.reviewRemindersEnabled)
+    }
+
     // --- Factory functions ---
 
     private fun createUser(
@@ -204,14 +237,16 @@ class UserSettingsServiceTest {
         themeMode: String = "AUTO",
         notificationsEnabled: Boolean = true,
         dailyReminderTime: String = "18:00",
-        notificationFrequency: String = "DAILY"
+        notificationFrequency: String = "DAILY",
+        reviewRemindersEnabled: Boolean = true
     ): UserSettings = UserSettings(
         user = user,
         languageCode = languageCode,
         themeMode = themeMode,
         notificationsEnabled = notificationsEnabled,
         dailyReminderTime = dailyReminderTime,
-        notificationFrequency = notificationFrequency
+        notificationFrequency = notificationFrequency,
+        reviewRemindersEnabled = reviewRemindersEnabled
     )
 
     private fun createNotificationSchedule(
@@ -241,12 +276,14 @@ class UserSettingsServiceTest {
         themeMode: String = "AUTO",
         notificationsEnabled: Boolean = true,
         dailyReminderTime: String = "18:00",
-        notificationFrequency: String = "DAILY"
+        notificationFrequency: String = "DAILY",
+        reviewRemindersEnabled: Boolean = true
     ): SettingsDto = SettingsDto(
         languageCode = languageCode,
         themeMode = themeMode,
         notificationsEnabled = notificationsEnabled,
         dailyReminderTime = dailyReminderTime,
-        notificationFrequency = notificationFrequency
+        notificationFrequency = notificationFrequency,
+        reviewRemindersEnabled = reviewRemindersEnabled
     )
 }

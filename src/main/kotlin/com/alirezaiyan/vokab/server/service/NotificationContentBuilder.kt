@@ -31,6 +31,7 @@ class NotificationContentBuilder(
             DUE_CARDS          -> buildDueCards(user)
             COMEBACK_ALERT     -> buildComebackAlert(user)
             DAILY_INSIGHT      -> buildDailyInsight(user)
+            REVIEW_REMINDER    -> buildReviewReminder(user)
             NONE               -> error("Should not build payload for NONE type")
         }
     }
@@ -135,6 +136,26 @@ class NotificationContentBuilder(
                 "deep_link" to "vokab://insights"
             ),
             type = DAILY_INSIGHT
+        )
+    }
+
+    private fun buildReviewReminder(user: User): NotificationPayload {
+        val stats = userProgressService.calculateProgressStats(user)
+        val dueCards = stats.dueCards
+        val body = if (dueCards > 0) {
+            val estimatedMinutes = maxOf(1, (dueCards * 8) / 60)
+            "You have $dueCards words due for review — takes ~$estimatedMinutes min."
+        } else {
+            "Time for your daily vocabulary review. Keep the streak going!"
+        }
+        return NotificationPayload(
+            title = "📚 Time to review!",
+            body = body,
+            data = mapOf(
+                "type" to "review_reminder",
+                "deep_link" to "vokab://review"
+            ),
+            type = REVIEW_REMINDER
         )
     }
 

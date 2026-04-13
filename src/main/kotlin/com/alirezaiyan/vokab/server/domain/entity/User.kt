@@ -62,6 +62,12 @@ data class User(
     @Column(name = "first_review_at")
     val firstReviewAt: Instant? = null,
 
+    @Column(name = "signup_country", length = 2)
+    val signupCountry: String? = null,
+
+    @Column(name = "last_login_country", length = 2)
+    val lastLoginCountry: String? = null,
+
     @Column(nullable = false)
     val active: Boolean = true,
     

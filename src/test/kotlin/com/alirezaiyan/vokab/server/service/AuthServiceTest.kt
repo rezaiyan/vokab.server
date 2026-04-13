@@ -3,7 +3,6 @@ package com.alirezaiyan.vokab.server.service
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.CiAuthConfig
 import com.alirezaiyan.vokab.server.config.JwtConfig
-import com.alirezaiyan.vokab.server.config.RevenueCatConfig
 import com.alirezaiyan.vokab.server.config.SecurityConfig
 import com.alirezaiyan.vokab.server.domain.entity.DailyActivity
 import com.alirezaiyan.vokab.server.domain.entity.DailyInsight
@@ -23,12 +22,12 @@ import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
 import com.alirezaiyan.vokab.server.domain.repository.ReviewEventRepository
 import com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository
 import com.alirezaiyan.vokab.server.domain.repository.SubscriptionRepository
+import com.alirezaiyan.vokab.server.domain.repository.UserPlatformRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserSettingsRepository
 import com.alirezaiyan.vokab.server.domain.repository.WordRepository
 import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
-import com.alirezaiyan.vokab.server.service.AppConfigService
 import io.mockk.every
 import io.mockk.just
 import io.mockk.justRun
@@ -37,6 +36,7 @@ import io.mockk.Runs
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -57,6 +57,7 @@ class AuthServiceTest {
     private lateinit var dailyActivityRepository: DailyActivityRepository
     private lateinit var subscriptionRepository: SubscriptionRepository
     private lateinit var pushTokenRepository: PushTokenRepository
+    private lateinit var userPlatformRepository: UserPlatformRepository
     private lateinit var dailyInsightRepository: DailyInsightRepository
     private lateinit var reviewEventRepository: ReviewEventRepository
     private lateinit var studySessionRepository: StudySessionRepository
@@ -66,6 +67,7 @@ class AuthServiceTest {
     private lateinit var eventService: EventService
     private lateinit var webClientBuilder: WebClient.Builder
     private lateinit var appConfigService: AppConfigService
+    private lateinit var geoLocationService: GeoLocationService
 
     private lateinit var authService: AuthService
 
@@ -81,6 +83,7 @@ class AuthServiceTest {
         dailyActivityRepository = mockk()
         subscriptionRepository = mockk()
         pushTokenRepository = mockk()
+        userPlatformRepository = mockk(relaxed = true)
         dailyInsightRepository = mockk()
         reviewEventRepository = mockk()
         studySessionRepository = mockk()
@@ -89,6 +92,7 @@ class AuthServiceTest {
         eventService = mockk(relaxed = true)
         appConfigService = mockk()
         every { appConfigService.getTestEmails() } returns emptySet()
+        geoLocationService = mockk(relaxed = true)
 
         appProperties = AppProperties(
             jwt = JwtConfig(refreshExpirationMs = 7_776_000_000L, refreshTokenGracePeriodMs = 30_000L),
@@ -111,6 +115,7 @@ class AuthServiceTest {
             dailyActivityRepository = dailyActivityRepository,
             subscriptionRepository = subscriptionRepository,
             pushTokenRepository = pushTokenRepository,
+            userPlatformRepository = userPlatformRepository,
             dailyInsightRepository = dailyInsightRepository,
             reviewEventRepository = reviewEventRepository,
             studySessionRepository = studySessionRepository,
@@ -118,6 +123,7 @@ class AuthServiceTest {
             appProperties = appProperties,
             auditLogService = auditLogService,
             eventService = eventService,
+            geoLocationService = geoLocationService,
             webClientBuilder = webClientBuilder,
             appConfigService = appConfigService
         )
@@ -226,6 +232,70 @@ class AuthServiceTest {
         // Assert
         assertNotNull(savedUser)
         assertEquals(SubscriptionStatus.FREE, savedUser!!.subscriptionStatus)
+    }
+
+    @Test
+    fun `authenticateForCi should set subscription to FREE when premium is false`() {
+        // Arrange — existing user with ACTIVE subscription; premium=false should strip it
+        val existingUser = createUser(id = 60L, email = "ci@test.vokab.dev",
+            subscriptionStatus = SubscriptionStatus.ACTIVE)
+        every { userRepository.findByEmail("ci@test.vokab.dev") } returns Optional.of(existingUser)
+        var savedUser: User? = null
+        every { userRepository.save(any()) } answers {
+            savedUser = firstArg()
+            firstArg()
+        }
+        stubTokenGeneration(existingUser)
+
+        // Act
+        authService.authenticateForCi(premium = false)
+
+        // Assert
+        assertNotNull(savedUser)
+        assertEquals(SubscriptionStatus.FREE, savedUser!!.subscriptionStatus)
+        assertNull(savedUser!!.subscriptionExpiresAt)
+    }
+
+    @Test
+    fun `authenticateForCi should record platform when a known platform is provided`() {
+        // Arrange
+        val existingUser = createUser(id = 61L, email = "ci@test.vokab.dev")
+        every { userRepository.findByEmail("ci@test.vokab.dev") } returns Optional.of(existingUser)
+        every { userRepository.save(any()) } returns existingUser
+        stubTokenGeneration(existingUser)
+
+        // Act
+        authService.authenticateForCi(platform = "ios", appVersion = "2.5.0")
+
+        // Assert — platform recorded with resolved version
+        verify { userPlatformRepository.upsertPlatform(existingUser.id!!, "IOS", "2.5.0") }
+    }
+
+    @Test
+    fun `authenticateForCi should skip platform recording for unknown platform value`() {
+        // Arrange
+        val existingUser = createUser(id = 62L, email = "ci@test.vokab.dev")
+        every { userRepository.findByEmail("ci@test.vokab.dev") } returns Optional.of(existingUser)
+        every { userRepository.save(any()) } returns existingUser
+        stubTokenGeneration(existingUser)
+
+        // Act — unknown platform must not throw
+        assertDoesNotThrow { authService.authenticateForCi(platform = "unknown_platform") }
+
+        // Assert — upsertPlatform must NOT be called when platform is unrecognised
+        verify(exactly = 0) { userPlatformRepository.upsertPlatform(any(), any(), any()) }
+    }
+
+    @Test
+    fun `authenticateForCi should absorb exception thrown by upsertPlatform`() {
+        val existingUser = createUser(id = 63L, email = "ci@test.vokab.dev")
+        every { userRepository.findByEmail("ci@test.vokab.dev") } returns Optional.of(existingUser)
+        every { userRepository.save(any()) } returns existingUser
+        stubTokenGeneration(existingUser)
+        every { userPlatformRepository.upsertPlatform(any(), any(), any()) } throws RuntimeException("db error")
+
+        // Exception must be absorbed — auth response must still be returned
+        assertDoesNotThrow { authService.authenticateForCi(platform = "ios") }
     }
 
     // ── refreshAccessToken ────────────────────────────────────────────────────
@@ -773,6 +843,7 @@ class AuthServiceTest {
             dailyActivityRepository = dailyActivityRepository,
             subscriptionRepository = subscriptionRepository,
             pushTokenRepository = pushTokenRepository,
+            userPlatformRepository = userPlatformRepository,
             dailyInsightRepository = dailyInsightRepository,
             reviewEventRepository = reviewEventRepository,
             studySessionRepository = studySessionRepository,
@@ -780,6 +851,7 @@ class AuthServiceTest {
             appProperties = properties,
             auditLogService = auditLogService,
             eventService = eventService,
+            geoLocationService = geoLocationService,
             webClientBuilder = builder,
             appConfigService = appConfigService
         )

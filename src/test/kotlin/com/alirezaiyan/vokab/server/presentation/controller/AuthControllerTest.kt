@@ -59,7 +59,7 @@ class AuthControllerTest {
     @Test
     fun `POST google should return 200 with auth response when credentials are valid`() {
         val authResponse = createAuthResponse()
-        `when`(authService.authenticateWithGoogle("valid-google-token")).thenReturn(authResponse)
+        `when`(authService.authenticateWithGoogle("valid-google-token", null, null, "127.0.0.1")).thenReturn(authResponse)
 
         mockMvc.perform(
             post("/api/v1/auth/google")
@@ -74,7 +74,7 @@ class AuthControllerTest {
 
     @Test
     fun `POST google should return 401 when service throws`() {
-        `when`(authService.authenticateWithGoogle("bad-token"))
+        `when`(authService.authenticateWithGoogle("bad-token", null, null, "127.0.0.1"))
             .thenThrow(RuntimeException("Invalid Google token"))
 
         mockMvc.perform(
@@ -101,7 +101,7 @@ class AuthControllerTest {
     @Test
     fun `POST apple should return 200 with auth response when credentials are valid`() {
         val authResponse = createAuthResponse()
-        `when`(authService.authenticateWithApple("valid-apple-token", null, null)).thenReturn(authResponse)
+        `when`(authService.authenticateWithApple("valid-apple-token", null, null, null, null, "127.0.0.1")).thenReturn(authResponse)
 
         mockMvc.perform(
             post("/api/v1/auth/apple")
@@ -116,7 +116,7 @@ class AuthControllerTest {
     @Test
     fun `POST apple should return 200 with full name when provided`() {
         val authResponse = createAuthResponse()
-        `when`(authService.authenticateWithApple("valid-apple-token", "Jane Doe", "apple-uid-123"))
+        `when`(authService.authenticateWithApple("valid-apple-token", "Jane Doe", "apple-uid-123", null, null, "127.0.0.1"))
             .thenReturn(authResponse)
 
         mockMvc.perform(
@@ -132,7 +132,7 @@ class AuthControllerTest {
 
     @Test
     fun `POST apple should return 401 when service throws`() {
-        `when`(authService.authenticateWithApple("bad-apple-token", null, null))
+        `when`(authService.authenticateWithApple("bad-apple-token", null, null, null, null, "127.0.0.1"))
             .thenThrow(RuntimeException("Invalid Apple token"))
 
         mockMvc.perform(

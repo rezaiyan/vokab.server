@@ -8,6 +8,7 @@ data class SettingsDto(
     val languageCode: String,
     val themeMode: String,
     val notificationsEnabled: Boolean,
+    val reviewRemindersEnabled: Boolean = true,
     @field:Pattern(regexp = "^([01]?\\d|2[0-3]):[0-5]\\d$", message = "Must be HH:MM format")
     val dailyReminderTime: String = "18:00",
     @field:Pattern(regexp = "^(DAILY|EVERY_OTHER_DAY|WEEKLY|OFF)$", message = "Must be one of: DAILY, EVERY_OTHER_DAY, WEEKLY, OFF")

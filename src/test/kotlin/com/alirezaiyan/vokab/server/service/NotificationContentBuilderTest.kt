@@ -382,6 +382,45 @@ class NotificationContentBuilderTest {
         assertTrue(result.body.contains("fluency"))
     }
 
+    // ── REVIEW_REMINDER ────────────────────────────────────────────────────────
+
+    @Test
+    fun `should return REVIEW_REMINDER payload with due card count and estimated time when cards are due`() {
+        // Arrange
+        val user = createUser()
+        val stats = createProgressStats(dueCards = 15)
+        every { userProgressService.calculateProgressStats(user) } returns stats
+
+        // Act
+        val result = notificationContentBuilder.build(user, NotificationType.REVIEW_REMINDER)
+
+        // Assert
+        assertEquals(NotificationType.REVIEW_REMINDER, result.type)
+        assertEquals("📚 Time to review!", result.title)
+        assertTrue(result.body.contains("15"))
+        assertTrue(result.body.contains("min"))
+        assertEquals("review_reminder", result.data["type"])
+        assertEquals("vokab://review", result.data["deep_link"])
+    }
+
+    @Test
+    fun `should return REVIEW_REMINDER payload with generic message when no cards are due`() {
+        // Arrange
+        val user = createUser()
+        val stats = createProgressStats(dueCards = 0)
+        every { userProgressService.calculateProgressStats(user) } returns stats
+
+        // Act
+        val result = notificationContentBuilder.build(user, NotificationType.REVIEW_REMINDER)
+
+        // Assert
+        assertEquals(NotificationType.REVIEW_REMINDER, result.type)
+        assertEquals("📚 Time to review!", result.title)
+        assertTrue(result.body.contains("streak"))
+        assertEquals("review_reminder", result.data["type"])
+        assertEquals("vokab://review", result.data["deep_link"])
+    }
+
     // ── NONE ──────────────────────────────────────────────────────────────────
 
     @Test

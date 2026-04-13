@@ -121,6 +121,9 @@ app:
     secret: ${CI_TEST_SECRET:}
     test-email: ${CI_TEST_EMAIL:ci-maestro@test.vokab.dev}
 
+  geolocation:
+    database-path: ${GEOLITE2_COUNTRY_DB_PATH:}
+
   github-vocabulary:
     repo-url: ${GITHUB_REPO_URL:https://api.github.com/repos/rezaiyan/Vokab-collection}
     # GitHub personal access token for higher rate limits (5000/hour instead of 60/hour)

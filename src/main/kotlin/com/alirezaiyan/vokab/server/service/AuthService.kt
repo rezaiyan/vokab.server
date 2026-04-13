@@ -1,12 +1,13 @@
 package com.alirezaiyan.vokab.server.service
 
 import com.alirezaiyan.vokab.server.domain.entity.NotificationCategory
+import com.alirezaiyan.vokab.server.domain.entity.Platform
 import com.alirezaiyan.vokab.server.domain.entity.RefreshToken
 import com.alirezaiyan.vokab.server.domain.entity.User
 import com.alirezaiyan.vokab.server.domain.repository.RefreshTokenRepository
+import com.alirezaiyan.vokab.server.domain.repository.UserPlatformRepository
 import com.alirezaiyan.vokab.server.domain.repository.UserRepository
 import com.alirezaiyan.vokab.server.presentation.dto.AuthResponse
-import com.alirezaiyan.vokab.server.presentation.dto.TrackEventRequest
 import com.alirezaiyan.vokab.server.presentation.dto.UserDto
 import com.alirezaiyan.vokab.server.security.RS256JwtTokenProvider
 import com.alirezaiyan.vokab.server.service.push.PushNotificationService
@@ -37,6 +38,7 @@ class AuthService(
     private val dailyActivityRepository: com.alirezaiyan.vokab.server.domain.repository.DailyActivityRepository,
     private val subscriptionRepository: com.alirezaiyan.vokab.server.domain.repository.SubscriptionRepository,
     private val pushTokenRepository: com.alirezaiyan.vokab.server.domain.repository.PushTokenRepository,
+    private val userPlatformRepository: UserPlatformRepository,
     private val dailyInsightRepository: com.alirezaiyan.vokab.server.domain.repository.DailyInsightRepository,
     private val reviewEventRepository: com.alirezaiyan.vokab.server.domain.repository.ReviewEventRepository,
     private val studySessionRepository: com.alirezaiyan.vokab.server.domain.repository.StudySessionRepository,
@@ -45,6 +47,7 @@ class AuthService(
     private val appConfigService: AppConfigService,
     private val auditLogService: AuditLogService,
     private val eventService: EventService,
+    private val geoLocationService: GeoLocationService,
     webClientBuilder: WebClient.Builder
 ) {
     private val webClient = webClientBuilder.build()
@@ -58,7 +61,7 @@ class AuthService(
      * @throws IllegalArgumentException if token is invalid or email is missing
      */
     @Transactional
-    fun authenticateWithGoogle(idToken: String): AuthResponse {
+    fun authenticateWithGoogle(idToken: String, platform: String? = null, appVersion: String? = null, ipAddress: String? = null): AuthResponse {
         val firebaseToken = verifyFirebaseToken(idToken)
             ?: throw IllegalArgumentException("Invalid Firebase ID token")
 
@@ -70,14 +73,16 @@ class AuthService(
         val user = findOrCreateUser(firebaseToken)
         val isNewUser = user.id == null
         val savedUser = userRepository.save(user)
+        recordPlatform(savedUser.id!!, platform, appVersion)
 
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
         logger.info { "✅ User authenticated: userId=${savedUser.id}" }
-        auditLogService.logLogin(savedUser.id!!, savedUser.email, "Google", null, null)
+        auditLogService.logLogin(savedUser.id, savedUser.email, "Google", ipAddress, null)
+        if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
         if (isNewUser) {
-            eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "google"))
+            eventService.trackAsync(savedUser.id, "signup_completed", mapOf("provider" to "google"))
         }
         
         return AuthResponse(
@@ -103,7 +108,10 @@ class AuthService(
     fun authenticateWithApple(
         idToken: String,
         fullName: String?,
-        appleUserId: String?
+        appleUserId: String?,
+        platform: String? = null,
+        appVersion: String? = null,
+        ipAddress: String? = null
     ): AuthResponse {
         val appleToken = verifyAppleToken(idToken)
             ?: throw IllegalArgumentException("Invalid Apple ID token")
@@ -125,14 +133,16 @@ class AuthService(
         val user = findOrCreateAppleUser(resolvedAppleId, resolvedEmail, fullName, email == null)
         val isNewUser = user.id == null
         val savedUser = userRepository.save(user)
+        recordPlatform(savedUser.id!!, platform, appVersion)
 
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
         logger.info { "✅ User authenticated with Apple: userId=${savedUser.id}" }
-        auditLogService.logLogin(savedUser.id!!, savedUser.email, "Apple", null, null)
+        auditLogService.logLogin(savedUser.id, savedUser.email, "Apple", ipAddress, null)
+        if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
         if (isNewUser) {
-            eventService.trackAsync(savedUser.id!!, "signup_completed", mapOf("provider" to "apple"))
+            eventService.trackAsync(savedUser.id, "signup_completed", mapOf("provider" to "apple"))
         }
         
         return AuthResponse(
@@ -152,7 +162,7 @@ class AuthService(
      *   subscription to FREE so non-premium gating can be tested.
      */
     @Transactional
-    fun authenticateForCi(premium: Boolean = true): AuthResponse {
+    fun authenticateForCi(premium: Boolean = true, platform: String? = null, appVersion: String? = null): AuthResponse {
         val email = appProperties.ciAuth.testEmail
         logger.info { "CI authentication for test user (premium=$premium)" }
 
@@ -179,11 +189,12 @@ class AuthService(
             }
 
         val savedUser = userRepository.save(user)
+        recordPlatform(savedUser.id!!, platform, appVersion)
         val tokenPair = generateTokenPair(savedUser)
         saveRefreshToken(tokenPair.refreshToken, savedUser)
 
         logger.info { "CI test user authenticated: userId=${savedUser.id}" }
-        auditLogService.logLogin(savedUser.id!!, savedUser.email, "CI", null, null)
+        auditLogService.logLogin(savedUser.id, savedUser.email, "CI", null, null)
 
         return AuthResponse(
             accessToken = tokenPair.accessToken,
@@ -198,6 +209,25 @@ class AuthService(
      */
     private fun isTestUser(email: String): Boolean =
         email in appConfigService.getTestEmails()
+
+    private fun recordPlatform(userId: Long, platform: String?, appVersion: String? = null) {
+        if (platform.isNullOrBlank()) return
+        val platformEnum = when (platform.trim().lowercase()) {
+            "android" -> Platform.ANDROID
+            "ios" -> Platform.IOS
+            "web" -> Platform.WEB
+            else -> {
+                logger.warn { "Unknown platform value '$platform' for userId=$userId — skipping" }
+                return
+            }
+        }
+        val resolvedVersion = appVersion?.takeIf { it.isNotBlank() && it != "unknown" }
+        try {
+            userPlatformRepository.upsertPlatform(userId, platformEnum.name, resolvedVersion)
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to record platform '$platformEnum' for userId=$userId" }
+        }
+    }
 
     /**
      * Apply premium access to test users
@@ -450,7 +480,7 @@ class AuthService(
         refreshTokenRepository.save(updatedOldToken)
 
         logger.info { "✅ Tokens rotated for userId=${user.id}" }
-        auditLogService.logRefresh(user.id!!, user.email, "N/A", null, null)
+        auditLogService.logRefresh(user.id, user.email, "N/A", null, null)
         
         return AuthResponse(
             accessToken = newAccessToken,
@@ -694,7 +724,7 @@ class AuthService(
             }
             
             // Decode header to get kid
-            val headerJson = String(java.util.Base64.getUrlDecoder().decode(parts[0]))
+            val headerJson = String(Base64.getUrlDecoder().decode(parts[0]))
             val objectMapper = com.fasterxml.jackson.databind.ObjectMapper()
             val header = objectMapper.readValue(headerJson, Map::class.java) as Map<String, Any>
             

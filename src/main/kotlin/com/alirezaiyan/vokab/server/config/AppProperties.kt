@@ -15,7 +15,8 @@ data class AppProperties(
     var security: SecurityConfig = SecurityConfig(),
     var logging: LoggingConfig = LoggingConfig(),
     var vocabulary: VocabularyConfig = VocabularyConfig(),
-    var ciAuth: CiAuthConfig = CiAuthConfig()
+    var ciAuth: CiAuthConfig = CiAuthConfig(),
+    var geolocation: GeoLocationConfig = GeoLocationConfig()
 )
 
 data class JwtConfig(
@@ -82,4 +83,8 @@ data class CiAuthConfig(
     var enabled: Boolean = false,
     var secret: String = "",
     var testEmail: String = "ci-maestro@test.vokab.dev"
+)
+
+data class GeoLocationConfig(
+    var databasePath: String = ""
 )
