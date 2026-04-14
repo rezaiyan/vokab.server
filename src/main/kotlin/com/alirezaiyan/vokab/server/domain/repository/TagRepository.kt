@@ -26,7 +26,7 @@ interface TagRepository : JpaRepository<Tag, Long> {
         FROM Tag t
         LEFT JOIN t.words w
         WHERE t.user = :user
-        GROUP BY t
+        GROUP BY t.id, t.name, t.createdAt, t.updatedAt, t.user
     """)
     fun findAllWithWordCountByUser(user: User): List<Array<Any>>
 }
