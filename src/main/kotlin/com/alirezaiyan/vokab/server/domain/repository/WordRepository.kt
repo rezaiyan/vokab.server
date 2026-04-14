@@ -118,11 +118,12 @@ interface WordRepository : JpaRepository<Word, Long> {
     @Query(
         """
         INSERT INTO word_tags (word_id, tag_id)
-        SELECT w.id, t.tag_id
+        SELECT w.id, t.id
         FROM words w
-        JOIN unnest(CAST(:tagIds AS BIGINT[])) AS t(tag_id) ON TRUE
+        CROSS JOIN tags t
         WHERE w.id IN :wordIds
           AND w.user_id = :userId
+          AND t.id IN :tagIds
         ON CONFLICT DO NOTHING
         """,
         nativeQuery = true
