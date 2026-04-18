@@ -15,6 +15,8 @@ data class UserSignedUpEvent(
     val name: String,
     val email: String,
     val provider: String,
+    val platform: String? = null,
+    val country: String? = null,
     override val occurredAt: Instant = Instant.now()
 ) : DomainEvent
 
@@ -23,5 +25,7 @@ data class UserSignedInEvent(
     val name: String,
     val email: String,
     val provider: String,
+    val platform: String? = null,
+    val country: String? = null,
     override val occurredAt: Instant = Instant.now()
 ) : DomainEvent

@@ -86,6 +86,7 @@ class AuthService(
         logger.info { "✅ User authenticated: userId=${userId}" }
         auditLogService.logLogin(userId, savedUser.email, "Google", ipAddress, null)
         if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
+        val googleCountry = ipAddress?.let { geoLocationService.resolveCountry(it) }
         if (isNewUser) {
             eventService.trackAsync(savedUser.id, "signup_completed", mapOf("provider" to "google"))
             domainEventPublisher.publish(
@@ -93,7 +94,9 @@ class AuthService(
                     userId = savedUser.id,
                     name = savedUser.name,
                     email = savedUser.email,
-                    provider = "google"
+                    provider = "google",
+                    platform = platform,
+                    country = googleCountry,
                 )
             )
         } else {
@@ -102,7 +105,9 @@ class AuthService(
                     userId = savedUser.id,
                     name = savedUser.name,
                     email = savedUser.email,
-                    provider = "google"
+                    provider = "google",
+                    platform = platform,
+                    country = googleCountry,
                 )
             )
         }
@@ -164,6 +169,7 @@ class AuthService(
         logger.info { "✅ User authenticated with Apple: userId=${savedUser.id}" }
         auditLogService.logLogin(savedUser.id, savedUser.email, "Apple", ipAddress, null)
         if (ipAddress != null) geoLocationService.updateUserCountry(savedUser.id, ipAddress, isNewUser)
+        val appleCountry = ipAddress?.let { geoLocationService.resolveCountry(it) }
         if (isNewUser) {
             eventService.trackAsync(userId, "signup_completed", mapOf("provider" to "apple"))
             domainEventPublisher.publish(
@@ -171,7 +177,9 @@ class AuthService(
                     userId = savedUser.id,
                     name = savedUser.name,
                     email = savedUser.email,
-                    provider = "apple"
+                    provider = "apple",
+                    platform = platform,
+                    country = appleCountry,
                 )
             )
         } else {
@@ -180,7 +188,9 @@ class AuthService(
                     userId = userId,
                     name = savedUser.name,
                     email = savedUser.email,
-                    provider = "apple"
+                    provider = "apple",
+                    platform = platform,
+                    country = appleCountry,
                 )
             )
         }

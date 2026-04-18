@@ -2,6 +2,7 @@ package com.alirezaiyan.vokab.server.service.notification
 
 import com.alirezaiyan.vokab.server.config.AppProperties
 import com.alirezaiyan.vokab.server.config.NotificationsConfig
+import com.alirezaiyan.vokab.server.domain.event.UserSignedInEvent
 import com.alirezaiyan.vokab.server.domain.event.UserSignedUpEvent
 import io.mockk.mockk
 import io.mockk.verify
@@ -87,5 +88,85 @@ class AdminNotificationListenerTest {
 
         // Must not throw
         listener.onUserSignedUp(event)
+    }
+
+    @Test
+    fun `should send notification when user signs in`() {
+        val event = UserSignedInEvent(
+            userId = 1L,
+            name = "Ali",
+            email = "ali@example.com",
+            provider = "google"
+        )
+
+        listener.onUserSignedIn(event)
+
+        verify(exactly = 1) {
+            channel.send(
+                match { it.contains("Login") },
+                match { it.contains("Ali") && it.contains("google") }
+            )
+        }
+    }
+
+    @Test
+    fun `should include platform and country in signup notification when present`() {
+        val event = UserSignedUpEvent(
+            userId = 1L,
+            name = "Ali",
+            email = "ali@example.com",
+            provider = "google",
+            platform = "android",
+            country = "IR"
+        )
+
+        listener.onUserSignedUp(event)
+
+        verify(exactly = 1) {
+            channel.send(
+                any(),
+                match { it.contains("android") && it.contains("IR") }
+            )
+        }
+    }
+
+    @Test
+    fun `should include platform and country in login notification when present`() {
+        val event = UserSignedInEvent(
+            userId = 1L,
+            name = "Ali",
+            email = "ali@example.com",
+            provider = "apple",
+            platform = "ios",
+            country = "US"
+        )
+
+        listener.onUserSignedIn(event)
+
+        verify(exactly = 1) {
+            channel.send(
+                any(),
+                match { it.contains("ios") && it.contains("US") }
+            )
+        }
+    }
+
+    @Test
+    fun `should omit meta separator when platform and country are null`() {
+        val event = UserSignedInEvent(
+            userId = 1L,
+            name = "Ali",
+            email = "ali@example.com",
+            provider = "google"
+        )
+
+        listener.onUserSignedIn(event)
+
+        verify(exactly = 1) {
+            channel.send(
+                any(),
+                match { !it.contains("|") }
+            )
+        }
     }
 }
