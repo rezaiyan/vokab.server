@@ -46,8 +46,8 @@ interface NotificationScheduleRepository : JpaRepository<NotificationSchedule, L
           AND EXISTS (
             SELECT us FROM UserSettings us
             WHERE us.user = ns.user
-              AND us.notificationsEnabled = true
               AND us.reviewRemindersEnabled = true
+              AND (us.notificationsEnabled = false OR us.notificationFrequency = 'OFF')
           )
     """)
     fun findUsersForReviewReminders(@Param("hour") hour: Int): List<NotificationSchedule>
