@@ -110,10 +110,11 @@ class NotificationEngagementService(
     private fun computeSuppressedUntil(ignoreCount: Int): LocalDate? {
         val today = LocalDate.now(ZoneOffset.UTC)
         return when {
-            ignoreCount < 3  -> null
-            ignoreCount < 6  -> today.plusDays(3)
-            ignoreCount < 10 -> today.plusDays(7)
-            ignoreCount < 15 -> today.plusDays(14)
+            ignoreCount < 1  -> null
+            ignoreCount <= 2 -> today.plusDays(ignoreCount.toLong()) // 1st→+1d, 2nd→+2d
+            ignoreCount <= 5 -> today.plusDays(3)
+            ignoreCount <= 9 -> today.plusDays(7)
+            ignoreCount <= 14 -> today.plusDays(14)
             else             -> today.plusDays(30)
         }
     }

@@ -191,6 +191,48 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
+    fun `recordSendAndPersistLog should suppress for 1 day on first ignore`() {
+        // Arrange
+        val user = createUser(id = 1L)
+        // consecutiveIgnores is 0; after incrementing = 1 → 1-day suppression
+        val schedule = createSchedule(user, consecutiveIgnores = 0)
+        val previousLog = createNotificationLog(userId = 1L, openedAt = null)
+        every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
+        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
+        every { notificationScheduleRepository.save(schedule) } returns schedule
+        every { userSettingsRepository.findByUserId(1L) } returns null
+
+        // Act
+        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+
+        // Assert
+        assertEquals(1, schedule.consecutiveIgnores)
+        val expectedDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1)
+        assertEquals(expectedDate, schedule.suppressedUntil)
+    }
+
+    @Test
+    fun `recordSendAndPersistLog should suppress for 2 days on second ignore`() {
+        // Arrange
+        val user = createUser(id = 1L)
+        // consecutiveIgnores is 1; after incrementing = 2 → 2-day suppression
+        val schedule = createSchedule(user, consecutiveIgnores = 1)
+        val previousLog = createNotificationLog(userId = 1L, openedAt = null)
+        every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
+        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
+        every { notificationScheduleRepository.save(schedule) } returns schedule
+        every { userSettingsRepository.findByUserId(1L) } returns null
+
+        // Act
+        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+
+        // Assert
+        assertEquals(2, schedule.consecutiveIgnores)
+        val expectedDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(2)
+        assertEquals(expectedDate, schedule.suppressedUntil)
+    }
+
+    @Test
     fun `recordSendAndPersistLog should suppress for 3 days when 3 consecutive ignores`() {
         // Arrange
         val user = createUser(id = 1L)
