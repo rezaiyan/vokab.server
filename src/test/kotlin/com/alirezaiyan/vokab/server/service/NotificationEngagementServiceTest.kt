@@ -153,57 +153,54 @@ class NotificationEngagementServiceTest {
         verify(exactly = 0) { notificationScheduleRepository.save(any()) }
     }
 
-    // --- recordSendAndPersistLog ---
+    // --- recordSend ---
 
     @Test
-    fun `recordSendAndPersistLog should increment consecutiveIgnores when previous not opened`() {
+    fun `recordSend should increment consecutiveIgnores when previous not opened`() {
         // Arrange
         val user = createUser(id = 1L)
         val schedule = createSchedule(user, consecutiveIgnores = 0)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(1, schedule.consecutiveIgnores)
     }
 
     @Test
-    fun `recordSendAndPersistLog should not increment when no previous log`() {
+    fun `recordSend should not increment when no previous log`() {
         // Arrange
         val user = createUser(id = 1L)
         val schedule = createSchedule(user, consecutiveIgnores = 0)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns null
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(0, schedule.consecutiveIgnores)
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 1 day on first ignore`() {
+    fun `recordSend should suppress for 1 day on first ignore`() {
         // Arrange
         val user = createUser(id = 1L)
         // consecutiveIgnores is 0; after incrementing = 1 → 1-day suppression
         val schedule = createSchedule(user, consecutiveIgnores = 0)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(1, schedule.consecutiveIgnores)
@@ -212,19 +209,18 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 2 days on second ignore`() {
+    fun `recordSend should suppress for 2 days on second ignore`() {
         // Arrange
         val user = createUser(id = 1L)
         // consecutiveIgnores is 1; after incrementing = 2 → 2-day suppression
         val schedule = createSchedule(user, consecutiveIgnores = 1)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(2, schedule.consecutiveIgnores)
@@ -233,19 +229,18 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 3 days when 3 consecutive ignores`() {
+    fun `recordSend should suppress for 3 days when 3 consecutive ignores`() {
         // Arrange
         val user = createUser(id = 1L)
         // consecutiveIgnores is 2; after incrementing = 3 → 3-day suppression
         val schedule = createSchedule(user, consecutiveIgnores = 2)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(3, schedule.consecutiveIgnores)
@@ -254,19 +249,18 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 7 days when 6 consecutive ignores`() {
+    fun `recordSend should suppress for 7 days when 6 consecutive ignores`() {
         // Arrange
         val user = createUser(id = 1L)
         // consecutiveIgnores is 5; after incrementing = 6 → 7-day suppression
         val schedule = createSchedule(user, consecutiveIgnores = 5)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(6, schedule.consecutiveIgnores)
@@ -275,19 +269,18 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 14 days when 10 consecutive ignores`() {
+    fun `recordSend should suppress for 14 days when 10 consecutive ignores`() {
         // Arrange
         val user = createUser(id = 1L)
         // consecutiveIgnores is 9; after incrementing = 10 → 14-day suppression
         val schedule = createSchedule(user, consecutiveIgnores = 9)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(10, schedule.consecutiveIgnores)
@@ -296,19 +289,18 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 30 days when 15 or more consecutive ignores`() {
+    fun `recordSend should suppress for 30 days when 15 or more consecutive ignores`() {
         // Arrange
         val user = createUser(id = 1L)
         // consecutiveIgnores is 14; after incrementing = 15 → 30-day suppression
         val schedule = createSchedule(user, consecutiveIgnores = 14)
         val previousLog = createNotificationLog(userId = 1L, openedAt = null)
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns previousLog
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns null
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         assertEquals(15, schedule.consecutiveIgnores)
@@ -317,18 +309,17 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should apply frequency suppression for EVERY_OTHER_DAY`() {
+    fun `recordSend should apply frequency suppression for EVERY_OTHER_DAY`() {
         // Arrange
         val user = createUser(id = 1L)
         val schedule = createSchedule(user, consecutiveIgnores = 0)
         val settings = createUserSettings(notificationFrequency = "EVERY_OTHER_DAY")
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns null
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns settings
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         val expectedDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1)
@@ -336,18 +327,17 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should apply frequency suppression for WEEKLY`() {
+    fun `recordSend should apply frequency suppression for WEEKLY`() {
         // Arrange
         val user = createUser(id = 1L)
         val schedule = createSchedule(user, consecutiveIgnores = 0)
         val settings = createUserSettings(notificationFrequency = "WEEKLY")
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns null
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns settings
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         val expectedDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(6)
@@ -355,22 +345,36 @@ class NotificationEngagementServiceTest {
     }
 
     @Test
-    fun `recordSendAndPersistLog should suppress for 365 days for OFF frequency`() {
+    fun `recordSend should suppress for 365 days for OFF frequency`() {
         // Arrange
         val user = createUser(id = 1L)
         val schedule = createSchedule(user, consecutiveIgnores = 0)
         val settings = createUserSettings(notificationFrequency = "OFF")
         every { notificationLogRepository.findTopByUserIdOrderBySentAtDesc(1L) } returns null
-        every { notificationLogRepository.save(any()) } returns createNotificationLog(userId = 1L)
         every { notificationScheduleRepository.save(schedule) } returns schedule
         every { userSettingsRepository.findByUserId(1L) } returns settings
 
         // Act
-        notificationEngagementService.recordSendAndPersistLog(schedule, "DAILY_INSIGHT", "Title", "Body", null)
+        notificationEngagementService.recordSend(schedule, "DAILY_INSIGHT")
 
         // Assert
         val expectedDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(365)
         assertEquals(expectedDate, schedule.suppressedUntil)
+    }
+
+    // --- saveLog ---
+
+    @Test
+    fun `saveLog should persist notification log entry`() {
+        // Arrange
+        val savedLog = createNotificationLog(id = 1L, userId = 5L)
+        every { notificationLogRepository.save(any()) } returns savedLog
+
+        // Act
+        notificationEngagementService.saveLog(5L, "DAILY_INSIGHT", "Title", "Body", """{"type":"daily_insight"}""")
+
+        // Assert
+        verify(exactly = 1) { notificationLogRepository.save(any()) }
     }
 
     // --- getEngagementStats ---

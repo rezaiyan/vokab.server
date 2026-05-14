@@ -52,25 +52,22 @@ class NotificationEngagementService(
 
     /**
      * Called by SmartNotificationDispatcher after a successful push send.
-     * Atomically:
-     * 1. Checks if the previous notification was ignored and updates the decay counter.
-     * 2. Saves the notification log entry.
-     * 3. Updates and saves the schedule (lastSentDate, lastSentType, suppression).
+     * Commits schedule state (lastSentDate, suppression, ignore counter) in its own transaction.
+     * The log insert is intentionally separate — see saveLog() — so a log failure cannot
+     * roll back lastSentDate and cause the user to receive a second notification.
      *
      * Suppression schedule (days of silence after consecutive ignores):
-     *  0–2  ignores  → no suppression (normal daily sends)
+     *  1st ignore    → suppressed for 1 day
+     *  2nd ignore    → suppressed for 2 days
      *  3–5  ignores  → suppressed for 3 days
      *  6–9  ignores  → suppressed for 7 days
      *  10–14 ignores → suppressed for 14 days
      *  15+  ignores  → suppressed for 30 days (dormant nurture)
      */
     @Transactional
-    fun recordSendAndPersistLog(
+    fun recordSend(
         schedule: NotificationSchedule,
-        notificationType: String,
-        title: String?,
-        body: String?,
-        dataPayload: String?
+        notificationType: String
     ) {
         val userId = schedule.user.id!!
 
@@ -91,6 +88,26 @@ class NotificationEngagementService(
             }
         }
 
+        schedule.lastSentDate = LocalDate.now(ZoneOffset.UTC)
+        schedule.lastSentType = notificationType
+        schedule.updatedAt = Instant.now()
+        notificationScheduleRepository.save(schedule)
+
+        logger.debug { "Notification send recorded: user=$userId type=$notificationType" }
+    }
+
+    /**
+     * Persists the notification log entry in its own transaction.
+     * Called after recordSend() so that a failure here cannot roll back the schedule update.
+     */
+    @Transactional
+    fun saveLog(
+        userId: Long,
+        notificationType: String,
+        title: String?,
+        body: String?,
+        dataPayload: String?
+    ) {
         notificationLogRepository.save(
             NotificationLog(
                 userId = userId,
@@ -100,11 +117,6 @@ class NotificationEngagementService(
                 dataPayload = dataPayload
             )
         )
-
-        schedule.lastSentDate = LocalDate.now(ZoneOffset.UTC)
-        schedule.lastSentType = notificationType
-        schedule.updatedAt = Instant.now()
-        notificationScheduleRepository.save(schedule)
     }
 
     private fun computeSuppressedUntil(ignoreCount: Int): LocalDate? {
