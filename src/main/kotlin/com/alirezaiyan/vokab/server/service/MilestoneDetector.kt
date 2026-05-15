@@ -41,8 +41,8 @@ class MilestoneDetector(
             if (prevTotal < threshold && stats.totalWords >= threshold) {
                 return MilestoneEvent(
                     type = "words_added",
-                    title = "📚 $threshold words!",
-                    description = "$threshold words in your collection",
+                    title = "Vocabulary milestone!",
+                    description = "a vocabulary collection milestone",
                     value = threshold
                 )
             }
@@ -53,8 +53,8 @@ class MilestoneDetector(
             if (prevMastered < threshold && stats.level6Count >= threshold) {
                 return MilestoneEvent(
                     type = "words_mastered",
-                    title = "🎓 $threshold words mastered!",
-                    description = "$threshold words at full mastery",
+                    title = "Mastery milestone!",
+                    description = "a mastery milestone",
                     value = threshold
                 )
             }

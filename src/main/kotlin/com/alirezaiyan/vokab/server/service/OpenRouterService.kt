@@ -358,9 +358,9 @@ class OpenRouterService(
         logger.info { "Generating milestone message for ${userName ?: "user"}: ${milestone.type}" }
 
         val prompt = """
-            ${userName ?: "A learner"} just hit a vocabulary milestone: ${milestone.description}.
-            They have ${stats.totalWords} total words, ${stats.level6Count} fully mastered.
-            Write 1 sentence celebrating this specific achievement. Warm but not over-the-top. 1 emoji max.
+            ${userName ?: "A learner"} just hit ${milestone.description}.
+            Write 1 sentence celebrating this achievement. Warm but not over-the-top. 1 emoji max.
+            Do not mention any specific numbers or word counts.
             Return ONLY the message, no quotes or extra formatting.
         """.trimIndent()
 
