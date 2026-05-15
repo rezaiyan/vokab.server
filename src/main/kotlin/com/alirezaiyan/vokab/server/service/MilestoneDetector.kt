@@ -24,7 +24,7 @@ class MilestoneDetector(
         val value: Long
     )
 
-    private val wordMilestones = listOf(10L, 25, 50, 100, 250, 500, 1000, 2500, 5000)
+    private val wordMilestones = listOf(25L, 50, 100, 250, 500, 1000, 2500, 5000)
     private val masteredMilestones = listOf(1L, 5, 10, 25, 50, 100, 500)
 
     @Transactional(readOnly = true)
